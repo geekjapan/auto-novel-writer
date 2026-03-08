@@ -150,6 +150,12 @@ python -m pip install openai
 set OPENAI_API_KEY=your_api_key
 ```
 
+長編向け stop condition を試験的に調整したい場合:
+
+```bash
+novel-writer --theme "境界" --genre "SF" --tone "ビター" --target-length 5000 --max-high-severity-chapters 6 --max-total-rerun-attempts 12
+```
+
 ## 基本実行
 
 ```bash

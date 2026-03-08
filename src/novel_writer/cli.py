@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import argparse
+from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
 from novel_writer.llm_client import build_llm_client
 from novel_writer.pipeline import PIPELINE_STEP_ORDER, StoryPipeline
+from novel_writer.rerun_policy import ContinuityRerunPolicy
 from novel_writer.schema import StoryInput
 from novel_writer.storage import build_project_layout, load_artifact, load_project_manifest, save_project_manifest
 
@@ -25,6 +27,16 @@ def add_runtime_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--provider", default="mock", choices=["mock", "openai"], help="LLM provider")
     parser.add_argument("--model", default="gpt-4.1-mini", help="Model name for provider=openai")
     parser.add_argument("--format", default="json", choices=["json", "yaml"], help="Artifact serialization format")
+    parser.add_argument(
+        "--max-high-severity-chapters",
+        type=int,
+        help="Override long-run policy limit for high-severity chapters before stopping",
+    )
+    parser.add_argument(
+        "--max-total-rerun-attempts",
+        type=int,
+        help="Override long-run policy limit for total rerun attempts before stopping",
+    )
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -315,14 +327,35 @@ def run_pipeline(
     rerun_from: str | None = None,
 ):
     llm_client = build_llm_client(provider=args.provider, model=args.model)
-    pipeline = StoryPipeline(llm_client=llm_client, output_dir=output_dir, file_format=args.format)
+    pipeline = StoryPipeline(
+        llm_client=llm_client,
+        output_dir=output_dir,
+        file_format=args.format,
+        rerun_policy=build_rerun_policy_from_args(args),
+    )
     return pipeline.run(story_input=story_input, resume_from=resume_from, rerun_from=rerun_from)
 
 
 def rerun_project_chapter(args: argparse.Namespace, output_dir: Path):
     llm_client = build_llm_client(provider=args.provider, model=args.model)
-    pipeline = StoryPipeline(llm_client=llm_client, output_dir=output_dir, file_format=args.format)
+    pipeline = StoryPipeline(
+        llm_client=llm_client,
+        output_dir=output_dir,
+        file_format=args.format,
+        rerun_policy=build_rerun_policy_from_args(args),
+    )
     return pipeline.rerun_chapter(resume_from=output_dir, chapter_number=args.chapter_number)
+
+
+def build_rerun_policy_from_args(args: argparse.Namespace) -> ContinuityRerunPolicy:
+    config = deepcopy(ContinuityRerunPolicy().config)
+    long_run = dict(config.get("long_run", {}))
+    if getattr(args, "max_high_severity_chapters", None) is not None:
+        long_run["max_high_severity_chapters"] = args.max_high_severity_chapters
+    if getattr(args, "max_total_rerun_attempts", None) is not None:
+        long_run["max_total_rerun_attempts"] = args.max_total_rerun_attempts
+    config["long_run"] = long_run
+    return ContinuityRerunPolicy(config)
 
 
 def print_run_summary(artifacts, output_dir: Path, project_manifest: dict[str, Any] | None = None) -> None:

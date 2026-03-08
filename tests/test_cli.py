@@ -379,6 +379,37 @@ class CliTest(unittest.TestCase):
             self.assertIn("long_run_budget: remaining_rerun_attempt_budget=", output)
             self.assertIn("comparison_metrics: total_issue_score=", output)
 
+    def test_cli_can_override_long_run_policy_limits(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            exit_code = main(
+                [
+                    "create-project",
+                    "--theme",
+                    "境界",
+                    "--genre",
+                    "SF",
+                    "--tone",
+                    "ビター",
+                    "--target-length",
+                    "5000",
+                    "--project-id",
+                    "Policy 01",
+                    "--projects-dir",
+                    tmp_dir,
+                    "--max-high-severity-chapters",
+                    "2",
+                    "--max-total-rerun-attempts",
+                    "7",
+                ]
+            )
+
+            project_manifest = load_artifact(Path(tmp_dir) / "policy-01", "project_manifest")
+            policy_limits = project_manifest["current_run"]["long_run_status"]["policy_limits"]
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(policy_limits["max_high_severity_chapters"], 2)
+            self.assertEqual(policy_limits["max_total_rerun_attempts"], 7)
+
 
 if __name__ == "__main__":
     unittest.main()
