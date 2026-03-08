@@ -228,6 +228,15 @@ novel-writer rerun-chapter --project-id "my-story-01" --chapter-number 2
 `show-run-comparison` は `run_comparison_summary.json` を読み取り専用で表示し、comparison artifact 側の current / best / compact summary を確認できます。
 `select-best-run` は `run_candidates` から 1 つを手動で `best_run` に昇格します。
 
+読み分けの基準:
+
+- `show-project-status` は project manifest 中心の運用確認に使う
+- 確認対象: current run、best run、chapter status、long-run status、policy diff
+- 向いている用途: 途中再開前の状況確認、章ごとの rerun / revise 状態確認、project 単位の停止判断
+- `show-run-comparison` は comparison artifact 中心の比較確認に使う
+- 確認対象: current / best comparison context、selection source、compact summary
+- 向いている用途: run 候補比較、best_run 採用理由確認、downstream 向け comparison artifact の目視確認
+
 ## 主な出力物
 
 - `story_input`
@@ -284,7 +293,11 @@ novel-writer rerun-chapter --project-id "my-story-01" --chapter-number 2
 - `diff_policy.max_total_rerun_attempts` 相当は `compact_summary.policy_limits.max_total_rerun_attempts.current|best`
 - `selection_source` は status と `compact_summary` の両方で同じ語彙を使う
 
-status 表示は人間向けの要約、`run_comparison_summary.json` は下流処理向けの機械可読 artifact という役割で分けています。
+責務分担:
+
+- `show-project-status` は `project_manifest.json` を読む運用ビュー
+- `show-run-comparison` は `run_comparison_summary.json` を読む比較ビュー
+- status 表示は人間向けの project 運用要約、`run_comparison_summary.json` は比較・選抜・下流処理向けの機械可読 artifact
 
 `current_run` / `best_run` の比較根拠:
 

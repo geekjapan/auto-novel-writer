@@ -5,7 +5,7 @@
 
 ## In Progress
 
-- [ ] M28: `show-project-status` と `show-run-comparison` の責務差を README / ROADMAP / TASKS で整理する
+
 
 ## Ready
 
@@ -100,6 +100,7 @@
 - [x] Docs: M26-M27 実装後に ROADMAP / TASKS の説明を同期する
 - [x] M28: `run_comparison_summary.json` を読み取り専用で表示する `show-run-comparison` CLI を追加する
 - [x] M28: `show-run-comparison` の summary field 名と `run_comparison_summary.json` の field 名の対応を docs / tests で固定する
+- [x] M28: `show-project-status` と `show-run-comparison` の責務差を README / ROADMAP / TASKS で整理する
 
 ## Task Update Rules
 
