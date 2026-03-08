@@ -456,6 +456,7 @@ def build_project_status_lines(project_manifest: dict[str, Any]) -> list[str]:
                 f"total_issue_score={comparison_metrics.get('total_issue_score', 'n/a')}, "
                 f"completed_step_count={comparison_metrics.get('completed_step_count', 'n/a')}"
             )
+        lines.extend(_build_policy_diff_lines(current_run.get("policy_snapshot", {}), best_run.get("policy_snapshot", {})))
 
     run_candidates = project_manifest.get("run_candidates", [])
     lines.append(f"Run candidates: {len(run_candidates)}")
@@ -502,6 +503,25 @@ def _build_long_run_status_lines(long_run_status: dict[str, Any]) -> list[str]:
         f"remaining_rerun_attempt_budget={long_run_status.get('remaining_rerun_attempt_budget', 'n/a')}, "
         f"remaining_high_severity_chapter_budget={long_run_status.get('remaining_high_severity_chapter_budget', 'n/a')}",
     ]
+
+
+def _build_policy_diff_lines(current_policy: dict[str, Any], best_policy: dict[str, Any]) -> list[str]:
+    current_long_run = current_policy.get("long_run", {})
+    best_long_run = best_policy.get("long_run", {})
+    if not current_long_run and not best_long_run:
+        return []
+
+    diff_lines: list[str] = []
+    compared_keys = [
+        "max_high_severity_chapters",
+        "max_total_rerun_attempts",
+    ]
+    for key in compared_keys:
+        current_value = current_long_run.get(key, "n/a")
+        best_value = best_long_run.get(key, "n/a")
+        if current_value != best_value:
+            diff_lines.append(f"  policy_diff.{key}: current={current_value}, best={best_value}")
+    return diff_lines
 
 
 def print_project_status(project_manifest: dict[str, Any]) -> None:

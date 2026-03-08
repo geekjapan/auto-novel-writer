@@ -24,6 +24,8 @@ CLI から小説プロジェクトを作成し、章単位・作品単位で
 - `publish_ready_bundle.json` は `schema_version=1.0` の固定 contract を持つ
 - `project_manifest.json` も `schema_name=project_manifest`, `schema_version=1.0` を持ち、保存時・読込時に validation される
 - `publish_ready_bundle.sections` は `manuscript` / `story_summary` / `quality` contract を持つ
+- `run_comparison_summary.json` も `schema_name=run_comparison_summary`, `schema_version=1.0` を持ち、保存時・読込時に validation される
+- `show-project-status` から current run と best run の policy 差分を確認できる
 
 ## 現在地の整理
 
@@ -145,13 +147,28 @@ chapter 配列ベースの内部正本、chapter 1 互換 artifact、publish-rea
 
 `publish_ready_bundle.sections` の key と field 対応は validator / docs / tests で固定済み。
 
+### M19. 比較成果物 contract の固定
+
+`run_comparison_summary.json` の schema と manual selection metadata は validator / docs / tests で固定済み。
+
+## 現在の本命
+
+### M20. 比較運用の観測性強化
+
+目的:
+比較 artifact、status 表示、manual selection の関係を人間にも機械にも追いやすくする。
+
+完了条件:
+
+- `show-project-status` で manual / automatic selection source を確認できる
+- current run と best run の差分が policy 以外にも読みやすく整理される
+- comparison artifact を下流で扱うための要約 contract が安定する
+
 ## Sequencing Rationale
 
-- まず M14 で「今どの run がどういう状態か」を安全に読めるようにする
-- 次に M15 で artifact contract を validator と versioning で守る
-- その後 M16 で長編運用ポリシーを外から調整できるようにする
-- さらに M17 で run 比較と採用フローを成果物として扱う
-- 最後に M18 で publish-ready bundle を downstream 前提で固める
+- まず M20 で比較運用の観測性を上げる
+- 次に comparison artifact と status 表示の責務分離を進める
+- その後に export / downstream 連携を広げる
 
 ## Roadmap Notes
 

@@ -5,11 +5,13 @@
 
 ## In Progress
 
-- [ ] M19: `show-project-status` から current run と best run の policy 差分を表示する
+- [ ] M20: `show-project-status` に selection source と selection reason の要約を表示する
 
 ## Ready
 
-- [ ] Docs: M16-M18 実装後に README / ROADMAP / TASKS の説明を同期する
+- [ ] M20: current run と best run の issue / step / policy 差分を status 出力でまとめて見やすくする
+- [ ] M20: `run_comparison_summary.json` に status 表示用の compact summary を追加する
+- [ ] Docs: M16-M19 実装後に README / ROADMAP / TASKS の説明を同期する
 
 ## Done
 
@@ -71,6 +73,8 @@
 - [x] Docs: M16-M18 実装後に README / ROADMAP / TASKS の説明を同期する
 - [x] M19: `run_comparison_summary.json` の validator と schema version を追加する
 - [x] M19: `select-best-run` の manual selection reason を comparison summary に残す
+- [x] M19: `show-project-status` から current run と best run の policy 差分を表示する
+- [x] Docs: M16-M19 実装後に README / ROADMAP / TASKS の説明を同期する
 
 ## Task Update Rules
 

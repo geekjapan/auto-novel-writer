@@ -487,6 +487,78 @@ class CliTest(unittest.TestCase):
             self.assertEqual(comparison_summary["best_run"]["selection_source"], "manual")
             self.assertIn("manual_selection=candidate-b", comparison_summary["best_run"]["selection_reason"][0])
 
+    def test_show_project_status_displays_policy_diff_against_best_run(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            main(
+                [
+                    "create-project",
+                    "--theme",
+                    "秘密",
+                    "--genre",
+                    "ミステリ",
+                    "--tone",
+                    "静謐",
+                    "--target-length",
+                    "5000",
+                    "--project-id",
+                    "Diff 01",
+                    "--projects-dir",
+                    tmp_dir,
+                    "--output-dir",
+                    str(Path(tmp_dir) / "candidate-a"),
+                    "--max-high-severity-chapters",
+                    "2",
+                ]
+            )
+            main(
+                [
+                    "create-project",
+                    "--theme",
+                    "秘密",
+                    "--genre",
+                    "ミステリ",
+                    "--tone",
+                    "静謐",
+                    "--target-length",
+                    "5000",
+                    "--project-id",
+                    "Diff 01",
+                    "--projects-dir",
+                    tmp_dir,
+                    "--output-dir",
+                    str(Path(tmp_dir) / "candidate-b"),
+                    "--max-high-severity-chapters",
+                    "6",
+                ]
+            )
+            main(
+                [
+                    "select-best-run",
+                    "--project-id",
+                    "Diff 01",
+                    "--projects-dir",
+                    tmp_dir,
+                    "--run-name",
+                    "candidate-a",
+                ]
+            )
+
+            buffer = io.StringIO()
+            with redirect_stdout(buffer):
+                exit_code = main(
+                    [
+                        "show-project-status",
+                        "--project-id",
+                        "Diff 01",
+                        "--projects-dir",
+                        tmp_dir,
+                    ]
+                )
+
+            output = buffer.getvalue()
+            self.assertEqual(exit_code, 0)
+            self.assertIn("policy_diff.max_high_severity_chapters: current=6, best=2", output)
+
 
 if __name__ == "__main__":
     unittest.main()
