@@ -64,6 +64,33 @@ def publish_ready_bundle_contract() -> dict:
     }
 
 
+def validate_publish_ready_bundle(payload: dict) -> dict:
+    contract = publish_ready_bundle_contract()
+    missing_fields = [field for field in contract["required_fields"] if field not in payload]
+    if missing_fields:
+        missing = ", ".join(sorted(missing_fields))
+        raise ValueError(
+            "Invalid publish_ready_bundle: missing required fields: "
+            f"{missing}. Regenerate the publish bundle from the pipeline."
+        )
+
+    schema_version = payload.get("schema_version")
+    if schema_version != contract["schema_version"]:
+        raise ValueError(
+            "Invalid publish_ready_bundle: "
+            f"schema_version={schema_version!r} is not supported; expected {contract['schema_version']!r}."
+        )
+
+    bundle_type = payload.get("bundle_type")
+    if bundle_type != contract["schema_name"]:
+        raise ValueError(
+            "Invalid publish_ready_bundle: "
+            f"bundle_type={bundle_type!r} is not supported; expected {contract['schema_name']!r}."
+        )
+
+    return payload
+
+
 def project_manifest_contract() -> dict:
     return {
         "schema_name": "project_manifest",

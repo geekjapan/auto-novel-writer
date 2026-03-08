@@ -5,7 +5,11 @@ import re
 from pathlib import Path
 from typing import Any
 
-from novel_writer.schema import project_manifest_contract, validate_project_manifest
+from novel_writer.schema import (
+    project_manifest_contract,
+    validate_project_manifest,
+    validate_publish_ready_bundle,
+)
 
 
 SUPPORTED_FORMATS = ("json", "yaml")
@@ -92,6 +96,17 @@ def save_project_manifest(
 def load_project_manifest(project_dir: Path, file_format: str | None = None) -> dict[str, Any]:
     payload = load_artifact(project_dir, "project_manifest", file_format)
     validate_project_manifest(payload)
+    return payload
+
+
+def save_publish_ready_bundle(output_dir: Path, payload: Any, file_format: str = "json") -> Path:
+    validate_publish_ready_bundle(payload)
+    return save_artifact(output_dir, "publish_ready_bundle", payload, file_format)
+
+
+def load_publish_ready_bundle(output_dir: Path, file_format: str | None = None) -> dict[str, Any]:
+    payload = load_artifact(output_dir, "publish_ready_bundle", file_format)
+    validate_publish_ready_bundle(payload)
     return payload
 
 

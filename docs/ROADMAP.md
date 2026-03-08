@@ -20,6 +20,7 @@ CLI から小説プロジェクトを作成し、章単位・作品単位で
 - `rerun-chapter` は任意章で動く
 - `best_run` には comparison metrics、selection reason、long-run status が保存される
 - `publish_ready_bundle.json` は `schema_version=1.0` の固定 contract を持つ
+- `project_manifest.json` も `schema_name=project_manifest`, `schema_version=1.0` を持ち、保存時・読込時に validation される
 
 ## 現在地の整理
 
@@ -96,6 +97,10 @@ chapter 配列ベースの内部正本、chapter 1 互換 artifact、publish-rea
 
 `long_run_status` に停止理由、予算、resume guidance を保存し、`publish_ready_bundle.json` の contract も固定済み。
 
+### M15. artifact schema 検証
+
+`project_manifest.json` と `publish_ready_bundle.json` は `1.0` contract を持ち、保存時・読込時に validator で検証される。
+
 ## 現在の本命
 
 ### M14. 運用観測性の強化
@@ -110,17 +115,6 @@ chapter 配列ベースの内部正本、chapter 1 互換 artifact、publish-rea
 - 章別の issue 数、rerun 回数、revise 回数を人間が追いやすい
 
 ## 次のマイルストーン
-
-### M15. artifact schema 検証
-
-目的:
-manifest と publish bundle の contract を docs 上の説明だけでなく、保存時・読込時の検証として扱えるようにする。
-
-完了条件:
-
-- `project_manifest.json` と `publish_ready_bundle.json` の validator がある
-- schema/version 不整合を actionable なエラーとして出せる
-- compatibility layer と canonical state の境界が validator 上でも明確になる
 
 ### M16. 長編運用ポリシーの外部化
 

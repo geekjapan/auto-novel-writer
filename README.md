@@ -252,6 +252,13 @@ novel-writer rerun-chapter --project-id "my-story-01" --chapter-number 2
 `publish_ready_bundle.json` は `schema_version=1.0` の固定 schema を持ち、downstream 利用向けに `source_artifacts` と `sections` を含みます。
 `project_manifest.json` も `schema_name=project_manifest` と `schema_version=1.0` を持ち、保存時・読込時に validation されます。
 
+schema version の現方針:
+
+- `project_manifest.json` は `schema_name=project_manifest`, `schema_version=1.0`
+- `publish_ready_bundle.json` は `bundle_type=publish_ready_bundle`, `schema_version=1.0`
+- 不正な version や必須 field 欠落は fail fast で弾く
+- 将来 version を上げる場合は、互換維持または明示的な migration を伴わせる
+
 ## 現時点でできること
 
 - 章計画に基づく全章 draft 生成

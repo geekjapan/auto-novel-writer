@@ -8,7 +8,7 @@ from novel_writer.continuity import ContinuityChecker
 from novel_writer.llm_client import BaseLLMClient
 from novel_writer.rerun_policy import ContinuityRerunPolicy
 from novel_writer.schema import StoryArtifacts, StoryInput
-from novel_writer.storage import load_artifact, save_artifact
+from novel_writer.storage import load_artifact, load_publish_ready_bundle, save_artifact, save_publish_ready_bundle
 
 
 PIPELINE_STEP_ORDER = [
@@ -383,6 +383,11 @@ class StoryPipeline:
         ]:
             if field_name in artifacts_data:
                 setattr(artifacts, field_name, artifacts_data[field_name])
+        if not artifacts.publish_ready_bundle:
+            try:
+                artifacts.publish_ready_bundle = load_publish_ready_bundle(resume_from)
+            except FileNotFoundError:
+                pass
         artifacts.normalize_chapter_artifacts()
         return (
             artifacts,
@@ -635,7 +640,7 @@ class StoryPipeline:
             },
             "sections": bundle_contract["sections"],
         }
-        save_artifact(self.output_dir, "publish_ready_bundle", artifacts.publish_ready_bundle, "json")
+        save_publish_ready_bundle(self.output_dir, artifacts.publish_ready_bundle, "json")
         self._mark_checkpoint("publish_ready_bundle", checkpoints, artifacts, selected_logline)
 
     def _maybe_rerun_from_decision(
