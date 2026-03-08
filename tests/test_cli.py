@@ -502,9 +502,11 @@ class CliTest(unittest.TestCase):
             self.assertEqual(project_manifest["best_run"]["run_name"], "candidate-b")
             self.assertEqual(project_manifest["best_run"]["selection_source"], "manual")
             self.assertIn("manual_selection=candidate-b", project_manifest["best_run"]["selection_reason"][0])
+            self.assertEqual(project_manifest["best_run"]["selection_reason_details"][0]["code"], "manual_selection")
             self.assertEqual(comparison_summary["best_run"]["run_name"], "candidate-b")
             self.assertEqual(comparison_summary["best_run"]["selection_source"], "manual")
             self.assertIn("manual_selection=candidate-b", comparison_summary["best_run"]["selection_reason"][0])
+            self.assertEqual(comparison_summary["best_run"]["selection_reason_details"][0]["code"], "manual_selection")
 
             buffer = io.StringIO()
             with redirect_stdout(buffer):
@@ -597,6 +599,77 @@ class CliTest(unittest.TestCase):
             self.assertIn("policy_diff.max_high_severity_chapters: current=6, best=2", output)
             self.assertIn("diff_summary: issue_score current=", output)
             self.assertIn("diff_policy: max_high_severity_chapters current=6 best=2", output)
+
+    def test_show_project_status_can_render_reason_detail_codes(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            main(
+                [
+                    "create-project",
+                    "--theme",
+                    "秘密",
+                    "--genre",
+                    "ミステリ",
+                    "--tone",
+                    "静謐",
+                    "--target-length",
+                    "5000",
+                    "--project-id",
+                    "Codes 01",
+                    "--projects-dir",
+                    tmp_dir,
+                    "--output-dir",
+                    str(Path(tmp_dir) / "candidate-a"),
+                ]
+            )
+            main(
+                [
+                    "create-project",
+                    "--theme",
+                    "秘密",
+                    "--genre",
+                    "ミステリ",
+                    "--tone",
+                    "静謐",
+                    "--target-length",
+                    "5000",
+                    "--project-id",
+                    "Codes 01",
+                    "--projects-dir",
+                    tmp_dir,
+                    "--output-dir",
+                    str(Path(tmp_dir) / "candidate-b"),
+                ]
+            )
+            main(
+                [
+                    "select-best-run",
+                    "--project-id",
+                    "Codes 01",
+                    "--projects-dir",
+                    tmp_dir,
+                    "--run-name",
+                    "candidate-a",
+                ]
+            )
+
+            buffer = io.StringIO()
+            with redirect_stdout(buffer):
+                exit_code = main(
+                    [
+                        "show-project-status",
+                        "--project-id",
+                        "Codes 01",
+                        "--projects-dir",
+                        tmp_dir,
+                        "--reason-detail-mode",
+                        "codes",
+                    ]
+                )
+
+            output = buffer.getvalue()
+            self.assertEqual(exit_code, 0)
+            self.assertIn("current_comparison_reason_codes: long_run_should_stop, total_issue_score", output)
+            self.assertIn("best_selection_reason_codes: manual_selection, long_run_should_stop", output)
 
 
 if __name__ == "__main__":

@@ -5,9 +5,12 @@
 
 ## In Progress
 
-- [ ] M22: manual selection と automatic selection の reason schema を downstream 利用向けに整理する
+- [ ] M24: `show-project-status` の reason codes と `run_comparison_summary.json` の `*_reason_details.code` の対応を docs / tests で固定する
 
 ## Ready
+
+- [ ] M24: `run_comparison_summary.json` の `*_reason_details.code` を列挙型として contract 化する
+- [ ] Docs: M23 実装後に README / ROADMAP / TASKS の説明を同期する
 
 
 ## Done
@@ -82,6 +85,10 @@
 - [x] Docs: M16-M20 実装後に README / ROADMAP / TASKS の説明を同期する
 - [x] M22: `run_comparison_summary.json` の `current_run` / `best_run` comparison context contract を validator / docs / tests で固定する
 - [x] M22: `show-project-status` の current / best comparison summary を machine-readable artifact と同じ語彙で揃える
+- [x] M22: manual selection と automatic selection の reason schema を downstream 利用向けに整理する
+- [x] M23: `run_candidates` の reason details contract を `run_comparison_summary.json` と同じ粒度で固定する
+- [x] M23: `show-project-status` に reason details の主要 code を簡潔に表示できる mode を追加する
+- [x] Docs: M23 実装後に README / ROADMAP / TASKS の説明を同期する
 
 ## Task Update Rules
 

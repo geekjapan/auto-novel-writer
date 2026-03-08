@@ -83,6 +83,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     show_project_status.add_argument("--project-id", required=True, help="Project/story identifier")
     show_project_status.add_argument("--projects-dir", default=DEFAULT_PROJECTS_DIR, help="Base directory for project-scoped runs")
+    show_project_status.add_argument(
+        "--reason-detail-mode",
+        default="summary",
+        choices=["summary", "codes"],
+        help="How much structured reason detail to show in status output",
+    )
 
     select_best_run = subparsers.add_parser(
         "select-best-run",
@@ -405,22 +411,28 @@ def _comparison_basis_fields() -> list[str]:
 
 
 def _build_candidate_reason_lines(metrics: dict[str, Any]) -> list[str]:
+    return [_reason_detail_to_text(detail) for detail in _build_candidate_reason_details(metrics)]
+
+
+def _build_candidate_reason_details(metrics: dict[str, Any]) -> list[dict[str, Any]]:
     return [
-        f"long_run_should_stop={metrics.get('long_run_should_stop')}",
-        f"total_issue_score={metrics.get('total_issue_score')}",
-        f"high_severity_chapter_count={metrics.get('high_severity_chapter_count')}",
-        f"rerun_attempt_total={metrics.get('rerun_attempt_total')}",
-        f"revision_attempt_total={metrics.get('revision_attempt_total')}",
-        f"completed_step_count={metrics.get('completed_step_count')}",
+        {"code": "long_run_should_stop", "value": metrics.get("long_run_should_stop")},
+        {"code": "total_issue_score", "value": metrics.get("total_issue_score")},
+        {"code": "high_severity_chapter_count", "value": metrics.get("high_severity_chapter_count")},
+        {"code": "rerun_attempt_total", "value": metrics.get("rerun_attempt_total")},
+        {"code": "revision_attempt_total", "value": metrics.get("revision_attempt_total")},
+        {"code": "completed_step_count", "value": metrics.get("completed_step_count")},
     ]
 
 
 def _build_candidate_comparison_context(candidate: dict[str, Any]) -> dict[str, Any]:
     metrics = dict(candidate.get("comparison_metrics", {}))
+    comparison_reason_details = _build_candidate_reason_details(metrics)
     return {
         "comparison_metrics": metrics,
         "comparison_basis": _comparison_basis_fields(),
-        "comparison_reason": _build_candidate_reason_lines(metrics),
+        "comparison_reason": [_reason_detail_to_text(detail) for detail in comparison_reason_details],
+        "comparison_reason_details": comparison_reason_details,
     }
 
 
@@ -429,18 +441,27 @@ def _build_candidate_selection_metadata(
     selection_source: str = "automatic",
     manual_selection_run_name: str | None = None,
 ) -> dict[str, Any]:
-    selection_reason = []
+    selection_reason_details = []
     if manual_selection_run_name:
-        selection_reason.append(f"manual_selection={manual_selection_run_name}")
+        selection_reason_details.append({"code": "manual_selection", "value": manual_selection_run_name})
     comparison_context = _build_candidate_comparison_context(candidate)
-    selection_reason.extend(comparison_context["comparison_reason"])
+    selection_reason_details.extend(comparison_context["comparison_reason_details"])
     return {
         "policy_snapshot": dict(candidate.get("policy_snapshot", {})),
         "comparison_metrics": comparison_context["comparison_metrics"],
         "comparison_basis": comparison_context["comparison_basis"],
-        "selection_reason": selection_reason,
+        "selection_reason": [_reason_detail_to_text(detail) for detail in selection_reason_details],
+        "selection_reason_details": selection_reason_details,
         "selection_source": selection_source,
     }
+
+
+def _reason_detail_to_text(detail: dict[str, Any]) -> str:
+    return f"{detail.get('code')}={detail.get('value')}"
+
+
+def _reason_detail_codes(details: list[dict[str, Any]]) -> list[str]:
+    return [str(detail.get("code")) for detail in details if detail.get("code") is not None]
 
 
 def run_pipeline(
@@ -501,7 +522,7 @@ def print_run_summary(artifacts, output_dir: Path, project_manifest: dict[str, A
         print(line)
 
 
-def build_project_status_lines(project_manifest: dict[str, Any]) -> list[str]:
+def build_project_status_lines(project_manifest: dict[str, Any], reason_detail_mode: str = "summary") -> list[str]:
     lines: list[str] = []
     if not project_manifest:
         return lines
@@ -518,7 +539,7 @@ def build_project_status_lines(project_manifest: dict[str, Any]) -> list[str]:
         lines.append(f"  output_dir: {current_run.get('output_dir', 'unknown')}")
         lines.append(f"  current_step: {current_run.get('current_step', 'unknown')}")
         lines.append(f"  completed_steps: {len(completed_steps)}")
-        lines.extend(_build_current_comparison_summary_lines(current_run))
+        lines.extend(_build_current_comparison_summary_lines(current_run, reason_detail_mode))
         lines.extend(_build_chapter_status_summary_lines(chapter_statuses))
         lines.extend(_build_long_run_status_lines(long_run_status))
 
@@ -526,7 +547,7 @@ def build_project_status_lines(project_manifest: dict[str, Any]) -> list[str]:
         lines.append(f"Best run: {best_run.get('run_name', 'unknown')}")
         lines.append(f"  output_dir: {best_run.get('output_dir', 'unknown')}")
         lines.append(f"  score: {best_run.get('score', 'unknown')}")
-        lines.extend(_build_selection_summary_lines(best_run))
+        lines.extend(_build_selection_summary_lines(best_run, reason_detail_mode))
         lines.extend(_build_status_diff_summary_lines(current_run, best_run))
         comparison_metrics = best_run.get("comparison_metrics", {})
         if comparison_metrics:
@@ -603,27 +624,35 @@ def _build_policy_diff_lines(current_policy: dict[str, Any], best_policy: dict[s
     return diff_lines
 
 
-def _build_selection_summary_lines(best_run: dict[str, Any]) -> list[str]:
+def _build_selection_summary_lines(best_run: dict[str, Any], reason_detail_mode: str) -> list[str]:
     selection_source = best_run.get("selection_source", "automatic")
     comparison_basis = best_run.get("comparison_basis", [])
     selection_reasons = best_run.get("selection_reason", [])
+    selection_reason_details = best_run.get("selection_reason_details", [])
     lines = [f"  best_selection_source: {selection_source}"]
     if comparison_basis:
         lines.append(f"  best_comparison_basis_summary: {', '.join(comparison_basis[:3])}")
     if selection_reasons:
         lines.append(f"  best_selection_reason_summary: {'; '.join(selection_reasons[:2])}")
+    if reason_detail_mode == "codes" and selection_reason_details:
+        lines.append(f"  best_selection_reason_codes: {', '.join(_reason_detail_codes(selection_reason_details[:3]))}")
     return lines
 
 
-def _build_current_comparison_summary_lines(current_run: dict[str, Any]) -> list[str]:
+def _build_current_comparison_summary_lines(current_run: dict[str, Any], reason_detail_mode: str) -> list[str]:
     comparison_basis = current_run.get("comparison_basis", [])
     comparison_metrics = current_run.get("comparison_metrics", {})
     comparison_reasons = current_run.get("comparison_reason", [])
+    comparison_reason_details = current_run.get("comparison_reason_details", [])
     lines: list[str] = []
     if comparison_basis:
         lines.append(f"  current_comparison_basis_summary: {', '.join(comparison_basis[:3])}")
     if comparison_reasons:
         lines.append(f"  current_comparison_reason_summary: {'; '.join(comparison_reasons[:2])}")
+    if reason_detail_mode == "codes" and comparison_reason_details:
+        lines.append(
+            f"  current_comparison_reason_codes: {', '.join(_reason_detail_codes(comparison_reason_details[:3]))}"
+        )
     if comparison_metrics:
         lines.append(
             "  current_comparison_metrics: "
@@ -662,8 +691,8 @@ def _run_metrics_from_status(run_status: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def print_project_status(project_manifest: dict[str, Any]) -> None:
-    for line in build_project_status_lines(project_manifest):
+def print_project_status(project_manifest: dict[str, Any], reason_detail_mode: str = "summary") -> None:
+    for line in build_project_status_lines(project_manifest, reason_detail_mode=reason_detail_mode):
         print(line)
 
 
@@ -729,7 +758,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "show-project-status":
         project_layout = build_project_layout(Path(args.projects_dir), args.project_id)
         project_manifest = load_project_manifest(project_layout["project_dir"])
-        print_project_status(project_manifest)
+        print_project_status(project_manifest, reason_detail_mode=args.reason_detail_mode)
         return 0
 
     if args.command == "select-best-run":

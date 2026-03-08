@@ -143,6 +143,7 @@ def run_comparison_summary_contract() -> dict:
                 "comparison_metrics",
                 "comparison_basis",
                 "comparison_reason",
+                "comparison_reason_details",
             ],
         },
         "best_run": {
@@ -153,6 +154,17 @@ def run_comparison_summary_contract() -> dict:
                 "comparison_basis",
                 "selection_source",
                 "selection_reason",
+                "selection_reason_details",
+            ],
+        },
+        "run_candidate": {
+            "required_fields": [
+                "run_name",
+                "output_dir",
+                "comparison_metrics",
+                "comparison_basis",
+                "comparison_reason",
+                "comparison_reason_details",
             ],
         },
         "compact_summary": {
@@ -200,6 +212,15 @@ def validate_run_comparison_summary(payload: dict) -> dict:
         "best_run",
         contract["best_run"]["required_fields"],
     )
+    run_candidates = payload.get("run_candidates")
+    if not isinstance(run_candidates, list):
+        raise ValueError("Invalid run_comparison_summary: run_candidates must be a list.")
+    for index, candidate in enumerate(run_candidates):
+        _validate_run_comparison_context(
+            candidate,
+            f"run_candidates[{index}]",
+            contract["run_candidate"]["required_fields"],
+        )
 
     compact_summary = payload.get("compact_summary")
     if not isinstance(compact_summary, dict):
@@ -254,11 +275,30 @@ def _validate_run_comparison_context(
     if not isinstance(payload.get("comparison_basis"), list):
         raise ValueError(f"Invalid run_comparison_summary: {field_name}.comparison_basis must be a list.")
 
-    reason_field = "comparison_reason" if field_name == "current_run" else "selection_reason"
+    uses_selection_reason = field_name == "best_run"
+    reason_field = "selection_reason" if uses_selection_reason else "comparison_reason"
     if not isinstance(payload.get(reason_field), list):
         raise ValueError(f"Invalid run_comparison_summary: {field_name}.{reason_field} must be a list.")
 
-    if field_name == "best_run" and not isinstance(payload.get("selection_source"), str):
+    detail_field = "selection_reason_details" if uses_selection_reason else "comparison_reason_details"
+    details = payload.get(detail_field)
+    if not isinstance(details, list):
+        raise ValueError(f"Invalid run_comparison_summary: {field_name}.{detail_field} must be a list.")
+    for index, detail in enumerate(details):
+        if not isinstance(detail, dict):
+            raise ValueError(f"Invalid run_comparison_summary: {field_name}.{detail_field}[{index}] must be an object.")
+        missing_detail_fields = [key for key in ["code", "value"] if key not in detail]
+        if missing_detail_fields:
+            missing = ", ".join(missing_detail_fields)
+            raise ValueError(
+                f"Invalid run_comparison_summary: {field_name}.{detail_field}[{index}] is missing fields: {missing}."
+            )
+        if not isinstance(detail.get("code"), str):
+            raise ValueError(
+                f"Invalid run_comparison_summary: {field_name}.{detail_field}[{index}].code must be a string."
+            )
+
+    if uses_selection_reason and not isinstance(payload.get("selection_source"), str):
         raise ValueError("Invalid run_comparison_summary: best_run.selection_source must be a string.")
 
 
