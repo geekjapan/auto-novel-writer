@@ -180,6 +180,10 @@ class ContinuityRerunPolicyTest(unittest.TestCase):
         self.assertTrue(decision["should_stop"])
         self.assertEqual(decision["reason"], "high_severity_chapter_limit_reached")
         self.assertEqual(decision["high_severity_chapters"], 2)
+        self.assertEqual(decision["stop_after_step"], "continuity_report")
+        self.assertEqual(decision["remaining_high_severity_chapter_budget"], 0)
+        self.assertTrue(decision["resume_requires_explicit_rerun"])
+        self.assertIn("explicit rerun", decision["resume_guidance"])
 
     def test_medium_reruns_only_chapter_draft(self) -> None:
         client = CountingLLMClient()
@@ -485,6 +489,7 @@ class ContinuityRerunPolicyTest(unittest.TestCase):
             self.assertFalse(artifacts.story_summary)
             self.assertFalse(artifacts.project_quality_report)
             self.assertIn('"should_stop": true', manifest.read_text(encoding="utf-8").lower())
+            self.assertIn('"stop_after_step": "continuity_report"', manifest.read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":

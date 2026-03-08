@@ -91,6 +91,7 @@ def save_project_state(
     run_candidates = _merge_run_candidates(existing_project_manifest.get("run_candidates", []), run_candidate)
     best_run = _select_best_run(run_candidates)
     chapter_statuses = _build_project_chapter_statuses(run_manifest)
+    long_run_status = dict(run_manifest.get("long_run_status", {}))
     save_project_manifest(
         projects_dir,
         project_id,
@@ -105,6 +106,7 @@ def save_project_state(
                 "completed_steps": run_manifest.get("completed_steps", []),
                 "summary": run_manifest.get("summary", {}),
                 "chapter_statuses": chapter_statuses,
+                "long_run_status": long_run_status,
             },
             "run_candidates": run_candidates,
             "best_run": best_run,
@@ -181,6 +183,7 @@ def _build_run_candidate(run_manifest: dict[str, Any], output_dir: Path) -> dict
         "completed_steps": run_manifest.get("completed_steps", []),
         "summary": run_manifest.get("summary", {}),
         "chapter_statuses": _build_project_chapter_statuses(run_manifest),
+        "long_run_status": dict(run_manifest.get("long_run_status", {})),
         "score": score,
         "continuity_issue_total": comparison_metrics["continuity_issue_total"],
         "quality_issue_total": comparison_metrics["quality_issue_total"],
@@ -322,6 +325,14 @@ def print_run_summary(artifacts, output_dir: Path, project_manifest: dict[str, A
     print(f"Chapter count: {len(artifacts.chapter_plan)}")
     print(f"Continuity severity: {artifacts.continuity_report.get('severity', 'unknown')}")
     print(f"Continuity issues flagged: {issue_count}")
+    long_run_status = (project_manifest or {}).get("current_run", {}).get("long_run_status", {})
+    if long_run_status:
+        print(
+            "Long-run status: "
+            f"should_stop={long_run_status.get('should_stop')}, "
+            f"reason={long_run_status.get('reason') or 'none'}, "
+            f"remaining_rerun_budget={long_run_status.get('remaining_rerun_attempt_budget', 'n/a')}"
+        )
     for line in build_run_comparison_lines(project_manifest or {}):
         print(line)
 

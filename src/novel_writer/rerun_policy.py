@@ -66,21 +66,37 @@ class ContinuityRerunPolicy:
         total_rerun_attempts = sum(1 for entry in rerun_history if entry.get("attempt", 0) > 1)
         should_stop = False
         reason = None
+        stop_after_step = None
 
         if high_severity_chapters >= max_high_severity_chapters:
             should_stop = True
             reason = "high_severity_chapter_limit_reached"
+            stop_after_step = "continuity_report"
         elif total_rerun_attempts >= max_total_rerun_attempts:
             should_stop = True
             reason = "total_rerun_limit_reached"
+            stop_after_step = "continuity_report"
 
         return {
             "should_stop": should_stop,
             "reason": reason,
+            "stop_after_step": stop_after_step,
             "high_severity_chapters": high_severity_chapters,
             "max_high_severity_chapters": max_high_severity_chapters,
+            "remaining_high_severity_chapter_budget": max(0, max_high_severity_chapters - high_severity_chapters),
             "total_rerun_attempts": total_rerun_attempts,
             "max_total_rerun_attempts": max_total_rerun_attempts,
+            "remaining_rerun_attempt_budget": max(0, max_total_rerun_attempts - total_rerun_attempts),
+            "resume_requires_explicit_rerun": should_stop,
+            "resume_guidance": (
+                "resume will preserve the stopped state until an explicit rerun is requested"
+                if should_stop
+                else "resume can continue automatically"
+            ),
+            "policy_limits": {
+                "max_high_severity_chapters": max_high_severity_chapters,
+                "max_total_rerun_attempts": max_total_rerun_attempts,
+            },
         }
 
     def _weighted_score(self, issue_counts: dict[str, int]) -> int:

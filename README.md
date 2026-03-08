@@ -228,6 +228,7 @@ novel-writer rerun-chapter --project-id "my-story-01" --chapter-number 2
 - `long_run_status`
 
 `artifact_contract` は、chapter 配列ベースの正本と chapter 1 互換 artifact の対応を明示するための metadata です。
+`long_run_status` は、長編向け stop condition、残り rerun 余地、resume guidance を記録する metadata です。
 
 ## 現時点でできること
 
@@ -244,6 +245,7 @@ novel-writer rerun-chapter --project-id "my-story-01" --chapter-number 2
 - continuity report は互換上 chapter 1 基準の artifact を維持しています
 - quality report は構造評価中心で、文学的評価は限定的です
 - 長編向け stop condition はあるものの、長編運用はまだ安定化段階です
+- 長編向け stop condition は見える化されたが、閾値設計そのものは今後さらに調整が必要です
 - publish-ready bundle の schema は今後さらに明文化する余地があります
 
 ## 内部設計原則

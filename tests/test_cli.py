@@ -122,6 +122,7 @@ class CliTest(unittest.TestCase):
                 len(project_manifest["current_run"]["chapter_statuses"]),
                 project_manifest["current_run"]["summary"]["counts"]["chapters"],
             )
+            self.assertIn("long_run_status", project_manifest["current_run"])
 
     def test_cli_create_and_resume_project_commands(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -264,6 +265,7 @@ class CliTest(unittest.TestCase):
             self.assertIn(project_manifest["best_run"]["output_dir"], {str(first_run_dir), str(second_run_dir)})
             self.assertTrue(all("chapter_statuses" in candidate for candidate in project_manifest["run_candidates"]))
             self.assertTrue(all("comparison_metrics" in candidate for candidate in project_manifest["run_candidates"]))
+            self.assertTrue(all("long_run_status" in candidate for candidate in project_manifest["run_candidates"]))
             self.assertIn("comparison_metrics", project_manifest["best_run"])
             self.assertIn("selection_reason", project_manifest["best_run"])
             self.assertIn("long_run_should_stop", project_manifest["best_run"]["comparison_metrics"])
@@ -319,6 +321,7 @@ class CliTest(unittest.TestCase):
 
             output = buffer.getvalue()
             self.assertEqual(exit_code, 0)
+            self.assertIn("Long-run status:", output)
             self.assertIn("Best run:", output)
             self.assertIn("Comparison metrics:", output)
 
