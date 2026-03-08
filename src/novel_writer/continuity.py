@@ -55,31 +55,36 @@ REVISE_CATEGORIES = {
 
 
 class ContinuityChecker:
-    def build_report(self, artifacts: StoryArtifacts) -> dict[str, Any]:
+    def build_report(self, artifacts: StoryArtifacts, chapter_index: int = 0) -> dict[str, Any]:
         selected_logline = artifacts.loglines[0] if artifacts.loglines else {}
+        chapter_draft = artifacts.get_chapter_draft(chapter_index)
+        chapter = artifacts.chapter_plan[chapter_index] if 0 <= chapter_index < len(artifacts.chapter_plan) else {}
         report = {
             "missing_fields": self._find_missing_fields(
                 selected_logline,
                 artifacts.characters,
                 artifacts.three_act_plot,
                 artifacts.chapter_plan,
-                artifacts.chapter_1_draft,
+                chapter_draft,
+                chapter_index,
             ),
             "character_name_mismatches": self._find_character_name_mismatches(
                 artifacts.characters,
-                artifacts.chapter_plan,
-                artifacts.chapter_1_draft,
+                chapter,
+                chapter_draft,
+                chapter_index,
             ),
             "plot_to_plan_gaps": self._find_plot_to_plan_gaps(
                 artifacts.three_act_plot,
                 artifacts.chapter_plan,
             ),
             "plan_to_draft_gaps": self._find_plan_to_draft_gaps(
-                artifacts.chapter_plan,
-                artifacts.chapter_1_draft,
+                chapter,
+                chapter_draft,
                 artifacts.characters,
+                chapter_index,
             ),
-            "length_warnings": self._find_length_warnings(artifacts.chapter_plan, artifacts.chapter_1_draft),
+            "length_warnings": self._find_length_warnings(chapter, chapter_draft, chapter_index),
             "pov_consistency_issues": self._find_pov_consistency_issues(
                 artifacts.chapter_plan,
                 artifacts.characters,
@@ -88,9 +93,12 @@ class ContinuityChecker:
             "character_continuity_issues": self._find_character_continuity_issues(
                 artifacts.characters,
                 artifacts.chapter_plan,
-                artifacts.chapter_1_draft,
+                chapter_draft,
+                chapter_index,
             ),
         }
+        report["chapter_index"] = chapter_index
+        report["chapter_number"] = chapter.get("chapter_number")
         report["issue_counts"] = {
             key: len(value)
             for key, value in report.items()
@@ -140,7 +148,8 @@ class ContinuityChecker:
         characters: list[dict[str, Any]],
         three_act_plot: dict[str, Any],
         chapter_plan: list[dict[str, Any]],
-        chapter_1_draft: dict[str, Any],
+        chapter_draft: dict[str, Any],
+        chapter_index: int,
     ) -> list[dict[str, Any]]:
         issues: list[dict[str, Any]] = []
         issues.extend(self._missing_dict_fields("logline", logline, ["id", "title", "premise", "hook"]))
@@ -157,8 +166,8 @@ class ContinuityChecker:
                 issues.append({"artifact": "three_act_plot", "field": act_name, "reason": "missing"})
         issues.extend(
             self._missing_dict_fields(
-                "chapter_1_draft",
-                chapter_1_draft,
+                self._chapter_draft_artifact_name(chapter_index),
+                chapter_draft,
                 ["chapter_number", "title", "summary", "text"],
             )
         )
@@ -182,20 +191,20 @@ class ContinuityChecker:
     def _find_character_name_mismatches(
         self,
         characters: list[dict[str, Any]],
-        chapter_plan: list[dict[str, Any]],
-        chapter_1_draft: dict[str, Any],
+        chapter: dict[str, Any],
+        chapter_draft: dict[str, Any],
+        chapter_index: int,
     ) -> list[dict[str, Any]]:
         issues: list[dict[str, Any]] = []
         names = {character.get("name", "") for character in characters if character.get("name")}
         if not names:
             return issues
 
-        first_plan = chapter_plan[0] if chapter_plan else {}
-        point_of_view = first_plan.get("point_of_view")
+        point_of_view = chapter.get("point_of_view")
         if point_of_view and point_of_view not in names:
             issues.append(
                 {
-                    "artifact": "chapter_plan",
+                    "artifact": self._chapter_plan_artifact_name(chapter_index),
                     "field": "point_of_view",
                     "value": point_of_view,
                     "reason": "point_of_view_not_in_characters",
@@ -204,15 +213,15 @@ class ContinuityChecker:
 
         draft_text = " ".join(
             [
-                str(chapter_1_draft.get("title", "")),
-                str(chapter_1_draft.get("summary", "")),
-                str(chapter_1_draft.get("text", "")),
+                str(chapter_draft.get("title", "")),
+                str(chapter_draft.get("summary", "")),
+                str(chapter_draft.get("text", "")),
             ]
         )
         if point_of_view and point_of_view not in draft_text:
             issues.append(
                 {
-                    "artifact": "chapter_1_draft",
+                    "artifact": self._chapter_draft_artifact_name(chapter_index),
                     "field": "text",
                     "value": point_of_view,
                     "reason": "point_of_view_name_not_found_in_draft",
@@ -224,7 +233,7 @@ class ContinuityChecker:
         for name in unknown_names:
             issues.append(
                 {
-                    "artifact": "chapter_1_draft",
+                    "artifact": self._chapter_draft_artifact_name(chapter_index),
                     "field": "text",
                     "value": name,
                     "reason": "name_in_draft_not_in_characters",
@@ -266,23 +275,23 @@ class ContinuityChecker:
 
     def _find_plan_to_draft_gaps(
         self,
-        chapter_plan: list[dict[str, Any]],
-        chapter_1_draft: dict[str, Any],
+        chapter: dict[str, Any],
+        chapter_draft: dict[str, Any],
         characters: list[dict[str, Any]],
+        chapter_index: int,
     ) -> list[dict[str, Any]]:
         issues: list[dict[str, Any]] = []
-        if not chapter_plan:
+        if not chapter:
             return issues
 
-        first_plan = chapter_plan[0]
-        if chapter_1_draft.get("chapter_number") != first_plan.get("chapter_number"):
+        if chapter_draft.get("chapter_number") != chapter.get("chapter_number"):
             issues.append(
                 {
                     "field": "chapter_number",
                     "reason": "draft_chapter_number_does_not_match_plan",
                 }
             )
-        if chapter_1_draft.get("title") != first_plan.get("title"):
+        if chapter_draft.get("title") != chapter.get("title"):
             issues.append(
                 {
                     "field": "title",
@@ -290,8 +299,8 @@ class ContinuityChecker:
                 }
             )
 
-        purpose = str(first_plan.get("purpose", ""))
-        summary = str(chapter_1_draft.get("summary", ""))
+        purpose = str(chapter.get("purpose", ""))
+        summary = str(chapter_draft.get("summary", ""))
         purpose_keywords = self._extract_keywords(purpose)
         summary_keywords = self._extract_keywords(summary)
         if purpose_keywords and not self._has_keyword_overlap(
@@ -308,8 +317,8 @@ class ContinuityChecker:
                 }
             )
 
-        point_of_view = first_plan.get("point_of_view")
-        draft_text = str(chapter_1_draft.get("text", ""))
+        point_of_view = chapter.get("point_of_view")
+        draft_text = str(chapter_draft.get("text", ""))
         if point_of_view and point_of_view not in draft_text:
             issues.append(
                 {
@@ -330,20 +339,21 @@ class ContinuityChecker:
 
     def _find_length_warnings(
         self,
-        chapter_plan: list[dict[str, Any]],
-        chapter_1_draft: dict[str, Any],
+        chapter: dict[str, Any],
+        chapter_draft: dict[str, Any],
+        chapter_index: int,
     ) -> list[dict[str, Any]]:
         issues: list[dict[str, Any]] = []
-        if not chapter_plan:
+        if not chapter:
             return issues
 
-        target_words = int(chapter_plan[0].get("target_words", 0) or 0)
-        draft_text = str(chapter_1_draft.get("text", ""))
+        target_words = int(chapter.get("target_words", 0) or 0)
+        draft_text = str(chapter_draft.get("text", ""))
         actual_length = len(draft_text)
         if target_words and actual_length < max(200, int(target_words * 0.3)):
             issues.append(
                 {
-                    "field": "chapter_1_draft.text",
+                    "field": f"{self._chapter_draft_artifact_name(chapter_index)}.text",
                     "target_words": target_words,
                     "actual_characters": actual_length,
                     "reason": "draft_is_significantly_shorter_than_plan_target",
@@ -435,7 +445,8 @@ class ContinuityChecker:
         self,
         characters: list[dict[str, Any]],
         chapter_plan: list[dict[str, Any]],
-        chapter_1_draft: dict[str, Any],
+        chapter_draft: dict[str, Any],
+        chapter_index: int,
     ) -> list[dict[str, Any]]:
         issues: list[dict[str, Any]] = []
         combined_text = " ".join(
@@ -444,9 +455,9 @@ class ContinuityChecker:
                     f"{chapter.get('title', '')} {chapter.get('purpose', '')} {chapter.get('point_of_view', '')}"
                     for chapter in chapter_plan
                 ),
-                str(chapter_1_draft.get("title", "")),
-                str(chapter_1_draft.get("summary", "")),
-                str(chapter_1_draft.get("text", "")),
+                str(chapter_draft.get("title", "")),
+                str(chapter_draft.get("summary", "")),
+                str(chapter_draft.get("text", "")),
             ]
         )
         for character in characters:
@@ -458,10 +469,19 @@ class ContinuityChecker:
                     {
                         "character": name,
                         "role": character.get("role"),
+                        "chapter_index": chapter_index,
                         "reason": "character_defined_but_not_referenced_in_plan_or_draft",
                     }
                 )
         return issues
+
+    def _chapter_draft_artifact_name(self, chapter_index: int) -> str:
+        if chapter_index == 0:
+            return "chapter_1_draft"
+        return f"chapter_drafts[{chapter_index}]"
+
+    def _chapter_plan_artifact_name(self, chapter_index: int) -> str:
+        return f"chapter_plan[{chapter_index}]"
 
     def _extract_keywords(self, text: str) -> list[str]:
         normalized_text = re.sub(PARTICLE_SPLIT_PATTERN, " ", text)

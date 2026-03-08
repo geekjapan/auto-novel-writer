@@ -170,6 +170,8 @@ continuity check はルールベースで成果物間の構造的不整合候補
 - `chapter_plan`
 - `chapter_1_draft`
 
+内部実装の continuity checker は `chapter_index` 指定で任意章を検査できる形に寄せていますが、現時点の pipeline 出力と互換 artifact は chapter 1 中心のままです。
+
 出力ファイル:
 
 - `continuity_report.json`

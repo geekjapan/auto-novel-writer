@@ -228,6 +228,66 @@ class ContinuityCheckerTest(unittest.TestCase):
             any(issue["character"] == "水守 透子" for issue in report["character_continuity_issues"])
         )
 
+    def test_build_report_can_target_arbitrary_chapter_by_index(self) -> None:
+        artifacts = StoryArtifacts(
+            story_input=StoryInput(theme="秘密", genre="ミステリ", tone="静謐", target_length=6000),
+            loglines=[{"id": "logline-1", "title": "消えた手紙", "premise": "前提", "hook": "フック"}],
+            characters=[
+                {
+                    "name": "篠崎 遥",
+                    "role": "protagonist",
+                    "goal": "真相解明",
+                    "conflict": "過去と向き合えない",
+                    "arc": "受動から能動へ",
+                }
+            ],
+            three_act_plot={
+                "act_1": {"setup": "手紙を失う。", "inciting_incident": "電話が来る。"},
+                "act_2": {"rising_action": "旧友を疑う。", "crisis": "親友が消える。"},
+                "act_3": {"resolution": "手紙が見つかる。"},
+            },
+            chapter_plan=[
+                {
+                    "chapter_number": 1,
+                    "title": "第1章 導入",
+                    "purpose": "手紙を失う。",
+                    "point_of_view": "篠崎 遥",
+                    "target_words": 1200,
+                },
+                {
+                    "chapter_number": 2,
+                    "title": "第2章 対立",
+                    "purpose": "疑いが深まり、旧友と対峙する。",
+                    "point_of_view": "別人 視点",
+                    "target_words": 1200,
+                },
+            ],
+            chapter_drafts=[
+                {
+                    "chapter_number": 1,
+                    "title": "第1章 導入",
+                    "summary": "手紙を失う。",
+                    "text": "篠崎 遥は机を探した。" * 20,
+                },
+                {
+                    "chapter_number": 2,
+                    "title": "第2章 ずれた題",
+                    "summary": "別の要約",
+                    "text": "木崎 蓮は廊下で立ち止まった。",
+                },
+            ],
+        )
+
+        report = ContinuityChecker().build_report(artifacts, chapter_index=1)
+
+        self.assertEqual(report["chapter_index"], 1)
+        self.assertEqual(report["chapter_number"], 2)
+        self.assertTrue(report["character_name_mismatches"])
+        self.assertTrue(any(issue["artifact"] == "chapter_plan[1]" for issue in report["character_name_mismatches"]))
+        self.assertTrue(any(issue["artifact"] == "chapter_drafts[1]" for issue in report["character_name_mismatches"]))
+        self.assertTrue(any(issue["field"] == "title" for issue in report["plan_to_draft_gaps"]))
+        self.assertTrue(any(issue["field"] == "chapter_drafts[1].text" for issue in report["length_warnings"]))
+
     def test_build_quality_report_recommends_regenerate_vs_revise(self) -> None:
         continuity_report = {
             "severity": "high",
