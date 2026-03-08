@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict
+from difflib import unified_diff
 from pathlib import Path
 
 from novel_writer.continuity import ContinuityChecker
@@ -453,6 +454,7 @@ class StoryPipeline:
                         "redundancy_reduction",
                         "summary_alignment",
                     ],
+                    "diff": self._build_revision_diff(current_source, revised_chapter_draft),
                     "stop_reason": stop_reason,
                 }
             )
@@ -475,3 +477,29 @@ class StoryPipeline:
             chapter_index=chapter_index,
         )
         return revised_chapter_draft
+
+    def _build_revision_diff(self, before_draft: dict, after_draft: dict) -> dict:
+        changed_fields = sorted(
+            key
+            for key in set(before_draft) | set(after_draft)
+            if before_draft.get(key) != after_draft.get(key)
+        )
+        before_summary = str(before_draft.get("summary", ""))
+        after_summary = str(after_draft.get("summary", ""))
+        before_text = str(before_draft.get("text", ""))
+        after_text = str(after_draft.get("text", ""))
+        text_diff = "".join(
+            unified_diff(
+                before_text.splitlines(keepends=True),
+                after_text.splitlines(keepends=True),
+                fromfile="before",
+                tofile="after",
+            )
+        )
+        return {
+            "changed": bool(changed_fields),
+            "changed_fields": changed_fields,
+            "summary_before": before_summary,
+            "summary_after": after_summary,
+            "text_diff": text_diff,
+        }

@@ -80,6 +80,16 @@ class StoryPipelineTest(unittest.TestCase):
                 manifest["revise_history"][-1]["target"],
                 f"revised_chapter_drafts[{len(artifacts.chapter_plan) - 1}]",
             )
+            self.assertIn("diff", manifest["revise_history"][0])
+            self.assertTrue(manifest["revise_history"][0]["diff"]["changed"])
+            self.assertIn("text", manifest["revise_history"][0]["diff"]["changed_fields"])
+            self.assertIn("summary_before", manifest["revise_history"][0]["diff"])
+            self.assertIn("summary_after", manifest["revise_history"][0]["diff"])
+            self.assertTrue(manifest["revise_history"][0]["diff"]["text_diff"])
+            no_change_entries = [
+                entry for entry in manifest["revise_history"] if entry["stop_reason"] == "no_changes_detected"
+            ]
+            self.assertTrue(all(not entry["diff"]["changed"] for entry in no_change_entries))
             self.assertEqual(
                 sorted(set(entry["chapter_index"] for entry in manifest["revise_history"])),
                 list(range(len(artifacts.chapter_plan))),
