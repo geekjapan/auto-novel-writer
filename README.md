@@ -1,6 +1,6 @@
 # auto-novel-writer
 
-短編小説向けの創作パイプラインMVPです。CLIからテーマを与えると、発想から第1章草稿までを5フェーズで生成し、その後に continuity check を実行して、各成果物を保存します。
+短編小説向けの創作パイプラインMVPです。CLIから `theme`, `genre`, `tone`, `target_length` を受け取り、logline 生成から chapter 1 draft 生成までを順に実行し、その後に continuity check、rerun policy、`revise_chapter_1` を適用して成果物を保存します。
 
 ## ディレクトリ構成
 
@@ -41,7 +41,7 @@ set OPENAI_API_KEY=your_api_key
 
 ### 推奨実行手順
 
-インストール後はエントリポイント経由で実行します。既定プロバイダは `mock` で、生成完了後に continuity check も自動実行されます。
+インストール後はエントリポイント経由で実行します。既定プロバイダは `mock` で、生成完了後に continuity check、必要に応じた rerun、chapter 1 の改稿まで自動実行されます。
 
 ```bash
 novel-writer ^
