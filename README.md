@@ -1,6 +1,6 @@
 # auto-novel-writer
 
-短編小説向けの創作パイプラインMVPです。CLIからテーマを与えると、発想から第1章草稿までを5フェーズで生成し、各成果物を `JSON` または `YAML` で保存します。
+短編小説向けの創作パイプラインMVPです。CLIからテーマを与えると、発想から第1章草稿までを5フェーズで生成し、その後に continuity check を実行して、各成果物を保存します。
 
 ## ディレクトリ構成
 
@@ -41,7 +41,7 @@ set OPENAI_API_KEY=your_api_key
 
 ### 推奨実行手順
 
-インストール後はエントリポイント経由で実行します。既定プロバイダは `mock` です。
+インストール後はエントリポイント経由で実行します。既定プロバイダは `mock` で、生成完了後に continuity check も自動実行されます。
 
 ```bash
 novel-writer ^
@@ -113,7 +113,37 @@ novel-writer ^
 4. `03_three_act_plot`
 5. `04_chapter_plan`
 6. `05_chapter_1_draft`
-7. `manifest`
+7. `continuity_report.json`
+8. `manifest`
+
+## Continuity Check
+
+continuity check はルールベースで成果物間の構造的不整合候補を洗い出します。面白さ評価ではなく、最低限の整合性確認が目的です。
+
+参照する成果物:
+
+- `logline`
+- `characters`
+- `three_act_plot`
+- `chapter_plan`
+- `chapter_1_draft`
+
+出力ファイル:
+
+- `continuity_report.json`
+
+主なチェック項目:
+
+- `missing_fields`
+- `character_name_mismatches`
+- `plot_to_plan_gaps`
+- `plan_to_draft_gaps`
+- `length_warnings`
+
+実行方法:
+
+- 通常の `novel-writer ...` 実行に continuity check が含まれます
+- 追加オプションなしで `continuity_report.json` が出力されます
 
 ## テスト
 

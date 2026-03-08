@@ -3,16 +3,24 @@ from __future__ import annotations
 from dataclasses import asdict
 from pathlib import Path
 
+from novel_writer.continuity import ContinuityChecker
 from novel_writer.llm_client import BaseLLMClient
 from novel_writer.schema import StoryArtifacts, StoryInput
 from novel_writer.storage import save_artifact
 
 
 class StoryPipeline:
-    def __init__(self, llm_client: BaseLLMClient, output_dir: Path, file_format: str = "json") -> None:
+    def __init__(
+        self,
+        llm_client: BaseLLMClient,
+        output_dir: Path,
+        file_format: str = "json",
+        continuity_checker: ContinuityChecker | None = None,
+    ) -> None:
         self.llm_client = llm_client
         self.output_dir = output_dir
         self.file_format = file_format
+        self.continuity_checker = continuity_checker or ContinuityChecker()
 
     def run(self, story_input: StoryInput) -> StoryArtifacts:
         artifacts = StoryArtifacts(story_input=story_input)
@@ -49,6 +57,9 @@ class StoryPipeline:
         )
         save_artifact(self.output_dir, "05_chapter_1_draft", artifacts.chapter_1_draft, self.file_format)
 
+        artifacts.continuity_report = self.continuity_checker.build_report(artifacts)
+        save_artifact(self.output_dir, "continuity_report", artifacts.continuity_report, "json")
+
         manifest = {
             "summary": artifacts.summary(),
             "selected_logline": selected_logline,
@@ -56,4 +67,3 @@ class StoryPipeline:
         }
         save_artifact(self.output_dir, "manifest", manifest, self.file_format)
         return artifacts
-

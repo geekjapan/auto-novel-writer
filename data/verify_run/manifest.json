@@ -1,9 +1,9 @@
 {
   "summary": {
     "story_input": {
-      "theme": "継承",
-      "genre": "SF",
-      "tone": "ビター",
+      "theme": "秘密",
+      "genre": "ミステリ",
+      "tone": "静謐",
       "target_length": 6000
     },
     "phases": [
@@ -11,7 +11,8 @@
       "characters",
       "three_act_plot",
       "chapter_plan",
-      "chapter_1_draft"
+      "chapter_1_draft",
+      "continuity_check"
     ],
     "counts": {
       "loglines": 3,
@@ -22,33 +23,33 @@
   "selected_logline": {
     "id": "logline-1",
     "title": "鏡の中の約束",
-    "premise": "継承をめぐるSF短編。静かな主人公が一度だけ大きな選択を迫られる。",
-    "hook": "ビターな読後感を残す、秘密と決断の物語。"
+    "premise": "秘密をめぐるミステリ短編。静かな主人公が一度だけ大きな選択を迫られる。",
+    "hook": "静謐な読後感を残す、秘密と決断の物語。"
   },
   "artifacts": {
     "story_input": {
-      "theme": "継承",
-      "genre": "SF",
-      "tone": "ビター",
+      "theme": "秘密",
+      "genre": "ミステリ",
+      "tone": "静謐",
       "target_length": 6000
     },
     "loglines": [
       {
         "id": "logline-1",
         "title": "鏡の中の約束",
-        "premise": "継承をめぐるSF短編。静かな主人公が一度だけ大きな選択を迫られる。",
-        "hook": "ビターな読後感を残す、秘密と決断の物語。"
+        "premise": "秘密をめぐるミステリ短編。静かな主人公が一度だけ大きな選択を迫られる。",
+        "hook": "静謐な読後感を残す、秘密と決断の物語。"
       },
       {
         "id": "logline-2",
         "title": "雨粒の証言",
-        "premise": "継承を抱えた若者が、小さな町の異変を追う。",
-        "hook": "ビターさを保ちながら、人間関係の綻びを描く。"
+        "premise": "秘密を抱えた若者が、小さな町の異変を追う。",
+        "hook": "静謐さを保ちながら、人間関係の綻びを描く。"
       },
       {
         "id": "logline-3",
         "title": "最後の灯り",
-        "premise": "SFの枠組みで、失われたものと向き合う一夜の出来事。",
+        "premise": "ミステリの枠組みで、失われたものと向き合う一夜の出来事。",
         "hook": "目標文字数6000字を想定した密度の高い短編案。"
       }
     ],
@@ -56,7 +57,7 @@
       {
         "name": "篠崎 遥",
         "role": "protagonist",
-        "goal": "継承に対する自分の答えを見つける",
+        "goal": "秘密に対する自分の答えを見つける",
         "conflict": "本音を語ると大切な関係が壊れると恐れている",
         "arc": "受け身から能動へ"
       },
@@ -77,7 +78,7 @@
     ],
     "three_act_plot": {
       "act_1": {
-        "setup": "篠崎 遥は継承に関する未解決の問題を抱えながら日常を送っている。",
+        "setup": "篠崎 遥は秘密に関する未解決の問題を抱えながら日常を送っている。",
         "inciting_incident": "鏡の中の約束につながる異変が起き、後戻りできなくなる。"
       },
       "act_2": {
@@ -86,7 +87,7 @@
         "crisis": "秘密を守るか、誰かを救うために公にするかで板挟みになる。"
       },
       "act_3": {
-        "climax": "ビターな雰囲気の中で、主人公が自分の意思で選択を下す。",
+        "climax": "静謐な雰囲気の中で、主人公が自分の意思で選択を下す。",
         "resolution": "代償を払いながらも、新しい関係と次の一歩を手に入れる。"
       }
     },
@@ -94,7 +95,7 @@
       {
         "chapter_number": 1,
         "title": "第1章 導入",
-        "purpose": "篠崎 遥は継承に関する未解決の問題を抱えながら日常を送っている。",
+        "purpose": "篠崎 遥は秘密に関する未解決の問題を抱えながら日常を送っている。",
         "point_of_view": "篠崎 遥",
         "target_words": 2000
       },
@@ -116,8 +117,57 @@
     "chapter_1_draft": {
       "chapter_number": 1,
       "title": "第1章 導入",
-      "summary": "篠崎 遥は継承に関する未解決の問題を抱えながら日常を送っている。",
-      "text": "篠崎 遥はまだ夜の静けさに慣れずにいた。継承の気配は、窓を叩く風よりも近くで息をしている。目の前の選択は小さく見えて、その実、これから失うものすべてを量っていた。『鏡の中の約束』の始まりとして、ビターな空気と不穏な予感を前景に置いた導入を書く。"
+      "summary": "篠崎 遥は秘密に関する未解決の問題を抱えながら日常を送っている。",
+      "text": "篠崎 遥はまだ夜の静けさに慣れずにいた。秘密の気配は、窓を叩く風よりも近くで息をしている。目の前の選択は小さく見えて、その実、これから失うものすべてを量っていた。『鏡の中の約束』の始まりとして、静謐な空気と不穏な予感を前景に置いた導入を書く。"
+    },
+    "continuity_report": {
+      "missing_fields": [],
+      "character_name_mismatches": [
+        {
+          "artifact": "chapter_1_draft",
+          "field": "text",
+          "value": "章 導入",
+          "reason": "name_in_draft_not_in_characters"
+        },
+        {
+          "artifact": "chapter_1_draft",
+          "field": "text",
+          "value": "篠崎 遥はまだ夜の静けさに慣れずにいた",
+          "reason": "name_in_draft_not_in_characters"
+        },
+        {
+          "artifact": "chapter_1_draft",
+          "field": "text",
+          "value": "篠崎 遥は秘密に関する未解決の問題を抱えながら日常を送っている",
+          "reason": "name_in_draft_not_in_characters"
+        }
+      ],
+      "plot_to_plan_gaps": [
+        {
+          "plot_point": "act_2.crisis",
+          "reason": "plot_beat_not_reflected_in_chapter_plan"
+        },
+        {
+          "plot_point": "act_3.resolution",
+          "reason": "plot_beat_not_reflected_in_chapter_plan"
+        }
+      ],
+      "plan_to_draft_gaps": [],
+      "length_warnings": [
+        {
+          "field": "chapter_1_draft.text",
+          "target_words": 2000,
+          "actual_characters": 121,
+          "reason": "draft_is_significantly_shorter_than_plan_target"
+        }
+      ],
+      "issue_counts": {
+        "missing_fields": 0,
+        "character_name_mismatches": 3,
+        "plot_to_plan_gaps": 2,
+        "plan_to_draft_gaps": 0,
+        "length_warnings": 1
+      }
     }
   }
 }

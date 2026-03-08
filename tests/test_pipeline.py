@@ -25,16 +25,20 @@ class StoryPipelineTest(unittest.TestCase):
                 "03_three_act_plot.json",
                 "04_chapter_plan.json",
                 "05_chapter_1_draft.json",
+                "continuity_report.json",
                 "manifest.json",
             ]
             for name in expected_files:
                 self.assertTrue((output_dir / name).exists(), name)
 
             manifest = json.loads((output_dir / "manifest.json").read_text(encoding="utf-8"))
+            continuity_report = json.loads(
+                (output_dir / "continuity_report.json").read_text(encoding="utf-8")
+            )
             self.assertEqual(manifest["selected_logline"]["id"], "logline-1")
             self.assertEqual(artifacts.chapter_1_draft["chapter_number"], 1)
+            self.assertIn("length_warnings", continuity_report)
 
 
 if __name__ == "__main__":
     unittest.main()
-

@@ -35,13 +35,16 @@ def main(argv: list[str] | None = None) -> int:
     llm_client = build_llm_client(provider=args.provider, model=args.model)
     pipeline = StoryPipeline(llm_client=llm_client, output_dir=output_dir, file_format=args.format)
     artifacts = pipeline.run(story_input)
+    issue_count = sum(
+        artifacts.continuity_report.get("issue_counts", {}).values()
+    )
 
     print(f"Generated short-story artifacts in: {output_dir.resolve()}")
     print(f"Selected logline: {artifacts.loglines[0]['title']}")
     print(f"Chapter count: {len(artifacts.chapter_plan)}")
+    print(f"Continuity issues flagged: {issue_count}")
     return 0
 
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

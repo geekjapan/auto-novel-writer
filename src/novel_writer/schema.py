@@ -22,6 +22,7 @@ class StoryArtifacts:
     three_act_plot: dict = field(default_factory=dict)
     chapter_plan: list[dict] = field(default_factory=list)
     chapter_1_draft: dict = field(default_factory=dict)
+    continuity_report: dict = field(default_factory=dict)
 
     def summary(self) -> dict:
         return {
@@ -32,6 +33,7 @@ class StoryArtifacts:
                 "three_act_plot",
                 "chapter_plan",
                 "chapter_1_draft",
+                "continuity_check",
             ],
             "counts": {
                 "loglines": len(self.loglines),
@@ -39,4 +41,3 @@ class StoryArtifacts:
                 "chapters": len(self.chapter_plan),
             },
         }
-
