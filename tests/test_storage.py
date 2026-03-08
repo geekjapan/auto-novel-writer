@@ -1,9 +1,10 @@
 import json
+import importlib.util
 import tempfile
 import unittest
 from pathlib import Path
 
-from novel_writer.storage import save_artifact
+from novel_writer.storage import load_artifact, resolve_artifact_path, save_artifact
 
 
 class SaveArtifactTest(unittest.TestCase):
@@ -51,6 +52,40 @@ class SaveArtifactTest(unittest.TestCase):
                 saved["artifacts"]["revised_chapter_drafts"][0],
                 saved["artifacts"]["revised_chapter_1_draft"],
             )
+
+    def test_load_artifact_reads_json_without_explicit_format(self) -> None:
+        payload = {"phase": "chapter_plan", "items": [{"chapter_number": 1}, {"chapter_number": 2}]}
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            save_artifact(Path(tmp_dir), "04_chapter_plan", payload, "json")
+
+            loaded = load_artifact(Path(tmp_dir), "04_chapter_plan")
+
+            self.assertEqual(loaded, payload)
+
+    @unittest.skipUnless(importlib.util.find_spec("yaml"), "PyYAML is not installed")
+    def test_load_artifact_reads_yaml_with_explicit_format(self) -> None:
+        payload = {"severity": "medium", "issue_counts": {"plan_to_draft_gaps": 1}}
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            save_artifact(Path(tmp_dir), "continuity_report", payload, "yaml")
+
+            loaded = load_artifact(Path(tmp_dir), "continuity_report", "yaml")
+
+            self.assertEqual(loaded, payload)
+
+    def test_resolve_artifact_path_prefers_existing_extension(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            save_artifact(Path(tmp_dir), "manifest", {"ok": True}, "json")
+
+            resolved = resolve_artifact_path(Path(tmp_dir), "manifest")
+
+            self.assertEqual(resolved.name, "manifest.json")
+
+    def test_load_artifact_raises_for_missing_phase(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            with self.assertRaises(FileNotFoundError):
+                load_artifact(Path(tmp_dir), "missing_phase")
 
 
 if __name__ == "__main__":
