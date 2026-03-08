@@ -1,30 +1,35 @@
 # AGENTS.md
 
-## Project goals
-- Build a novel-writing pipeline MVP in Python
-- Focus on short-story workflow first
-- Prefer simple, testable architecture
+## プロジェクト目標
+- Python で小説執筆パイプラインの MVP を構築する
+- まずは短編小説のワークフローに集中する
+- シンプルでテストしやすいアーキテクチャを優先する
 
-## Working rules
-- Do not add unnecessary dependencies
-- Keep OpenAI API access isolated behind a client module
-- Save intermediate artifacts as JSON or YAML
-- Add tests for each new module
-- Update README when behavior changes
+## 作業ルール
+- 不要な依存関係は追加しない
+- OpenAI API へのアクセスは専用クライアントモジュールの内側に隔離する
+- 中間成果物は JSON または YAML で保存する
+- 新しいモジュールには必ずテストを追加する
+- 振る舞いが変わったら README を更新する
 
-## Architecture preferences
-- Separate pipeline orchestration, storage, schema, and LLM access
-- CLI first, GUI later
-- Mock implementation first, real API integration later
+## アーキテクチャ方針
+- パイプラインのオーケストレーション、ストレージ、スキーマ、LLM アクセスを分離する
+- まずは CLI を優先し、GUI は後回しにする
+- 先にモック実装を作り、その後で実 API 連携を行う
 
-## Execution workflow
-- Read docs/ROADMAP.md, docs/TASKS.md, and docs/CODEX_WORKFLOW.md before coding
-- Select the single top priority task from docs/TASKS.md
-- Treat docs/TASKS.md as the source of truth for implementation order
-- Implement it with minimal safe changes
-- Run tests
-- Update docs if behavior changed
-- Update docs/TASKS.md as work status changes
-- Commit in a small unit
-- Then proceed to the next task if the current task is complete
-- If blocked, stop and write docs/BLOCKED.md
+## 実行ワークフロー
+- コーディング前に `docs/ROADMAP.md`、`docs/TASKS.md`、`docs/CODEX_WORKFLOW.md` を読む
+- `docs/TASKS.md` から単一の最優先タスクを選ぶ
+- 実装順序の正本は `docs/TASKS.md` とする
+- 一度に扱うタスクは必ず 1 件だけにする
+- ただし現在タスクが完全に終わったら、同じスレッド内で次の最優先タスクへ続けて進んでよい
+- ブロックしていない限り、複数タスクを連続実行してよい。ただし実装、テスト、docs 更新、コミットは必ずタスク単位で区切る
+- まず `In Progress` を優先し、空なら `Ready` の先頭を `In Progress` に上げて続行する
+- 必要最小限の安全な変更で実装する
+- テストを実行する
+- 振る舞いが変わったら docs を更新する
+- 作業状態に応じて `docs/TASKS.md` を更新する
+- 小さな単位でコミットする
+- 次のタスクに入る前に、必要に応じて push して作業状態をきれいに保つ
+- 現在タスクが完了したら次のタスクへ進む
+- ブロックした場合は停止し、`docs/BLOCKED.md` を作成して記録する
