@@ -4,7 +4,14 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from novel_writer.storage import load_artifact, resolve_artifact_path, save_artifact
+from novel_writer.storage import (
+    build_project_layout,
+    load_artifact,
+    normalize_project_id,
+    resolve_artifact_path,
+    save_artifact,
+    save_project_manifest,
+)
 
 
 class SaveArtifactTest(unittest.TestCase):
@@ -86,6 +93,25 @@ class SaveArtifactTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp_dir:
             with self.assertRaises(FileNotFoundError):
                 load_artifact(Path(tmp_dir), "missing_phase")
+
+    def test_normalize_project_id_slugifies_input(self) -> None:
+        self.assertEqual(normalize_project_id("My Story 01"), "my-story-01")
+
+    def test_build_project_layout_returns_project_scoped_paths(self) -> None:
+        layout = build_project_layout(Path("data/projects"), "My Story 01")
+
+        self.assertEqual(layout["project_slug"], "my-story-01")
+        self.assertEqual(layout["project_dir"], Path("data/projects") / "my-story-01")
+        self.assertEqual(layout["run_dir"], Path("data/projects") / "my-story-01" / "runs" / "latest_run")
+
+    def test_save_project_manifest_uses_project_directory(self) -> None:
+        payload = {"project_id": "My Story 01", "current_run": {"name": "latest_run"}}
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            target = save_project_manifest(Path(tmp_dir), "My Story 01", payload, "json")
+
+            self.assertEqual(target, Path(tmp_dir) / "my-story-01" / "project_manifest.json")
+            self.assertEqual(json.loads(target.read_text(encoding="utf-8")), payload)
 
 
 if __name__ == "__main__":

@@ -70,6 +70,19 @@ python -m novel_writer ^
 novel-writer --resume-from-output-dir data\sample_run
 ```
 
+project 単位の run layout を使う例:
+
+```bash
+novel-writer ^
+  --theme "境界" ^
+  --genre "SF" ^
+  --tone "ビター" ^
+  --target-length 5000 ^
+  --project-id "my-story-01"
+```
+
+この場合、既定では `data/projects/my-story-01/runs/latest_run` に成果物を保存し、`data/projects/my-story-01/project_manifest.json` に現在の run 情報を保存します。
+
 指定フェーズからの再実行例:
 
 ```bash

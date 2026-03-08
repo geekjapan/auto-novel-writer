@@ -1,16 +1,42 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from typing import Any
 
 
 SUPPORTED_FORMATS = ("json", "yaml")
+DEFAULT_PROJECT_RUN_NAME = "latest_run"
 
 
 def ensure_output_dir(path: Path) -> Path:
     path.mkdir(parents=True, exist_ok=True)
     return path
+
+
+def normalize_project_id(project_id: str) -> str:
+    normalized = re.sub(r"[^a-z0-9_-]+", "-", project_id.strip().lower()).strip("-_")
+    if not normalized:
+        raise ValueError("project_id must contain at least one alphanumeric character.")
+    return normalized
+
+
+def build_project_layout(
+    projects_dir: Path,
+    project_id: str,
+    run_name: str = DEFAULT_PROJECT_RUN_NAME,
+) -> dict[str, Any]:
+    project_slug = normalize_project_id(project_id)
+    project_dir = projects_dir / project_slug
+    return {
+        "project_id": project_id,
+        "project_slug": project_slug,
+        "project_dir": project_dir,
+        "run_dir": project_dir / "runs" / run_name,
+        "run_name": run_name,
+        "project_manifest_path": project_dir / "project_manifest.json",
+    }
 
 
 def resolve_artifact_path(output_dir: Path, phase_name: str, file_format: str | None = None) -> Path:
@@ -44,6 +70,16 @@ def save_artifact(output_dir: Path, phase_name: str, payload: Any, file_format: 
         return target
 
     raise ValueError(f"Unsupported format: {file_format}")
+
+
+def save_project_manifest(
+    projects_dir: Path,
+    project_id: str,
+    payload: Any,
+    file_format: str = "json",
+) -> Path:
+    project_layout = build_project_layout(projects_dir, project_id)
+    return save_artifact(project_layout["project_dir"], "project_manifest", payload, file_format)
 
 
 def load_artifact(output_dir: Path, phase_name: str, file_format: str | None = None) -> Any:
