@@ -30,6 +30,7 @@ class MockLLMClientTest(unittest.TestCase):
             {"issue_counts": {"length_warnings": 1}, "severity": "medium"},
             chapter_index=0,
         )
+        story_summary = client.generate_story_summary(story_input, loglines[0], chapter_plan, [revised])
 
         self.assertEqual(len(loglines), 3)
         self.assertEqual(len(characters), 3)
@@ -39,6 +40,8 @@ class MockLLMClientTest(unittest.TestCase):
         self.assertEqual(revised["chapter_number"], 1)
         self.assertEqual(revised["chapter_index"], 0)
         self.assertIn("revision_notes", revised)
+        self.assertEqual(story_summary["chapter_count"], len(chapter_plan))
+        self.assertIn("synopsis", story_summary)
 
     def test_openai_client_validates_logline_schema(self) -> None:
         client = FakeOpenAIClient({"loglines": [{"id": "1", "title": "t"}]})
@@ -92,6 +95,18 @@ class MockLLMClientTest(unittest.TestCase):
                 {"chapter_number": 1, "title": "第1章 導入", "summary": "導入", "text": "本文"},
                 {"severity": "low"},
                 chapter_index=0,
+            )
+
+    def test_openai_client_validates_story_summary_schema(self) -> None:
+        client = FakeOpenAIClient({"story_summary": {"title": "鏡", "chapter_count": 3}})
+        story_input = StoryInput(theme="喪失", genre="ミステリ", tone="静謐", target_length=6000)
+
+        with self.assertRaises(ValueError):
+            client.generate_story_summary(
+                story_input,
+                {"id": "logline-1", "title": "鏡", "premise": "p", "hook": "h"},
+                [{"chapter_number": 1, "title": "第1章 導入", "purpose": "導入", "point_of_view": "篠崎 遥", "target_words": 1000}],
+                [{"chapter_number": 1, "title": "第1章 導入", "summary": "導入", "text": "本文"}],
             )
 
 

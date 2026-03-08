@@ -21,6 +21,7 @@ PIPELINE_STEP_ORDER = [
     "continuity_report",
     "quality_report",
     "revised_chapter_drafts",
+    "story_summary",
 ]
 
 REVISION_MAX_ATTEMPTS = 2
@@ -240,6 +241,9 @@ class StoryPipeline:
         if step_name == "revised_chapter_drafts":
             self._run_revised_chapter_drafts_step(story_input, selected_logline, artifacts, checkpoints)
             return selected_logline
+        if step_name == "story_summary":
+            self._run_story_summary_step(story_input, selected_logline, artifacts, checkpoints)
+            return selected_logline
         raise ValueError(f"Unsupported step: {step_name}")
 
     def _load_resume_state(self, resume_from: Path) -> tuple[StoryArtifacts, dict, list[dict]]:
@@ -259,6 +263,7 @@ class StoryPipeline:
             "quality_report",
             "revised_chapter_drafts",
             "revised_chapter_1_draft",
+            "story_summary",
             "rerun_history",
             "revise_history",
         ]:
@@ -298,6 +303,9 @@ class StoryPipeline:
             return
         if rerun_from == "revised_chapter_drafts":
             self._reset_from_revised_chapter_drafts(artifacts)
+            return
+        if rerun_from == "story_summary":
+            self._reset_from_story_summary(artifacts)
 
     def _reset_from_loglines(self, artifacts: StoryArtifacts) -> None:
         artifacts.loglines = []
@@ -334,6 +342,10 @@ class StoryPipeline:
         artifacts.revised_chapter_drafts = []
         artifacts.revised_chapter_1_draft = {}
         artifacts.revise_history = []
+        self._reset_from_story_summary(artifacts)
+
+    def _reset_from_story_summary(self, artifacts: StoryArtifacts) -> None:
+        artifacts.story_summary = {}
 
     def _mark_checkpoint(
         self,
@@ -399,6 +411,22 @@ class StoryPipeline:
         report["recommended_action"] = decision.action
         report["weighted_score"] = decision.weighted_score
         return report
+
+    def _run_story_summary_step(
+        self,
+        story_input: StoryInput,
+        selected_logline: dict,
+        artifacts: StoryArtifacts,
+        checkpoints: list[dict],
+    ) -> None:
+        artifacts.story_summary = self.llm_client.generate_story_summary(
+            story_input,
+            selected_logline,
+            artifacts.chapter_plan,
+            artifacts.revised_chapter_drafts,
+        )
+        save_artifact(self.output_dir, "story_summary", artifacts.story_summary, "json")
+        self._mark_checkpoint("story_summary", checkpoints, artifacts, selected_logline)
 
     def _maybe_rerun_from_decision(
         self,

@@ -210,3 +210,34 @@ class OpenAIClient(BaseLLMClient):
         if "revision_notes" in revised and not isinstance(revised["revision_notes"], list):
             raise ValueError("OpenAI response for revised_chapter_draft.revision_notes must be a list when present.")
         return revised
+
+    def generate_story_summary(
+        self,
+        story_input: StoryInput,
+        logline: dict[str, Any],
+        chapter_plan: list[dict[str, Any]],
+        revised_chapter_drafts: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        data = self._generate_json(
+            "You generate a whole-story summary in Japanese.",
+            (
+                "Return JSON with key 'story_summary'. "
+                f"story={story_input.to_dict()}, "
+                f"logline={json.dumps(logline, ensure_ascii=False)}, "
+                f"chapter_plan={json.dumps(chapter_plan, ensure_ascii=False)}, "
+                f"revised_chapter_drafts={json.dumps(revised_chapter_drafts, ensure_ascii=False)}. "
+                "Include a concise synopsis and chapter_summaries across the full story."
+            ),
+        )
+        root = self._require_dict(data, "story_summary root")
+        story_summary = self._require_required_keys(
+            self._require_dict(root.get("story_summary"), "story_summary"),
+            "story_summary",
+            ("title", "synopsis", "chapter_count", "chapter_summaries"),
+        )
+        story_summary["chapter_summaries"] = self._require_object_list(
+            story_summary.get("chapter_summaries"),
+            "story_summary.chapter_summaries",
+            ("chapter_number", "title", "summary"),
+        )
+        return story_summary

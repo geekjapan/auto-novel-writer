@@ -96,6 +96,21 @@ class CountingLLMClient:
             "source_issue_counts": continuity_report.get("issue_counts", {}),
         }
 
+    def generate_story_summary(self, story_input, logline, chapter_plan, revised_chapter_drafts):
+        return {
+            "title": logline["title"],
+            "synopsis": " ".join(draft["summary"] for draft in revised_chapter_drafts),
+            "chapter_count": len(chapter_plan),
+            "chapter_summaries": [
+                {
+                    "chapter_number": chapter["chapter_number"],
+                    "title": chapter["title"],
+                    "summary": draft["summary"],
+                }
+                for chapter, draft in zip(chapter_plan, revised_chapter_drafts)
+            ],
+        }
+
 
 class ContinuityRerunPolicyTest(unittest.TestCase):
     def test_policy_classifies_levels(self) -> None:

@@ -55,3 +55,13 @@ class BaseLLMClient(ABC):
         chapter_index: int = 0,
     ) -> dict[str, Any]:
         raise NotImplementedError
+
+    @abstractmethod
+    def generate_story_summary(
+        self,
+        story_input: StoryInput,
+        logline: dict[str, Any],
+        chapter_plan: list[dict[str, Any]],
+        revised_chapter_drafts: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        raise NotImplementedError

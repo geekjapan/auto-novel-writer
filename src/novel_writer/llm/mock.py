@@ -164,6 +164,36 @@ class MockLLMClient(BaseLLMClient):
             "source_issue_counts": continuity_report.get("issue_counts", {}),
         }
 
+    def generate_story_summary(
+        self,
+        story_input: StoryInput,
+        logline: dict[str, Any],
+        chapter_plan: list[dict[str, Any]],
+        revised_chapter_drafts: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        chapter_summaries = [
+            {
+                "chapter_number": chapter.get("chapter_number"),
+                "title": chapter.get("title"),
+                "summary": draft.get("summary", chapter.get("purpose", "")),
+            }
+            for chapter, draft in zip(chapter_plan, revised_chapter_drafts)
+        ]
+        synopsis = " ".join(
+            summary["summary"]
+            for summary in chapter_summaries
+            if summary.get("summary")
+        ).strip()
+        return {
+            "title": logline.get("title"),
+            "theme": story_input.theme,
+            "genre": story_input.genre,
+            "tone": story_input.tone,
+            "chapter_count": len(chapter_plan),
+            "synopsis": synopsis,
+            "chapter_summaries": chapter_summaries,
+        }
+
     def _dedupe_sentences(self, text: str) -> str:
         parts = re.split(r"(?<=[。！？])", text)
         unique_parts: list[str] = []
