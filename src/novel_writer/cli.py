@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
+from typing import Any
 
 from novel_writer.llm_client import build_llm_client
 from novel_writer.pipeline import PIPELINE_STEP_ORDER, StoryPipeline
@@ -85,6 +86,10 @@ def save_project_state(
     file_format: str,
 ) -> None:
     run_manifest = load_artifact(output_dir, "manifest")
+    existing_project_manifest = _load_existing_project_manifest(project_layout["project_dir"])
+    run_candidate = _build_run_candidate(run_manifest, output_dir)
+    run_candidates = _merge_run_candidates(existing_project_manifest.get("run_candidates", []), run_candidate)
+    best_run = _select_best_run(run_candidates)
     save_project_manifest(
         projects_dir,
         project_id,
@@ -93,12 +98,14 @@ def save_project_state(
             "project_slug": project_layout["project_slug"],
             "projects_dir": str(projects_dir),
             "current_run": {
-                "name": project_layout["run_name"],
+                "name": output_dir.name,
                 "output_dir": str(output_dir),
                 "current_step": run_manifest.get("current_step"),
                 "completed_steps": run_manifest.get("completed_steps", []),
                 "summary": run_manifest.get("summary", {}),
             },
+            "run_candidates": run_candidates,
+            "best_run": best_run,
         },
         file_format,
     )
@@ -108,6 +115,55 @@ def load_project_run_context(projects_dir: Path, project_id: str) -> tuple[dict,
     project_layout = build_project_layout(projects_dir, project_id)
     project_manifest = load_artifact(project_layout["project_dir"], "project_manifest")
     return project_layout, Path(project_manifest["current_run"]["output_dir"])
+
+
+def _load_existing_project_manifest(project_dir: Path) -> dict[str, Any]:
+    try:
+        return load_artifact(project_dir, "project_manifest")
+    except FileNotFoundError:
+        return {}
+
+
+def _build_run_candidate(run_manifest: dict[str, Any], output_dir: Path) -> dict[str, Any]:
+    continuity_report = run_manifest.get("artifacts", {}).get("continuity_report", {})
+    quality_report = run_manifest.get("artifacts", {}).get("quality_report", {})
+    project_quality_report = run_manifest.get("artifacts", {}).get("project_quality_report", {})
+    continuity_issue_total = sum(continuity_report.get("issue_counts", {}).values())
+    quality_issue_total = quality_report.get("total_issue_count", 0)
+    project_issue_total = project_quality_report.get("issue_count", 0)
+    score = continuity_issue_total + quality_issue_total + project_issue_total
+    return {
+        "run_name": output_dir.name,
+        "output_dir": str(output_dir),
+        "completed_steps": run_manifest.get("completed_steps", []),
+        "summary": run_manifest.get("summary", {}),
+        "score": score,
+        "continuity_issue_total": continuity_issue_total,
+        "quality_issue_total": quality_issue_total,
+        "project_issue_total": project_issue_total,
+    }
+
+
+def _merge_run_candidates(existing_candidates: list[dict[str, Any]], current_candidate: dict[str, Any]) -> list[dict[str, Any]]:
+    filtered = [candidate for candidate in existing_candidates if candidate.get("output_dir") != current_candidate["output_dir"]]
+    filtered.append(current_candidate)
+    return sorted(filtered, key=lambda candidate: (candidate.get("score", 0), candidate.get("run_name", "")))
+
+
+def _select_best_run(run_candidates: list[dict[str, Any]]) -> dict[str, Any]:
+    if not run_candidates:
+        return {}
+    best = min(run_candidates, key=lambda candidate: (candidate.get("score", 0), candidate.get("run_name", "")))
+    return {
+        "run_name": best.get("run_name"),
+        "output_dir": best.get("output_dir"),
+        "score": best.get("score"),
+        "comparison_basis": [
+            "continuity_issue_total",
+            "quality_issue_total",
+            "project_issue_total",
+        ],
+    }
 
 
 def run_pipeline(

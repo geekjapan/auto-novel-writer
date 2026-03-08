@@ -184,6 +184,63 @@ class CliTest(unittest.TestCase):
             self.assertEqual(exit_code, 0)
             self.assertTrue((run_dir / "05_chapter_1_draft.json").exists())
 
+    def test_project_manifest_tracks_run_candidates_and_best_run(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            first_run_dir = Path(tmp_dir) / "candidate-a"
+            second_run_dir = Path(tmp_dir) / "candidate-b"
+
+            first_exit_code = main(
+                [
+                    "create-project",
+                    "--theme",
+                    "秘密",
+                    "--genre",
+                    "ミステリ",
+                    "--tone",
+                    "静謐",
+                    "--target-length",
+                    "5000",
+                    "--project-id",
+                    "Case 02",
+                    "--projects-dir",
+                    tmp_dir,
+                    "--output-dir",
+                    str(first_run_dir),
+                ]
+            )
+            second_exit_code = main(
+                [
+                    "create-project",
+                    "--theme",
+                    "秘密",
+                    "--genre",
+                    "ミステリ",
+                    "--tone",
+                    "静謐",
+                    "--target-length",
+                    "5000",
+                    "--project-id",
+                    "Case 02",
+                    "--projects-dir",
+                    tmp_dir,
+                    "--output-dir",
+                    str(second_run_dir),
+                ]
+            )
+
+            project_dir = Path(tmp_dir) / "case-02"
+            project_manifest = load_artifact(project_dir, "project_manifest")
+
+            self.assertEqual(first_exit_code, 0)
+            self.assertEqual(second_exit_code, 0)
+            self.assertEqual(len(project_manifest["run_candidates"]), 2)
+            self.assertEqual(project_manifest["current_run"]["output_dir"], str(second_run_dir))
+            self.assertIn(project_manifest["best_run"]["output_dir"], {str(first_run_dir), str(second_run_dir)})
+            self.assertEqual(
+                {candidate["output_dir"] for candidate in project_manifest["run_candidates"]},
+                {str(first_run_dir), str(second_run_dir)},
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

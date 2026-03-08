@@ -105,7 +105,12 @@ class SaveArtifactTest(unittest.TestCase):
         self.assertEqual(layout["run_dir"], Path("data/projects") / "my-story-01" / "runs" / "latest_run")
 
     def test_save_project_manifest_uses_project_directory(self) -> None:
-        payload = {"project_id": "My Story 01", "current_run": {"name": "latest_run"}}
+        payload = {
+            "project_id": "My Story 01",
+            "current_run": {"name": "latest_run"},
+            "run_candidates": [{"run_name": "latest_run", "output_dir": "data/projects/my-story-01/runs/latest_run"}],
+            "best_run": {"run_name": "latest_run", "output_dir": "data/projects/my-story-01/runs/latest_run", "score": 0},
+        }
 
         with tempfile.TemporaryDirectory() as tmp_dir:
             target = save_project_manifest(Path(tmp_dir), "My Story 01", payload, "json")
