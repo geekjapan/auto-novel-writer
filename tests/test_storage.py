@@ -226,6 +226,34 @@ class SaveArtifactTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "schema_version='9.9' is not supported; expected '1.0'"):
                 load_publish_ready_bundle(Path(tmp_dir))
 
+    def test_load_publish_ready_bundle_rejects_invalid_sections_contract(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            save_artifact(
+                Path(tmp_dir),
+                "publish_ready_bundle",
+                {
+                    "schema_version": "1.0",
+                    "bundle_type": "publish_ready_bundle",
+                    "title": "Case 01",
+                    "synopsis": "Synopsis",
+                    "chapter_count": 1,
+                    "chapters": [],
+                    "story_summary": {},
+                    "overall_quality_report": {},
+                    "selected_logline": {},
+                    "source_artifacts": {},
+                    "sections": {
+                        "manuscript": {"field": "wrong_field"},
+                        "story_summary": {"field": "story_summary"},
+                        "quality": {"field": "overall_quality_report"},
+                    },
+                },
+                "json",
+            )
+
+            with self.assertRaisesRegex(ValueError, "sections.manuscript.field='wrong_field' is not supported"):
+                load_publish_ready_bundle(Path(tmp_dir))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -17,10 +17,13 @@ CLI から小説プロジェクトを作成し、章単位・作品単位で
 - rerun policy、bounded revise loop、resume / rerun、history / diff metadata 保存がある
 - `project_manifest.json` と `manifest` により、project/run の状態復元と run 比較ができる
 - `story_summary.json`、`project_quality_report.json`、`publish_ready_bundle.json` を生成できる
+- `run_comparison_summary.json` を生成できる
 - `rerun-chapter` は任意章で動く
+- `select-best-run` により人間が `best_run` を手動採用できる
 - `best_run` には comparison metrics、selection reason、long-run status が保存される
 - `publish_ready_bundle.json` は `schema_version=1.0` の固定 contract を持つ
 - `project_manifest.json` も `schema_name=project_manifest`, `schema_version=1.0` を持ち、保存時・読込時に validation される
+- `publish_ready_bundle.sections` は `manuscript` / `story_summary` / `quality` contract を持つ
 
 ## 現在地の整理
 
@@ -140,14 +143,7 @@ chapter 配列ベースの内部正本、chapter 1 互換 artifact、publish-rea
 
 ### M18. 公開成果物 bundle の強化
 
-目的:
-`publish_ready_bundle.json` を比較・公開・変換の起点として扱えるようにする。
-
-完了条件:
-
-- `sections` の内容契約が固定される
-- bundle の downstream 利用前提が docs / tests で説明される
-- 将来の Markdown / EPUB 変換に繋がる最小 contract が整う
+`publish_ready_bundle.sections` の key と field 対応は validator / docs / tests で固定済み。
 
 ## Sequencing Rationale
 

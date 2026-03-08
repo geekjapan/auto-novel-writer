@@ -88,6 +88,21 @@ def validate_publish_ready_bundle(payload: dict) -> dict:
             f"bundle_type={bundle_type!r} is not supported; expected {contract['schema_name']!r}."
         )
 
+    sections = payload.get("sections", {})
+    for section_name, section_contract in contract["sections"].items():
+        section_payload = sections.get(section_name)
+        if not isinstance(section_payload, dict):
+            raise ValueError(
+                "Invalid publish_ready_bundle: "
+                f"sections.{section_name!s} must be an object with field metadata."
+            )
+        if section_payload.get("field") != section_contract["field"]:
+            raise ValueError(
+                "Invalid publish_ready_bundle: "
+                f"sections.{section_name}.field={section_payload.get('field')!r} "
+                f"is not supported; expected {section_contract['field']!r}."
+            )
+
     return payload
 
 
