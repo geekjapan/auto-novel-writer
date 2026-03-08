@@ -51,14 +51,15 @@ class StoryPipeline:
         )
         save_artifact(self.output_dir, "04_chapter_plan", artifacts.chapter_plan, self.file_format)
 
-        artifacts.chapter_1_draft = self.llm_client.generate_chapter_draft(
+        chapter_1_draft = self.llm_client.generate_chapter_draft(
             story_input,
             selected_logline,
             artifacts.characters,
             artifacts.chapter_plan,
             chapter_index=0,
         )
-        save_artifact(self.output_dir, "05_chapter_1_draft", artifacts.chapter_1_draft, self.file_format)
+        artifacts.set_chapter_draft(0, chapter_1_draft)
+        save_artifact(self.output_dir, "05_chapter_1_draft", artifacts.get_chapter_draft(0), self.file_format)
 
         artifacts.continuity_report = self._build_report_with_decision(artifacts)
         self._maybe_rerun_from_decision(story_input, selected_logline, artifacts)
@@ -99,18 +100,20 @@ class StoryPipeline:
         )
 
         if decision.severity == "medium":
-            artifacts.chapter_1_draft = self.llm_client.generate_chapter_draft(
+            chapter_draft = self.llm_client.generate_chapter_draft(
                 story_input,
                 selected_logline,
                 artifacts.characters,
                 artifacts.chapter_plan,
                 chapter_index=0,
             )
-            save_artifact(self.output_dir, "05_chapter_1_draft", artifacts.chapter_1_draft, self.file_format)
+            artifacts.set_chapter_draft(0, chapter_draft)
+            save_artifact(self.output_dir, "05_chapter_1_draft", artifacts.get_chapter_draft(0), self.file_format)
             artifacts.continuity_report = self._build_report_with_decision(artifacts)
             artifacts.rerun_history.append(
                 {
                     "attempt": 2,
+                    "chapter_index": 0,
                     "triggered_by": "medium",
                     "action_taken": "reran_chapter_1_draft",
                     "resulting_severity": artifacts.continuity_report["severity"],
@@ -128,18 +131,20 @@ class StoryPipeline:
             )
             save_artifact(self.output_dir, "04_chapter_plan", artifacts.chapter_plan, self.file_format)
 
-            artifacts.chapter_1_draft = self.llm_client.generate_chapter_draft(
+            chapter_draft = self.llm_client.generate_chapter_draft(
                 story_input,
                 selected_logline,
                 artifacts.characters,
                 artifacts.chapter_plan,
                 chapter_index=0,
             )
-            save_artifact(self.output_dir, "05_chapter_1_draft", artifacts.chapter_1_draft, self.file_format)
+            artifacts.set_chapter_draft(0, chapter_draft)
+            save_artifact(self.output_dir, "05_chapter_1_draft", artifacts.get_chapter_draft(0), self.file_format)
             artifacts.continuity_report = self._build_report_with_decision(artifacts)
             artifacts.rerun_history.append(
                 {
                     "attempt": 2,
+                    "chapter_index": 0,
                     "triggered_by": "high",
                     "action_taken": "reran_from_chapter_plan",
                     "resulting_severity": artifacts.continuity_report["severity"],
@@ -151,12 +156,11 @@ class StoryPipeline:
         revised_chapter_draft = self.llm_client.revise_chapter_draft(
             story_input,
             artifacts.chapter_plan,
-            artifacts.chapter_1_draft,
+            artifacts.get_chapter_draft(chapter_index),
             artifacts.continuity_report,
             chapter_index=chapter_index,
         )
-        if chapter_index == 0:
-            artifacts.revised_chapter_1_draft = revised_chapter_draft
+        artifacts.set_revised_chapter_draft(chapter_index, revised_chapter_draft)
         artifacts.revise_history.append(
             {
                 "attempt": 1,

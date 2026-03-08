@@ -157,6 +157,7 @@ class ContinuityRerunPolicyTest(unittest.TestCase):
         self.assertEqual(artifacts.continuity_report["severity"], "low")
         self.assertEqual(artifacts.rerun_history[0]["severity"], "medium")
         self.assertEqual(artifacts.rerun_history[1]["action_taken"], "reran_chapter_1_draft")
+        self.assertEqual(artifacts.rerun_history[1]["chapter_index"], 0)
         self.assertEqual(artifacts.revised_chapter_1_draft["summary"], "setup")
         self.assertEqual(artifacts.revised_chapter_1_draft["chapter_index"], 0)
 
@@ -204,6 +205,7 @@ class ContinuityRerunPolicyTest(unittest.TestCase):
         self.assertEqual(client.revise_calls, 1)
         self.assertEqual(artifacts.rerun_history[0]["severity"], "high")
         self.assertEqual(artifacts.rerun_history[1]["action_taken"], "reran_from_chapter_plan")
+        self.assertEqual(artifacts.rerun_history[1]["chapter_index"], 0)
 
 
 if __name__ == "__main__":

@@ -43,6 +43,7 @@
     },
     {
       "attempt": 2,
+      "chapter_index": 0,
       "triggered_by": "high",
       "action_taken": "reran_from_chapter_plan",
       "resulting_severity": "high",
@@ -157,6 +158,14 @@
         "target_words": 2000
       }
     ],
+    "chapter_drafts": [
+      {
+        "chapter_number": 1,
+        "title": "第1章 導入",
+        "summary": "篠崎 遥は秘密に関する未解決の問題を抱えながら日常を送っている。",
+        "text": "篠崎 遥はまだ夜の静けさに慣れずにいた。秘密の気配は、窓を叩く風よりも近くで息をしている。目の前の選択は小さく見えて、その実、これから失うものすべてを量っていた。『鏡の中の約束』の始まりとして、静謐な空気と不穏な予感を前景に置いた導入を書く。"
+      }
+    ],
     "chapter_1_draft": {
       "chapter_number": 1,
       "title": "第1章 導入",
@@ -211,6 +220,27 @@
       "recommended_action": "rerun_from_chapter_plan",
       "weighted_score": 9
     },
+    "revised_chapter_drafts": [
+      {
+        "chapter_number": 1,
+        "title": "第1章 導入",
+        "summary": "篠崎 遥は秘密に関する未解決の問題を抱えながら日常を送っている。",
+        "text": "篠崎 遥は秘密に関する未解決の問題を抱えながら日常を送っている。 篠崎 遥はまだ夜の静けさに慣れずにいた。秘密の気配は、窓を叩く風よりも近くで息をしている。目の前の選択は小さく見えて、これから失うものすべてを量っていた。『鏡の中の約束』の始まりとして、静謐な空気と不穏さだけを残した。",
+        "revision_notes": [
+          "chapter_plan[0] の purpose に summary を寄せた",
+          "重複文を削減した",
+          "静謐な文体に合わせて冗長表現を短くした"
+        ],
+        "chapter_index": 0,
+        "source_issue_counts": {
+          "missing_fields": 0,
+          "character_name_mismatches": 0,
+          "plot_to_plan_gaps": 2,
+          "plan_to_draft_gaps": 0,
+          "length_warnings": 1
+        }
+      }
+    ],
     "revised_chapter_1_draft": {
       "chapter_number": 1,
       "title": "第1章 導入",
@@ -246,6 +276,7 @@
       },
       {
         "attempt": 2,
+        "chapter_index": 0,
         "triggered_by": "high",
         "action_taken": "reran_from_chapter_plan",
         "resulting_severity": "high",

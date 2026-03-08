@@ -46,6 +46,15 @@ class StoryPipelineTest(unittest.TestCase):
             self.assertIn("severity", continuity_report)
             self.assertEqual(artifacts.revised_chapter_1_draft["chapter_number"], 1)
             self.assertEqual(manifest["revise_history"][0]["chapter_index"], 0)
+            self.assertTrue(artifacts.chapter_drafts)
+            self.assertTrue(artifacts.revised_chapter_drafts)
+            self.assertEqual(artifacts.chapter_drafts[0], artifacts.chapter_1_draft)
+            self.assertEqual(artifacts.revised_chapter_drafts[0], artifacts.revised_chapter_1_draft)
+            self.assertEqual(manifest["artifacts"]["chapter_drafts"][0], manifest["artifacts"]["chapter_1_draft"])
+            self.assertEqual(
+                manifest["artifacts"]["revised_chapter_drafts"][0],
+                manifest["artifacts"]["revised_chapter_1_draft"],
+            )
 
 
 
