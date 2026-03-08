@@ -67,6 +67,8 @@ class StoryPipelineTest(unittest.TestCase):
                 "continuity_report",
             )
             self.assertEqual(manifest["artifact_contract"]["publish_ready_bundle"]["schema_version"], "1.0")
+            self.assertEqual(manifest["policy_snapshot"]["long_run"]["max_high_severity_chapters"], 10)
+            self.assertEqual(manifest["policy_snapshot"]["long_run"]["max_total_rerun_attempts"], 20)
             self.assertEqual(artifacts.chapter_1_draft["chapter_number"], 1)
             self.assertIn("length_warnings", continuity_report)
             self.assertIn("overall_recommendation", quality_report)

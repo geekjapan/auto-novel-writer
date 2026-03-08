@@ -5,12 +5,10 @@
 
 ## In Progress
 
-- [ ] M16: 実行時 policy snapshot を `manifest` / `project_manifest.json` に保存し、比較可能にする
+- [ ] M17: 機械可読な run comparison summary artifact を追加する
 
 ## Ready
 
-- [ ] M16: 長編向け budget 設定の差を検証する tests を追加する
-- [ ] M17: 機械可読な run comparison summary artifact を追加する
 - [ ] M17: 人間レビュー後に `best_run` を固定または昇格できる CLI を追加する
 - [ ] M18: `publish_ready_bundle.sections` の最小 contract を定義し、docs / tests で固定する
 - [ ] Docs: M14-M15 実装後に README / ROADMAP / TASKS の説明を同期する
@@ -67,6 +65,8 @@
 - [x] M15: `publish_ready_bundle.json` の validator を追加し、`schema_version=1.0` contract を保存時・読込時に検証する
 - [x] M15: manifest / bundle の schema version 方針を docs と tests に固定する
 - [x] M16: rerun policy の主要閾値を CLI 引数または設定ファイルから与えられるようにする
+- [x] M16: 実行時 policy snapshot を `manifest` / `project_manifest.json` に保存し、比較可能にする
+- [x] M16: 長編向け budget 設定の差を検証する tests を追加する
 
 ## Task Update Rules
 

@@ -123,6 +123,7 @@ class CliTest(unittest.TestCase):
                 project_manifest["current_run"]["summary"]["counts"]["chapters"],
             )
             self.assertIn("long_run_status", project_manifest["current_run"])
+            self.assertIn("policy_snapshot", project_manifest["current_run"])
 
     def test_cli_create_and_resume_project_commands(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -266,7 +267,9 @@ class CliTest(unittest.TestCase):
             self.assertTrue(all("chapter_statuses" in candidate for candidate in project_manifest["run_candidates"]))
             self.assertTrue(all("comparison_metrics" in candidate for candidate in project_manifest["run_candidates"]))
             self.assertTrue(all("long_run_status" in candidate for candidate in project_manifest["run_candidates"]))
+            self.assertTrue(all("policy_snapshot" in candidate for candidate in project_manifest["run_candidates"]))
             self.assertIn("comparison_metrics", project_manifest["best_run"])
+            self.assertIn("policy_snapshot", project_manifest["best_run"])
             self.assertIn("selection_reason", project_manifest["best_run"])
             self.assertIn("long_run_should_stop", project_manifest["best_run"]["comparison_metrics"])
             self.assertIn("total_issue_score=", project_manifest["best_run"]["selection_reason"][1])
@@ -405,10 +408,13 @@ class CliTest(unittest.TestCase):
 
             project_manifest = load_artifact(Path(tmp_dir) / "policy-01", "project_manifest")
             policy_limits = project_manifest["current_run"]["long_run_status"]["policy_limits"]
+            policy_snapshot = project_manifest["current_run"]["policy_snapshot"]
 
             self.assertEqual(exit_code, 0)
             self.assertEqual(policy_limits["max_high_severity_chapters"], 2)
             self.assertEqual(policy_limits["max_total_rerun_attempts"], 7)
+            self.assertEqual(policy_snapshot["long_run"]["max_high_severity_chapters"], 2)
+            self.assertEqual(policy_snapshot["long_run"]["max_total_rerun_attempts"], 7)
 
 
 if __name__ == "__main__":

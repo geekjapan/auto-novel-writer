@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from copy import deepcopy
 from dataclasses import dataclass
 from typing import Any
 
@@ -45,7 +46,10 @@ class RerunDecision:
 
 class ContinuityRerunPolicy:
     def __init__(self, config: dict[str, Any] | None = None) -> None:
-        self.config = config or DEFAULT_SEVERITY_POLICY
+        self.config = deepcopy(config or DEFAULT_SEVERITY_POLICY)
+
+    def snapshot(self) -> dict[str, Any]:
+        return deepcopy(self.config)
 
     def decide(self, issue_counts: dict[str, int]) -> RerunDecision:
         score = self._weighted_score(issue_counts)

@@ -514,6 +514,7 @@ class StoryPipeline:
         manifest = {
             "summary": artifacts.summary(),
             "artifact_contract": artifacts.artifact_contract(),
+            "policy_snapshot": self.rerun_policy.snapshot(),
             "selected_logline": selected_logline,
             "continuity_history": artifacts.continuity_history,
             "rerun_history": artifacts.rerun_history,

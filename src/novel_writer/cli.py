@@ -111,6 +111,7 @@ def save_project_state(
     best_run = _select_best_run(run_candidates)
     chapter_statuses = _build_project_chapter_statuses(run_manifest)
     long_run_status = dict(run_manifest.get("long_run_status", {}))
+    policy_snapshot = dict(run_manifest.get("policy_snapshot", {}))
     save_project_manifest(
         projects_dir,
         project_id,
@@ -126,6 +127,7 @@ def save_project_state(
                 "summary": run_manifest.get("summary", {}),
                 "chapter_statuses": chapter_statuses,
                 "long_run_status": long_run_status,
+                "policy_snapshot": policy_snapshot,
             },
             "run_candidates": run_candidates,
             "best_run": best_run,
@@ -203,6 +205,7 @@ def _build_run_candidate(run_manifest: dict[str, Any], output_dir: Path) -> dict
         "summary": run_manifest.get("summary", {}),
         "chapter_statuses": _build_project_chapter_statuses(run_manifest),
         "long_run_status": dict(run_manifest.get("long_run_status", {})),
+        "policy_snapshot": dict(run_manifest.get("policy_snapshot", {})),
         "score": score,
         "continuity_issue_total": comparison_metrics["continuity_issue_total"],
         "quality_issue_total": comparison_metrics["quality_issue_total"],
@@ -297,6 +300,7 @@ def _select_best_run(run_candidates: list[dict[str, Any]]) -> dict[str, Any]:
         "run_name": best.get("run_name"),
         "output_dir": best.get("output_dir"),
         "score": best.get("score"),
+        "policy_snapshot": dict(best.get("policy_snapshot", {})),
         "comparison_metrics": metrics,
         "comparison_basis": [
             "long_run_should_stop",
