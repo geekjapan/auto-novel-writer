@@ -216,6 +216,7 @@ novel-writer ^
 novel-writer create-project --project-id "my-story-01" --theme "境界" --genre "SF" --tone "ビター" --target-length 5000
 novel-writer resume-project --project-id "my-story-01"
 novel-writer show-project-status --project-id "my-story-01"
+novel-writer select-best-run --project-id "my-story-01" --run-name "latest_run"
 novel-writer rerun-chapter --project-id "my-story-01" --chapter-number 2
 ```
 
@@ -223,6 +224,7 @@ novel-writer rerun-chapter --project-id "my-story-01" --chapter-number 2
 ただし互換 artifact の `continuity_report.json` と `quality_report.json` は、引き続き chapter 1 基準です。
 `show-project-status` は `project_manifest.json` を読み取り専用で表示し、run を再実行しません。  
 現在は current run、best run、chapter status の要約、章ごとの issue / rerun / revise 回数、long-run status の要点を確認できます。
+`select-best-run` は `run_candidates` から 1 つを手動で `best_run` に昇格します。
 
 ## 主な出力物
 

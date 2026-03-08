@@ -422,6 +422,69 @@ class CliTest(unittest.TestCase):
             self.assertEqual(policy_snapshot["long_run"]["max_high_severity_chapters"], 2)
             self.assertEqual(policy_snapshot["long_run"]["max_total_rerun_attempts"], 7)
 
+    def test_cli_can_manually_select_best_run(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            main(
+                [
+                    "create-project",
+                    "--theme",
+                    "秘密",
+                    "--genre",
+                    "ミステリ",
+                    "--tone",
+                    "静謐",
+                    "--target-length",
+                    "5000",
+                    "--project-id",
+                    "Manual 01",
+                    "--projects-dir",
+                    tmp_dir,
+                    "--output-dir",
+                    str(Path(tmp_dir) / "candidate-a"),
+                ]
+            )
+            main(
+                [
+                    "create-project",
+                    "--theme",
+                    "秘密",
+                    "--genre",
+                    "ミステリ",
+                    "--tone",
+                    "静謐",
+                    "--target-length",
+                    "5000",
+                    "--project-id",
+                    "Manual 01",
+                    "--projects-dir",
+                    tmp_dir,
+                    "--output-dir",
+                    str(Path(tmp_dir) / "candidate-b"),
+                ]
+            )
+
+            exit_code = main(
+                [
+                    "select-best-run",
+                    "--project-id",
+                    "Manual 01",
+                    "--projects-dir",
+                    tmp_dir,
+                    "--run-name",
+                    "candidate-b",
+                ]
+            )
+
+            project_dir = Path(tmp_dir) / "manual-01"
+            project_manifest = load_artifact(project_dir, "project_manifest")
+            comparison_summary = load_artifact(project_dir, "run_comparison_summary")
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(project_manifest["best_run"]["run_name"], "candidate-b")
+            self.assertEqual(project_manifest["best_run"]["selection_source"], "manual")
+            self.assertIn("manual_selection=candidate-b", project_manifest["best_run"]["selection_reason"][0])
+            self.assertEqual(comparison_summary["best_run"]["run_name"], "candidate-b")
+
 
 if __name__ == "__main__":
     unittest.main()

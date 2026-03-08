@@ -78,6 +78,14 @@ def build_parser() -> argparse.ArgumentParser:
     show_project_status.add_argument("--project-id", required=True, help="Project/story identifier")
     show_project_status.add_argument("--projects-dir", default=DEFAULT_PROJECTS_DIR, help="Base directory for project-scoped runs")
 
+    select_best_run = subparsers.add_parser(
+        "select-best-run",
+        help="Manually promote a run candidate to best_run in the project manifest",
+    )
+    select_best_run.add_argument("--project-id", required=True, help="Project/story identifier")
+    select_best_run.add_argument("--projects-dir", default=DEFAULT_PROJECTS_DIR, help="Base directory for project-scoped runs")
+    select_best_run.add_argument("--run-name", required=True, help="Run candidate name to promote")
+
     rerun_chapter = subparsers.add_parser("rerun-chapter", help="Rerun chapter generation for the current project run")
     rerun_chapter.add_argument("--project-id", required=True, help="Project/story identifier")
     rerun_chapter.add_argument("--projects-dir", default=DEFAULT_PROJECTS_DIR, help="Base directory for project-scoped runs")
@@ -495,6 +503,50 @@ def print_project_status(project_manifest: dict[str, Any]) -> None:
         print(line)
 
 
+def promote_best_run(project_dir: Path, run_name: str, projects_dir: Path, file_format: str = "json") -> dict[str, Any]:
+    project_manifest = load_project_manifest(project_dir)
+    candidate = next(
+        (item for item in project_manifest.get("run_candidates", []) if item.get("run_name") == run_name),
+        None,
+    )
+    if candidate is None:
+        raise ValueError(f"Unknown run candidate: {run_name}")
+
+    best_run = {
+        "run_name": candidate.get("run_name"),
+        "output_dir": candidate.get("output_dir"),
+        "score": candidate.get("score"),
+        "policy_snapshot": dict(candidate.get("policy_snapshot", {})),
+        "comparison_metrics": dict(candidate.get("comparison_metrics", {})),
+        "comparison_basis": [
+            "manual_selection",
+            "long_run_should_stop",
+            "total_issue_score",
+            "completed_step_count",
+        ],
+        "selection_reason": [
+            f"manual_selection={run_name}",
+            f"total_issue_score={candidate.get('comparison_metrics', {}).get('total_issue_score')}",
+            f"completed_step_count={candidate.get('comparison_metrics', {}).get('completed_step_count')}",
+        ],
+        "selection_source": "manual",
+    }
+    project_manifest["best_run"] = best_run
+    save_project_manifest(projects_dir, project_manifest["project_id"], project_manifest, file_format)
+    comparison_summary = _build_run_comparison_summary(
+        project_layout={
+            "project_id": project_manifest["project_id"],
+            "project_slug": project_manifest["project_slug"],
+        },
+        current_run_name=project_manifest.get("current_run", {}).get("name", ""),
+        current_output_dir=Path(project_manifest.get("current_run", {}).get("output_dir", "")),
+        run_candidates=project_manifest.get("run_candidates", []),
+        best_run=best_run,
+    )
+    save_artifact(project_dir, "run_comparison_summary", comparison_summary, file_format)
+    return project_manifest
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -522,6 +574,16 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "show-project-status":
         project_layout = build_project_layout(Path(args.projects_dir), args.project_id)
         project_manifest = load_project_manifest(project_layout["project_dir"])
+        print_project_status(project_manifest)
+        return 0
+
+    if args.command == "select-best-run":
+        project_layout = build_project_layout(Path(args.projects_dir), args.project_id)
+        project_manifest = promote_best_run(
+            project_layout["project_dir"],
+            args.run_name,
+            Path(args.projects_dir),
+        )
         print_project_status(project_manifest)
         return 0
 

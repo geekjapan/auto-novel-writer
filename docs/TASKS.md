@@ -5,11 +5,10 @@
 
 ## In Progress
 
-- [ ] M17: 人間レビュー後に `best_run` を固定または昇格できる CLI を追加する
+- [ ] M18: `publish_ready_bundle.sections` の最小 contract を定義し、docs / tests で固定する
 
 ## Ready
 
-- [ ] M18: `publish_ready_bundle.sections` の最小 contract を定義し、docs / tests で固定する
 - [ ] Docs: M14-M15 実装後に README / ROADMAP / TASKS の説明を同期する
 
 ## Done
@@ -67,6 +66,7 @@
 - [x] M16: 実行時 policy snapshot を `manifest` / `project_manifest.json` に保存し、比較可能にする
 - [x] M16: 長編向け budget 設定の差を検証する tests を追加する
 - [x] M17: 機械可読な run comparison summary artifact を追加する
+- [x] M17: 人間レビュー後に `best_run` を固定または昇格できる CLI を追加する
 
 ## Task Update Rules
 
