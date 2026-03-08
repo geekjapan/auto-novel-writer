@@ -5,11 +5,9 @@
 
 ## In Progress
 
-- [ ] M13: `publish_ready_bundle.json` の schema を固定し、downstream 利用前提の説明と tests を追加する
+- [ ] Docs: README / ROADMAP / TASKS / manifest で使う用語を完全に統一する
 
 ## Ready
-
-- [ ] Docs: README / ROADMAP / TASKS / manifest で使う用語を完全に統一する
 
 ## Done
 
@@ -54,6 +52,7 @@
 - [x] M12: run candidates の比較指標を issue 数以外にも広げ、`best_run` の根拠を保存する
 - [x] M12: current run と best run の比較結果を CLI と project manifest で確認しやすくする
 - [x] M13: 長編向け stop condition / retry policy / rerun limit を整理する
+- [x] M13: `publish_ready_bundle.json` の schema を固定し、downstream 利用前提の説明と tests を追加する
 
 ## Task Update Rules
 

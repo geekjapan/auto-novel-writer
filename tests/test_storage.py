@@ -27,12 +27,15 @@ class SaveArtifactTest(unittest.TestCase):
         payload = {
             "summary": {"counts": {"chapters": 3}},
             "artifact_contract": {
-                "canonical_story_state": {
-                    "chapter_drafts": {
-                        "primary_collection": "chapter_drafts",
-                        "compatibility_artifact": "05_chapter_1_draft",
+                "chapter_artifacts": {
+                    "canonical_story_state": {
+                        "chapter_drafts": {
+                            "primary_collection": "chapter_drafts",
+                            "compatibility_artifact": "05_chapter_1_draft",
+                        }
                     }
-                }
+                },
+                "publish_ready_bundle": {"schema_version": "1.0"},
             },
             "artifacts": {
                 "chapter_plan": [
@@ -61,9 +64,10 @@ class SaveArtifactTest(unittest.TestCase):
 
             self.assertEqual(saved["summary"]["counts"]["chapters"], 3)
             self.assertEqual(
-                saved["artifact_contract"]["canonical_story_state"]["chapter_drafts"]["compatibility_artifact"],
+                saved["artifact_contract"]["chapter_artifacts"]["canonical_story_state"]["chapter_drafts"]["compatibility_artifact"],
                 "05_chapter_1_draft",
             )
+            self.assertEqual(saved["artifact_contract"]["publish_ready_bundle"]["schema_version"], "1.0")
             self.assertEqual(len(saved["artifacts"]["chapter_drafts"]), 3)
             self.assertEqual(len(saved["artifacts"]["revised_chapter_drafts"]), 3)
             self.assertEqual(saved["artifacts"]["chapter_drafts"][0], saved["artifacts"]["chapter_1_draft"])

@@ -55,17 +55,18 @@ class StoryPipelineTest(unittest.TestCase):
             )
             self.assertEqual(manifest["selected_logline"]["id"], "logline-1")
             self.assertEqual(
-                manifest["artifact_contract"]["canonical_story_state"]["chapter_drafts"]["primary_collection"],
+                manifest["artifact_contract"]["chapter_artifacts"]["canonical_story_state"]["chapter_drafts"]["primary_collection"],
                 "chapter_drafts",
             )
             self.assertEqual(
-                manifest["artifact_contract"]["canonical_story_state"]["chapter_drafts"]["compatibility_field"],
+                manifest["artifact_contract"]["chapter_artifacts"]["canonical_story_state"]["chapter_drafts"]["compatibility_field"],
                 "chapter_1_draft",
             )
             self.assertEqual(
-                manifest["artifact_contract"]["canonical_story_state"]["continuity_history"]["compatibility_field"],
+                manifest["artifact_contract"]["chapter_artifacts"]["canonical_story_state"]["continuity_history"]["compatibility_field"],
                 "continuity_report",
             )
+            self.assertEqual(manifest["artifact_contract"]["publish_ready_bundle"]["schema_version"], "1.0")
             self.assertEqual(artifacts.chapter_1_draft["chapter_number"], 1)
             self.assertIn("length_warnings", continuity_report)
             self.assertIn("overall_recommendation", quality_report)
@@ -89,9 +90,16 @@ class StoryPipelineTest(unittest.TestCase):
             self.assertIn("checks", project_quality_report)
             self.assertEqual(artifacts.publish_ready_bundle, publish_ready_bundle)
             self.assertEqual(manifest["artifacts"]["publish_ready_bundle"], publish_ready_bundle)
+            self.assertEqual(publish_ready_bundle["schema_version"], "1.0")
+            self.assertEqual(publish_ready_bundle["bundle_type"], "publish_ready_bundle")
             self.assertEqual(publish_ready_bundle["story_summary"], story_summary)
             self.assertEqual(publish_ready_bundle["overall_quality_report"], project_quality_report)
             self.assertEqual(len(publish_ready_bundle["chapters"]), len(artifacts.chapter_plan))
+            self.assertEqual(
+                publish_ready_bundle["source_artifacts"]["overall_quality_report"],
+                "project_quality_report.json",
+            )
+            self.assertIn("manuscript", publish_ready_bundle["sections"])
             self.assertEqual(manifest["artifacts"]["continuity_history"], manifest["continuity_history"])
             self.assertEqual(artifacts.revised_chapter_1_draft["chapter_number"], 1)
             self.assertEqual(manifest["revise_history"][0]["chapter_index"], 0)

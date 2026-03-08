@@ -30,6 +30,40 @@ def chapter_artifact_contract() -> dict:
     }
 
 
+def publish_ready_bundle_contract() -> dict:
+    return {
+        "schema_name": "publish_ready_bundle",
+        "schema_version": "1.0",
+        "required_fields": [
+            "schema_version",
+            "bundle_type",
+            "title",
+            "synopsis",
+            "chapter_count",
+            "chapters",
+            "story_summary",
+            "overall_quality_report",
+            "selected_logline",
+            "source_artifacts",
+            "sections",
+        ],
+        "sections": {
+            "manuscript": {
+                "field": "chapters",
+                "description": "Revised chapter draft collection for downstream publishing or export.",
+            },
+            "story_summary": {
+                "field": "story_summary",
+                "description": "Whole-story summary and chapter summaries.",
+            },
+            "quality": {
+                "field": "overall_quality_report",
+                "description": "Project-level quality evaluation for downstream review.",
+            },
+        },
+    }
+
+
 @dataclass(slots=True)
 class StoryInput:
     theme: str
@@ -104,7 +138,10 @@ class StoryArtifacts:
             self.continuity_history = [dict(self.continuity_report)]
 
     def artifact_contract(self) -> dict:
-        return chapter_artifact_contract()
+        return {
+            "chapter_artifacts": chapter_artifact_contract(),
+            "publish_ready_bundle": publish_ready_bundle_contract(),
+        }
 
     def set_chapter_draft(self, chapter_index: int, payload: dict) -> None:
         self._ensure_slot(self.chapter_drafts, chapter_index)

@@ -617,7 +617,10 @@ class StoryPipeline:
         checkpoints: list[dict],
         selected_logline: dict,
     ) -> None:
+        bundle_contract = artifacts.artifact_contract()["publish_ready_bundle"]
         artifacts.publish_ready_bundle = {
+            "schema_version": bundle_contract["schema_version"],
+            "bundle_type": bundle_contract["schema_name"],
             "title": artifacts.story_summary.get("title") or selected_logline.get("title"),
             "synopsis": artifacts.story_summary.get("synopsis", ""),
             "chapter_count": len(artifacts.revised_chapter_drafts),
@@ -625,6 +628,12 @@ class StoryPipeline:
             "story_summary": artifacts.story_summary,
             "overall_quality_report": artifacts.project_quality_report,
             "selected_logline": selected_logline,
+            "source_artifacts": {
+                "story_summary": "story_summary.json",
+                "overall_quality_report": "project_quality_report.json",
+                "chapters": "revised_chapter_{n}_draft.json",
+            },
+            "sections": bundle_contract["sections"],
         }
         save_artifact(self.output_dir, "publish_ready_bundle", artifacts.publish_ready_bundle, "json")
         self._mark_checkpoint("publish_ready_bundle", checkpoints, artifacts, selected_logline)
