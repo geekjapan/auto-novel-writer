@@ -5,12 +5,10 @@
 
 ## In Progress
 
-- [ ] M19: `run_comparison_summary.json` の validator と schema version を追加する
+- [ ] M19: `show-project-status` から current run と best run の policy 差分を表示する
 
 ## Ready
 
-- [ ] M19: `select-best-run` の manual selection reason を comparison summary に残す
-- [ ] M19: `show-project-status` から current run と best run の policy 差分を表示する
 - [ ] Docs: M16-M18 実装後に README / ROADMAP / TASKS の説明を同期する
 
 ## Done
@@ -71,6 +69,8 @@
 - [x] M17: 人間レビュー後に `best_run` を固定または昇格できる CLI を追加する
 - [x] M18: `publish_ready_bundle.sections` の最小 contract を定義し、docs / tests で固定する
 - [x] Docs: M16-M18 実装後に README / ROADMAP / TASKS の説明を同期する
+- [x] M19: `run_comparison_summary.json` の validator と schema version を追加する
+- [x] M19: `select-best-run` の manual selection reason を comparison summary に残す
 
 ## Task Update Rules
 

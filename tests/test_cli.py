@@ -484,6 +484,8 @@ class CliTest(unittest.TestCase):
             self.assertEqual(project_manifest["best_run"]["selection_source"], "manual")
             self.assertIn("manual_selection=candidate-b", project_manifest["best_run"]["selection_reason"][0])
             self.assertEqual(comparison_summary["best_run"]["run_name"], "candidate-b")
+            self.assertEqual(comparison_summary["best_run"]["selection_source"], "manual")
+            self.assertIn("manual_selection=candidate-b", comparison_summary["best_run"]["selection_reason"][0])
 
 
 if __name__ == "__main__":

@@ -121,6 +121,48 @@ def project_manifest_contract() -> dict:
     }
 
 
+def run_comparison_summary_contract() -> dict:
+    return {
+        "schema_name": "run_comparison_summary",
+        "schema_version": "1.0",
+        "required_fields": [
+            "schema_name",
+            "schema_version",
+            "project_id",
+            "project_slug",
+            "current_run",
+            "best_run",
+            "candidate_count",
+            "run_candidates",
+        ],
+    }
+
+
+def validate_run_comparison_summary(payload: dict) -> dict:
+    contract = run_comparison_summary_contract()
+    missing_fields = [field for field in contract["required_fields"] if field not in payload]
+    if missing_fields:
+        missing = ", ".join(sorted(missing_fields))
+        raise ValueError(
+            "Invalid run_comparison_summary: missing required fields: "
+            f"{missing}. Regenerate the project comparison summary."
+        )
+
+    if payload.get("schema_name") != contract["schema_name"]:
+        raise ValueError(
+            "Invalid run_comparison_summary: "
+            f"schema_name={payload.get('schema_name')!r} is not supported; expected {contract['schema_name']!r}."
+        )
+
+    if payload.get("schema_version") != contract["schema_version"]:
+        raise ValueError(
+            "Invalid run_comparison_summary: "
+            f"schema_version={payload.get('schema_version')!r} is not supported; expected {contract['schema_version']!r}."
+        )
+
+    return payload
+
+
 def validate_project_manifest(payload: dict) -> dict:
     contract = project_manifest_contract()
     missing_fields = [field for field in contract["required_fields"] if field not in payload]

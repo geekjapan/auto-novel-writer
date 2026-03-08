@@ -9,11 +9,13 @@ from novel_writer.storage import (
     load_artifact,
     load_project_manifest,
     load_publish_ready_bundle,
+    load_run_comparison_summary,
     normalize_project_id,
     resolve_artifact_path,
     save_artifact,
     save_publish_ready_bundle,
     save_project_manifest,
+    save_run_comparison_summary,
 )
 
 
@@ -253,6 +255,42 @@ class SaveArtifactTest(unittest.TestCase):
 
             with self.assertRaisesRegex(ValueError, "sections.manuscript.field='wrong_field' is not supported"):
                 load_publish_ready_bundle(Path(tmp_dir))
+
+    def test_save_run_comparison_summary_validates_required_fields(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            with self.assertRaisesRegex(ValueError, "missing required fields: best_run, candidate_count"):
+                save_run_comparison_summary(
+                    Path(tmp_dir),
+                    {
+                        "schema_name": "run_comparison_summary",
+                        "schema_version": "1.0",
+                        "project_id": "Case 01",
+                        "project_slug": "case-01",
+                        "current_run": {"run_name": "latest_run"},
+                        "run_candidates": [],
+                    },
+                )
+
+    def test_load_run_comparison_summary_rejects_unsupported_schema_version(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            save_artifact(
+                Path(tmp_dir),
+                "run_comparison_summary",
+                {
+                    "schema_name": "run_comparison_summary",
+                    "schema_version": "9.9",
+                    "project_id": "Case 01",
+                    "project_slug": "case-01",
+                    "current_run": {"run_name": "latest_run"},
+                    "best_run": {"run_name": "latest_run"},
+                    "candidate_count": 1,
+                    "run_candidates": [],
+                },
+                "json",
+            )
+
+            with self.assertRaisesRegex(ValueError, "schema_version='9.9' is not supported; expected '1.0'"):
+                load_run_comparison_summary(Path(tmp_dir))
 
 
 if __name__ == "__main__":

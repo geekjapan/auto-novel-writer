@@ -267,6 +267,7 @@ schema version の現方針:
 
 - `project_manifest.json` は `schema_name=project_manifest`, `schema_version=1.0`
 - `publish_ready_bundle.json` は `bundle_type=publish_ready_bundle`, `schema_version=1.0`
+- `run_comparison_summary.json` は `schema_name=run_comparison_summary`, `schema_version=1.0`
 - `publish_ready_bundle.sections` は `manuscript`, `story_summary`, `quality` の 3 section を持つ
 - 不正な version や必須 field 欠落は fail fast で弾く
 - 将来 version を上げる場合は、互換維持または明示的な migration を伴わせる

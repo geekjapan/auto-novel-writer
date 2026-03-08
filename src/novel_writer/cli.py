@@ -9,7 +9,13 @@ from novel_writer.llm_client import build_llm_client
 from novel_writer.pipeline import PIPELINE_STEP_ORDER, StoryPipeline
 from novel_writer.rerun_policy import ContinuityRerunPolicy
 from novel_writer.schema import StoryInput
-from novel_writer.storage import build_project_layout, load_artifact, load_project_manifest, save_artifact, save_project_manifest
+from novel_writer.storage import (
+    build_project_layout,
+    load_artifact,
+    load_project_manifest,
+    save_project_manifest,
+    save_run_comparison_summary,
+)
 
 
 DEFAULT_OUTPUT_DIR = "data/latest_run"
@@ -149,7 +155,7 @@ def save_project_state(
         },
         file_format,
     )
-    save_artifact(project_layout["project_dir"], "run_comparison_summary", comparison_summary, file_format)
+    save_run_comparison_summary(project_layout["project_dir"], comparison_summary, file_format)
 
 
 def build_run_comparison_lines(project_manifest: dict[str, Any]) -> list[str]:
@@ -543,7 +549,7 @@ def promote_best_run(project_dir: Path, run_name: str, projects_dir: Path, file_
         run_candidates=project_manifest.get("run_candidates", []),
         best_run=best_run,
     )
-    save_artifact(project_dir, "run_comparison_summary", comparison_summary, file_format)
+    save_run_comparison_summary(project_dir, comparison_summary, file_format)
     return project_manifest
 
 

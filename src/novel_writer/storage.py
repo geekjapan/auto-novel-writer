@@ -9,6 +9,7 @@ from novel_writer.schema import (
     project_manifest_contract,
     validate_project_manifest,
     validate_publish_ready_bundle,
+    validate_run_comparison_summary,
 )
 
 
@@ -107,6 +108,17 @@ def save_publish_ready_bundle(output_dir: Path, payload: Any, file_format: str =
 def load_publish_ready_bundle(output_dir: Path, file_format: str | None = None) -> dict[str, Any]:
     payload = load_artifact(output_dir, "publish_ready_bundle", file_format)
     validate_publish_ready_bundle(payload)
+    return payload
+
+
+def save_run_comparison_summary(output_dir: Path, payload: Any, file_format: str = "json") -> Path:
+    validate_run_comparison_summary(payload)
+    return save_artifact(output_dir, "run_comparison_summary", payload, file_format)
+
+
+def load_run_comparison_summary(output_dir: Path, file_format: str | None = None) -> dict[str, Any]:
+    payload = load_artifact(output_dir, "run_comparison_summary", file_format)
+    validate_run_comparison_summary(payload)
     return payload
 
 
