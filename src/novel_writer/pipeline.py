@@ -22,6 +22,8 @@ PIPELINE_STEP_ORDER = [
     "revised_chapter_drafts",
 ]
 
+REVISION_MAX_ATTEMPTS = 2
+
 
 class StoryPipeline:
     def __init__(
@@ -178,7 +180,7 @@ class StoryPipeline:
         checkpoints: list[dict],
     ) -> None:
         for chapter_index, _chapter_draft in enumerate(artifacts.chapter_drafts):
-            self._revise_chapter(story_input, artifacts, chapter_index=chapter_index)
+            self._run_revision_loop(story_input, artifacts, chapter_index=chapter_index)
         save_artifact(self.output_dir, "revised_chapter_1_draft", artifacts.revised_chapter_1_draft, self.file_format)
         self._mark_checkpoint("revised_chapter_drafts", checkpoints, artifacts, selected_logline)
 
@@ -419,26 +421,57 @@ class StoryPipeline:
                 }
             )
 
-    def _revise_chapter(self, story_input: StoryInput, artifacts: StoryArtifacts, chapter_index: int) -> None:
+    def _run_revision_loop(self, story_input: StoryInput, artifacts: StoryArtifacts, chapter_index: int) -> None:
+        max_attempts = 1 if artifacts.quality_report.get("overall_recommendation") == "accept" else REVISION_MAX_ATTEMPTS
+        current_source = artifacts.get_chapter_draft(chapter_index)
+
+        for attempt in range(1, max_attempts + 1):
+            revised_chapter_draft = self._revise_chapter(
+                story_input,
+                artifacts,
+                chapter_index=chapter_index,
+                source_draft=current_source,
+            )
+            artifacts.set_revised_chapter_draft(chapter_index, revised_chapter_draft)
+            changed = revised_chapter_draft != current_source
+            stop_reason = None
+            if not changed:
+                stop_reason = "no_changes_detected"
+            elif attempt >= max_attempts:
+                stop_reason = "max_attempts_reached"
+
+            artifacts.revise_history.append(
+                {
+                    "attempt": attempt,
+                    "chapter_index": chapter_index,
+                    "source": "chapter_1_draft" if chapter_index == 0 and attempt == 1 else f"revised_chapter_drafts[{chapter_index}]",
+                    "target": "revised_chapter_1_draft" if chapter_index == 0 else f"revised_chapter_drafts[{chapter_index}]",
+                    "continuity_severity": artifacts.continuity_report.get("severity"),
+                    "quality_recommendation": artifacts.quality_report.get("overall_recommendation"),
+                    "applied_rules": [
+                        "style_adjustment",
+                        "redundancy_reduction",
+                        "summary_alignment",
+                    ],
+                    "stop_reason": stop_reason,
+                }
+            )
+            if stop_reason is not None:
+                break
+            current_source = revised_chapter_draft
+
+    def _revise_chapter(
+        self,
+        story_input: StoryInput,
+        artifacts: StoryArtifacts,
+        chapter_index: int,
+        source_draft: dict,
+    ) -> dict:
         revised_chapter_draft = self.llm_client.revise_chapter_draft(
             story_input,
             artifacts.chapter_plan,
-            artifacts.get_chapter_draft(chapter_index),
+            source_draft,
             artifacts.continuity_report,
             chapter_index=chapter_index,
         )
-        artifacts.set_revised_chapter_draft(chapter_index, revised_chapter_draft)
-        artifacts.revise_history.append(
-            {
-                "attempt": 1,
-                "chapter_index": chapter_index,
-                "source": "chapter_1_draft" if chapter_index == 0 else f"chapter_drafts[{chapter_index}]",
-                "target": "revised_chapter_1_draft" if chapter_index == 0 else f"revised_chapter_drafts[{chapter_index}]",
-                "continuity_severity": artifacts.continuity_report.get("severity"),
-                "applied_rules": [
-                    "style_adjustment",
-                    "redundancy_reduction",
-                    "summary_alignment",
-                ],
-            }
-        )
+        return revised_chapter_draft
