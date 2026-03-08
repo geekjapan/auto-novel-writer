@@ -114,6 +114,76 @@ class CliTest(unittest.TestCase):
             self.assertEqual(project_manifest["current_run"]["output_dir"], str(run_dir))
             self.assertEqual(project_manifest["current_run"]["name"], "latest_run")
 
+    def test_cli_create_and_resume_project_commands(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            create_exit_code = main(
+                [
+                    "create-project",
+                    "--theme",
+                    "遺書",
+                    "--genre",
+                    "ミステリ",
+                    "--tone",
+                    "静謐",
+                    "--target-length",
+                    "5000",
+                    "--project-id",
+                    "Case 01",
+                    "--projects-dir",
+                    tmp_dir,
+                ]
+            )
+            resume_exit_code = main(
+                [
+                    "resume-project",
+                    "--project-id",
+                    "Case 01",
+                    "--projects-dir",
+                    tmp_dir,
+                ]
+            )
+
+            run_dir = Path(tmp_dir) / "case-01" / "runs" / "latest_run"
+            self.assertEqual(create_exit_code, 0)
+            self.assertEqual(resume_exit_code, 0)
+            self.assertTrue((run_dir / "manifest.json").exists())
+
+    def test_cli_rerun_chapter_command_supports_chapter_1(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            main(
+                [
+                    "create-project",
+                    "--theme",
+                    "境界",
+                    "--genre",
+                    "SF",
+                    "--tone",
+                    "ビター",
+                    "--target-length",
+                    "5000",
+                    "--project-id",
+                    "My Story 01",
+                    "--projects-dir",
+                    tmp_dir,
+                ]
+            )
+
+            exit_code = main(
+                [
+                    "rerun-chapter",
+                    "--project-id",
+                    "My Story 01",
+                    "--projects-dir",
+                    tmp_dir,
+                    "--chapter-number",
+                    "1",
+                ]
+            )
+
+            run_dir = Path(tmp_dir) / "my-story-01" / "runs" / "latest_run"
+            self.assertEqual(exit_code, 0)
+            self.assertTrue((run_dir / "05_chapter_1_draft.json").exists())
+
 
 if __name__ == "__main__":
     unittest.main()

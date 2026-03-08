@@ -83,6 +83,16 @@ novel-writer ^
 
 この場合、既定では `data/projects/my-story-01/runs/latest_run` に成果物を保存し、`data/projects/my-story-01/project_manifest.json` に現在の run 情報を保存します。
 
+project コマンドの例:
+
+```bash
+novel-writer create-project --project-id "my-story-01" --theme "境界" --genre "SF" --tone "ビター" --target-length 5000
+novel-writer resume-project --project-id "my-story-01"
+novel-writer rerun-chapter --project-id "my-story-01" --chapter-number 1
+```
+
+`rerun-chapter` は現時点では後方互換性のため chapter 1 のみを対象にします。
+
 指定フェーズからの再実行例:
 
 ```bash
