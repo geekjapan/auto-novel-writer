@@ -25,9 +25,14 @@ class StoryPipelineTest(unittest.TestCase):
                 "03_three_act_plot.json",
                 "04_chapter_plan.json",
                 "05_chapter_1_draft.json",
+                "chapter_1_draft.json",
+                "chapter_2_draft.json",
+                "chapter_3_draft.json",
                 "continuity_report.json",
                 "quality_report.json",
                 "revised_chapter_1_draft.json",
+                "revised_chapter_2_draft.json",
+                "revised_chapter_3_draft.json",
                 "story_summary.json",
                 "project_quality_report.json",
                 "manifest.json",
@@ -87,12 +92,24 @@ class StoryPipelineTest(unittest.TestCase):
             compatibility_draft = json.loads(
                 (output_dir / "05_chapter_1_draft.json").read_text(encoding="utf-8")
             )
+            chapter_2_draft = json.loads((output_dir / "chapter_2_draft.json").read_text(encoding="utf-8"))
+            chapter_3_draft = json.loads((output_dir / "chapter_3_draft.json").read_text(encoding="utf-8"))
             self.assertEqual(compatibility_draft, artifacts.chapter_drafts[0])
+            self.assertEqual(chapter_2_draft, artifacts.chapter_drafts[1])
+            self.assertEqual(chapter_3_draft, artifacts.chapter_drafts[2])
             self.assertEqual(len(artifacts.revised_chapter_drafts), len(artifacts.chapter_drafts))
             self.assertEqual(
                 [draft["chapter_number"] for draft in artifacts.revised_chapter_drafts],
                 [chapter["chapter_number"] for chapter in artifacts.chapter_plan],
             )
+            revised_chapter_2_draft = json.loads(
+                (output_dir / "revised_chapter_2_draft.json").read_text(encoding="utf-8")
+            )
+            revised_chapter_3_draft = json.loads(
+                (output_dir / "revised_chapter_3_draft.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual(revised_chapter_2_draft, artifacts.revised_chapter_drafts[1])
+            self.assertEqual(revised_chapter_3_draft, artifacts.revised_chapter_drafts[2])
             self.assertGreaterEqual(len(manifest["revise_history"]), len(artifacts.chapter_plan))
             self.assertEqual(manifest["revise_history"][0]["target"], "revised_chapter_1_draft")
             self.assertEqual(

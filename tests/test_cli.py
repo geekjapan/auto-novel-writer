@@ -26,7 +26,9 @@ class CliTest(unittest.TestCase):
 
             self.assertEqual(exit_code, 0)
             self.assertTrue((Path(tmp_dir) / "05_chapter_1_draft.json").exists())
+            self.assertTrue((Path(tmp_dir) / "chapter_2_draft.json").exists())
             self.assertTrue((Path(tmp_dir) / "revised_chapter_1_draft.json").exists())
+            self.assertTrue((Path(tmp_dir) / "revised_chapter_2_draft.json").exists())
 
     def test_cli_main_can_resume_from_output_dir(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
