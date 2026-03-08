@@ -262,6 +262,7 @@ novel-writer rerun-chapter --project-id "my-story-01" --chapter-number 2
 `policy_snapshot` は、その run がどの rerun policy 設定で動いたかを保存する metadata です。
 `publish_ready_bundle.json` は `schema_version=1.0` の固定 schema を持ち、downstream 利用向けに `source_artifacts` と `sections` を含みます。
 `project_manifest.json` も `schema_name=project_manifest` と `schema_version=1.0` を持ち、保存時・読込時に validation されます。
+`run_comparison_summary.json` には status 表示向けの `compact_summary` も保存されます。
 
 schema version の現方針:
 

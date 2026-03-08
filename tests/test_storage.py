@@ -284,6 +284,16 @@ class SaveArtifactTest(unittest.TestCase):
                     "current_run": {"run_name": "latest_run"},
                     "best_run": {"run_name": "latest_run"},
                     "candidate_count": 1,
+                    "compact_summary": {
+                        "selection_source": "automatic",
+                        "issue_score": {"current": 1, "best": 1},
+                        "completed_step_count": {"current": 1, "best": 1},
+                        "long_run_should_stop": {"current": False, "best": False},
+                        "policy_limits": {
+                            "max_high_severity_chapters": {"current": 10, "best": 10},
+                            "max_total_rerun_attempts": {"current": 20, "best": 20},
+                        },
+                    },
                     "run_candidates": [],
                 },
                 "json",

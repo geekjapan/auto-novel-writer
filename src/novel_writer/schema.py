@@ -133,6 +133,7 @@ def run_comparison_summary_contract() -> dict:
             "current_run",
             "best_run",
             "candidate_count",
+            "compact_summary",
             "run_candidates",
         ],
     }

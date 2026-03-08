@@ -352,6 +352,10 @@ def _build_run_comparison_summary(
     run_candidates: list[dict[str, Any]],
     best_run: dict[str, Any],
 ) -> dict[str, Any]:
+    current_candidate = next(
+        (candidate for candidate in run_candidates if candidate.get("output_dir") == str(current_output_dir)),
+        {},
+    )
     return {
         "schema_name": "run_comparison_summary",
         "schema_version": "1.0",
@@ -363,7 +367,40 @@ def _build_run_comparison_summary(
         },
         "best_run": best_run,
         "candidate_count": len(run_candidates),
+        "compact_summary": _build_run_comparison_compact_summary(current_candidate, best_run),
         "run_candidates": run_candidates,
+    }
+
+
+def _build_run_comparison_compact_summary(current_candidate: dict[str, Any], best_run: dict[str, Any]) -> dict[str, Any]:
+    current_metrics = current_candidate.get("comparison_metrics", {})
+    best_metrics = best_run.get("comparison_metrics", {})
+    current_policy = current_candidate.get("policy_snapshot", {}).get("long_run", {})
+    best_policy = best_run.get("policy_snapshot", {}).get("long_run", {})
+    return {
+        "selection_source": best_run.get("selection_source", "automatic"),
+        "issue_score": {
+            "current": current_metrics.get("total_issue_score"),
+            "best": best_metrics.get("total_issue_score"),
+        },
+        "completed_step_count": {
+            "current": current_metrics.get("completed_step_count"),
+            "best": best_metrics.get("completed_step_count"),
+        },
+        "long_run_should_stop": {
+            "current": current_metrics.get("long_run_should_stop"),
+            "best": best_metrics.get("long_run_should_stop"),
+        },
+        "policy_limits": {
+            "max_high_severity_chapters": {
+                "current": current_policy.get("max_high_severity_chapters"),
+                "best": best_policy.get("max_high_severity_chapters"),
+            },
+            "max_total_rerun_attempts": {
+                "current": current_policy.get("max_total_rerun_attempts"),
+                "best": best_policy.get("max_total_rerun_attempts"),
+            },
+        },
     }
 
 

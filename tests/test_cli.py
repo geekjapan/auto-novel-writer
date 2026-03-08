@@ -283,6 +283,9 @@ class CliTest(unittest.TestCase):
             self.assertEqual(comparison_summary["candidate_count"], 2)
             self.assertEqual(comparison_summary["best_run"]["output_dir"], project_manifest["best_run"]["output_dir"])
             self.assertEqual(comparison_summary["current_run"]["output_dir"], str(second_run_dir))
+            self.assertIn("compact_summary", comparison_summary)
+            self.assertIn("issue_score", comparison_summary["compact_summary"])
+            self.assertIn("policy_limits", comparison_summary["compact_summary"])
 
     def test_cli_prints_current_vs_best_run_summary_for_project_runs(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
