@@ -388,9 +388,12 @@ class CliTest(unittest.TestCase):
             self.assertIn("Project: status-01", output)
             self.assertIn("Current run: latest_run", output)
             self.assertIn("Best run: latest_run", output)
-            self.assertIn("comparison_reason_summary:", output)
-            self.assertIn("selection_source: automatic", output)
-            self.assertIn("selection_reason_summary:", output)
+            self.assertIn("current_comparison_basis_summary:", output)
+            self.assertIn("current_comparison_reason_summary:", output)
+            self.assertIn("current_comparison_metrics:", output)
+            self.assertIn("best_selection_source: automatic", output)
+            self.assertIn("best_comparison_basis_summary:", output)
+            self.assertIn("best_selection_reason_summary:", output)
             self.assertIn("diff_summary:", output)
             self.assertIn("diff_policy:", output)
             self.assertIn("Run candidates: 1", output)
@@ -402,7 +405,7 @@ class CliTest(unittest.TestCase):
             self.assertIn("revision_attempt=", output)
             self.assertIn("long_run_status: should_stop=False, reason=none", output)
             self.assertIn("long_run_budget: remaining_rerun_attempt_budget=", output)
-            self.assertIn("comparison_metrics: total_issue_score=", output)
+            self.assertIn("best_comparison_metrics: total_issue_score=", output)
 
     def test_cli_can_override_long_run_policy_limits(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -517,9 +520,9 @@ class CliTest(unittest.TestCase):
 
             status_output = buffer.getvalue()
             self.assertEqual(status_exit_code, 0)
-            self.assertIn("comparison_reason_summary: long_run_should_stop=False", status_output)
-            self.assertIn("selection_source: manual", status_output)
-            self.assertIn("selection_reason_summary: manual_selection=candidate-b", status_output)
+            self.assertIn("current_comparison_reason_summary: long_run_should_stop=False", status_output)
+            self.assertIn("best_selection_source: manual", status_output)
+            self.assertIn("best_selection_reason_summary: manual_selection=candidate-b", status_output)
 
     def test_show_project_status_displays_policy_diff_against_best_run(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

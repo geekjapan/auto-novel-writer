@@ -531,7 +531,7 @@ def build_project_status_lines(project_manifest: dict[str, Any]) -> list[str]:
         comparison_metrics = best_run.get("comparison_metrics", {})
         if comparison_metrics:
             lines.append(
-                "  comparison_metrics: "
+                "  best_comparison_metrics: "
                 f"total_issue_score={comparison_metrics.get('total_issue_score', 'n/a')}, "
                 f"completed_step_count={comparison_metrics.get('completed_step_count', 'n/a')}"
             )
@@ -605,22 +605,28 @@ def _build_policy_diff_lines(current_policy: dict[str, Any], best_policy: dict[s
 
 def _build_selection_summary_lines(best_run: dict[str, Any]) -> list[str]:
     selection_source = best_run.get("selection_source", "automatic")
+    comparison_basis = best_run.get("comparison_basis", [])
     selection_reasons = best_run.get("selection_reason", [])
-    lines = [f"  selection_source: {selection_source}"]
+    lines = [f"  best_selection_source: {selection_source}"]
+    if comparison_basis:
+        lines.append(f"  best_comparison_basis_summary: {', '.join(comparison_basis[:3])}")
     if selection_reasons:
-        lines.append(f"  selection_reason_summary: {'; '.join(selection_reasons[:2])}")
+        lines.append(f"  best_selection_reason_summary: {'; '.join(selection_reasons[:2])}")
     return lines
 
 
 def _build_current_comparison_summary_lines(current_run: dict[str, Any]) -> list[str]:
+    comparison_basis = current_run.get("comparison_basis", [])
     comparison_metrics = current_run.get("comparison_metrics", {})
     comparison_reasons = current_run.get("comparison_reason", [])
     lines: list[str] = []
+    if comparison_basis:
+        lines.append(f"  current_comparison_basis_summary: {', '.join(comparison_basis[:3])}")
     if comparison_reasons:
-        lines.append(f"  comparison_reason_summary: {'; '.join(comparison_reasons[:2])}")
+        lines.append(f"  current_comparison_reason_summary: {'; '.join(comparison_reasons[:2])}")
     if comparison_metrics:
         lines.append(
-            "  comparison_metrics: "
+            "  current_comparison_metrics: "
             f"total_issue_score={comparison_metrics.get('total_issue_score', 'n/a')}, "
             f"completed_step_count={comparison_metrics.get('completed_step_count', 'n/a')}"
         )
