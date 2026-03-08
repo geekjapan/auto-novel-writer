@@ -94,6 +94,7 @@
 - `story_summary.json`、`project_quality_report.json`、`publish_ready_bundle.json`
 - run candidates と `best_run` の記録
 - `best_run` の比較根拠となる comparison metrics の保存
+- current run と `best_run` の比較結果を CLI から確認
 
 ## chapter 1 互換 artifact と全章状態
 

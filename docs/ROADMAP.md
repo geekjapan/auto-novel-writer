@@ -116,7 +116,7 @@ README / ROADMAP / TASKS / manifest / テストの間で、何が正本で何が
 - project-level quality report が比較運用に耐える
 
 進捗メモ:
-project manifest には comparison metrics と selection reason を保存できるようになった。次は current run と best run の比較結果を CLI で見やすく出す。
+project manifest には comparison metrics と selection reason を保存できるようになり、CLI でも current run と best run の比較結果を見られるようになった。次は長編向け stop condition / retry policy の整理に進む。
 
 ### M13. 長編安定化
 

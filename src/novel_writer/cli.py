@@ -113,6 +113,52 @@ def save_project_state(
     )
 
 
+def build_run_comparison_lines(project_manifest: dict[str, Any]) -> list[str]:
+    current_run = project_manifest.get("current_run", {})
+    best_run = project_manifest.get("best_run", {})
+    if not current_run or not best_run:
+        return []
+
+    current_output_dir = current_run.get("output_dir")
+    best_output_dir = best_run.get("output_dir")
+    if current_output_dir == best_output_dir:
+        return [f"Best run: current run ({current_run.get('name', 'unknown')})"]
+
+    run_candidates = {
+        candidate.get("output_dir"): candidate
+        for candidate in project_manifest.get("run_candidates", [])
+    }
+    current_candidate = run_candidates.get(current_output_dir, {})
+    best_candidate = run_candidates.get(best_output_dir, {})
+    current_metrics = current_candidate.get("comparison_metrics", {})
+    best_metrics = best_run.get("comparison_metrics", best_candidate.get("comparison_metrics", {}))
+
+    lines = [
+        f"Best run: {best_run.get('run_name', 'unknown')} (current: {current_run.get('name', 'unknown')})",
+        (
+            "Comparison metrics: "
+            f"current total_issue_score={current_metrics.get('total_issue_score', 'n/a')}, "
+            f"best total_issue_score={best_metrics.get('total_issue_score', 'n/a')}"
+        ),
+    ]
+    metric_labels = [
+        "long_run_should_stop",
+        "high_severity_chapter_count",
+        "rerun_attempt_total",
+        "revision_attempt_total",
+        "completed_step_count",
+    ]
+    for label in metric_labels:
+        current_value = current_metrics.get(label, "n/a")
+        best_value = best_metrics.get(label, "n/a")
+        if current_value != best_value:
+            lines.append(f"  {label}: current={current_value}, best={best_value}")
+
+    for reason in best_run.get("selection_reason", []):
+        lines.append(f"  best_reason: {reason}")
+    return lines
+
+
 def load_project_run_context(projects_dir: Path, project_id: str) -> tuple[dict, Path]:
     project_layout = build_project_layout(projects_dir, project_id)
     project_manifest = load_artifact(project_layout["project_dir"], "project_manifest")
@@ -269,6 +315,17 @@ def rerun_project_chapter(args: argparse.Namespace, output_dir: Path):
     return pipeline.rerun_chapter(resume_from=output_dir, chapter_number=args.chapter_number)
 
 
+def print_run_summary(artifacts, output_dir: Path, project_manifest: dict[str, Any] | None = None) -> None:
+    issue_count = sum(artifacts.continuity_report.get("issue_counts", {}).values())
+    print(f"Generated short-story artifacts in: {output_dir.resolve()}")
+    print(f"Selected logline: {artifacts.loglines[0]['title']}")
+    print(f"Chapter count: {len(artifacts.chapter_plan)}")
+    print(f"Continuity severity: {artifacts.continuity_report.get('severity', 'unknown')}")
+    print(f"Continuity issues flagged: {issue_count}")
+    for line in build_run_comparison_lines(project_manifest or {}):
+        print(line)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -281,36 +338,24 @@ def main(argv: list[str] | None = None) -> int:
         story_input = build_story_input_from_args(parser, args)
         artifacts = run_pipeline(args, output_dir, story_input=story_input)
         save_project_state(project_layout, Path(args.projects_dir), args.project_id, output_dir, args.format)
-        issue_count = sum(artifacts.continuity_report.get("issue_counts", {}).values())
-        print(f"Generated short-story artifacts in: {output_dir.resolve()}")
-        print(f"Selected logline: {artifacts.loglines[0]['title']}")
-        print(f"Chapter count: {len(artifacts.chapter_plan)}")
-        print(f"Continuity severity: {artifacts.continuity_report.get('severity', 'unknown')}")
-        print(f"Continuity issues flagged: {issue_count}")
+        project_manifest = load_artifact(project_layout["project_dir"], "project_manifest")
+        print_run_summary(artifacts, output_dir, project_manifest)
         return 0
 
     if args.command == "resume-project":
         project_layout, output_dir = load_project_run_context(Path(args.projects_dir), args.project_id)
         artifacts = run_pipeline(args, output_dir, resume_from=output_dir, rerun_from=args.rerun_from)
         save_project_state(project_layout, Path(args.projects_dir), args.project_id, output_dir, args.format)
-        issue_count = sum(artifacts.continuity_report.get("issue_counts", {}).values())
-        print(f"Generated short-story artifacts in: {output_dir.resolve()}")
-        print(f"Selected logline: {artifacts.loglines[0]['title']}")
-        print(f"Chapter count: {len(artifacts.chapter_plan)}")
-        print(f"Continuity severity: {artifacts.continuity_report.get('severity', 'unknown')}")
-        print(f"Continuity issues flagged: {issue_count}")
+        project_manifest = load_artifact(project_layout["project_dir"], "project_manifest")
+        print_run_summary(artifacts, output_dir, project_manifest)
         return 0
 
     if args.command == "rerun-chapter":
         project_layout, output_dir = load_project_run_context(Path(args.projects_dir), args.project_id)
         artifacts = rerun_project_chapter(args, output_dir)
         save_project_state(project_layout, Path(args.projects_dir), args.project_id, output_dir, args.format)
-        issue_count = sum(artifacts.continuity_report.get("issue_counts", {}).values())
-        print(f"Generated short-story artifacts in: {output_dir.resolve()}")
-        print(f"Selected logline: {artifacts.loglines[0]['title']}")
-        print(f"Chapter count: {len(artifacts.chapter_plan)}")
-        print(f"Continuity severity: {artifacts.continuity_report.get('severity', 'unknown')}")
-        print(f"Continuity issues flagged: {issue_count}")
+        project_manifest = load_artifact(project_layout["project_dir"], "project_manifest")
+        print_run_summary(artifacts, output_dir, project_manifest)
         return 0
 
     resume_from = Path(args.resume_from_output_dir) if args.resume_from_output_dir else None
@@ -334,13 +379,8 @@ def main(argv: list[str] | None = None) -> int:
     artifacts = run_pipeline(args, output_dir, story_input=story_input, resume_from=resume_from, rerun_from=args.rerun_from)
     if project_layout is not None:
         save_project_state(project_layout, Path(args.projects_dir), args.project_id, output_dir, args.format)
-    issue_count = sum(artifacts.continuity_report.get("issue_counts", {}).values())
-
-    print(f"Generated short-story artifacts in: {output_dir.resolve()}")
-    print(f"Selected logline: {artifacts.loglines[0]['title']}")
-    print(f"Chapter count: {len(artifacts.chapter_plan)}")
-    print(f"Continuity severity: {artifacts.continuity_report.get('severity', 'unknown')}")
-    print(f"Continuity issues flagged: {issue_count}")
+    project_manifest = load_artifact(project_layout["project_dir"], "project_manifest") if project_layout is not None else None
+    print_run_summary(artifacts, output_dir, project_manifest)
     return 0
 
 

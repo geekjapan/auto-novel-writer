@@ -1,5 +1,7 @@
+import io
 import tempfile
 import unittest
+from contextlib import redirect_stdout
 from pathlib import Path
 
 from novel_writer.cli import main
@@ -270,6 +272,55 @@ class CliTest(unittest.TestCase):
                 {candidate["output_dir"] for candidate in project_manifest["run_candidates"]},
                 {str(first_run_dir), str(second_run_dir)},
             )
+
+    def test_cli_prints_current_vs_best_run_summary_for_project_runs(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            main(
+                [
+                    "create-project",
+                    "--theme",
+                    "秘密",
+                    "--genre",
+                    "ミステリ",
+                    "--tone",
+                    "静謐",
+                    "--target-length",
+                    "5000",
+                    "--project-id",
+                    "Case 03",
+                    "--projects-dir",
+                    tmp_dir,
+                    "--output-dir",
+                    str(Path(tmp_dir) / "candidate-a"),
+                ]
+            )
+
+            buffer = io.StringIO()
+            with redirect_stdout(buffer):
+                exit_code = main(
+                    [
+                        "create-project",
+                        "--theme",
+                        "秘密",
+                        "--genre",
+                        "ミステリ",
+                        "--tone",
+                        "静謐",
+                        "--target-length",
+                        "5000",
+                        "--project-id",
+                        "Case 03",
+                        "--projects-dir",
+                        tmp_dir,
+                        "--output-dir",
+                        str(Path(tmp_dir) / "candidate-b"),
+                    ]
+                )
+
+            output = buffer.getvalue()
+            self.assertEqual(exit_code, 0)
+            self.assertIn("Best run:", output)
+            self.assertIn("Comparison metrics:", output)
 
 
 if __name__ == "__main__":
