@@ -23,6 +23,7 @@ class StoryArtifacts:
     chapter_plan: list[dict] = field(default_factory=list)
     chapter_1_draft: dict = field(default_factory=dict)
     continuity_report: dict = field(default_factory=dict)
+    rerun_history: list[dict] = field(default_factory=list)
 
     def summary(self) -> dict:
         return {

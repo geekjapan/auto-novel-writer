@@ -145,6 +145,21 @@ continuity check はルールベースで成果物間の構造的不整合候補
 - 通常の `novel-writer ...` 実行に continuity check が含まれます
 - 追加オプションなしで `continuity_report.json` が出力されます
 
+## Re-run Policy
+
+continuity check 後は `issue_counts` を見て重大度を判定し、必要なら生成を 1 回だけ再実行します。判定ルールは [rerun_policy.py](D:/dev/auto-novel-writer/src/novel_writer/rerun_policy.py) の定数として分離しています。
+
+制御フロー:
+
+- `low`: 警告のみ。生成結果をそのまま採用
+- `medium`: `chapter_1_draft` を再生成
+- `high`: `chapter_plan` から `chapter_1_draft` まで再生成
+
+記録:
+
+- 最終判定は `continuity_report.json` の `severity`, `recommended_action`, `weighted_score` に保存
+- 再実行履歴は `manifest` の `rerun_history` に保存
+
 ## テスト
 
 推奨手順:

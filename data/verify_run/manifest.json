@@ -26,6 +26,34 @@
     "premise": "秘密をめぐるミステリ短編。静かな主人公が一度だけ大きな選択を迫られる。",
     "hook": "静謐な読後感を残す、秘密と決断の物語。"
   },
+  "rerun_history": [
+    {
+      "attempt": 1,
+      "severity": "high",
+      "action": "rerun_from_chapter_plan",
+      "weighted_score": 15,
+      "issue_counts": {
+        "missing_fields": 0,
+        "character_name_mismatches": 3,
+        "plot_to_plan_gaps": 2,
+        "plan_to_draft_gaps": 0,
+        "length_warnings": 1
+      }
+    },
+    {
+      "attempt": 2,
+      "triggered_by": "high",
+      "action_taken": "reran_from_chapter_plan",
+      "resulting_severity": "high",
+      "issue_counts": {
+        "missing_fields": 0,
+        "character_name_mismatches": 3,
+        "plot_to_plan_gaps": 2,
+        "plan_to_draft_gaps": 0,
+        "length_warnings": 1
+      }
+    }
+  ],
   "artifacts": {
     "story_input": {
       "theme": "秘密",
@@ -167,7 +195,38 @@
         "plot_to_plan_gaps": 2,
         "plan_to_draft_gaps": 0,
         "length_warnings": 1
+      },
+      "severity": "high",
+      "recommended_action": "rerun_from_chapter_plan",
+      "weighted_score": 15
+    },
+    "rerun_history": [
+      {
+        "attempt": 1,
+        "severity": "high",
+        "action": "rerun_from_chapter_plan",
+        "weighted_score": 15,
+        "issue_counts": {
+          "missing_fields": 0,
+          "character_name_mismatches": 3,
+          "plot_to_plan_gaps": 2,
+          "plan_to_draft_gaps": 0,
+          "length_warnings": 1
+        }
+      },
+      {
+        "attempt": 2,
+        "triggered_by": "high",
+        "action_taken": "reran_from_chapter_plan",
+        "resulting_severity": "high",
+        "issue_counts": {
+          "missing_fields": 0,
+          "character_name_mismatches": 3,
+          "plot_to_plan_gaps": 2,
+          "plan_to_draft_gaps": 0,
+          "length_warnings": 1
+        }
       }
-    }
+    ]
   }
 }

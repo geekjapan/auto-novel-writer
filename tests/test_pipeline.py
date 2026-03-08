@@ -38,6 +38,10 @@ class StoryPipelineTest(unittest.TestCase):
             self.assertEqual(manifest["selected_logline"]["id"], "logline-1")
             self.assertEqual(artifacts.chapter_1_draft["chapter_number"], 1)
             self.assertIn("length_warnings", continuity_report)
+            self.assertIn("rerun_history", manifest)
+            self.assertTrue(manifest["rerun_history"])
+            self.assertIn("severity", continuity_report)
+
 
 
 if __name__ == "__main__":

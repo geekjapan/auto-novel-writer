@@ -42,6 +42,7 @@ def main(argv: list[str] | None = None) -> int:
     print(f"Generated short-story artifacts in: {output_dir.resolve()}")
     print(f"Selected logline: {artifacts.loglines[0]['title']}")
     print(f"Chapter count: {len(artifacts.chapter_plan)}")
+    print(f"Continuity severity: {artifacts.continuity_report.get('severity', 'unknown')}")
     print(f"Continuity issues flagged: {issue_count}")
     return 0
 
