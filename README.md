@@ -303,6 +303,7 @@ reason code の対応:
 - `current_comparison_reason_codes` は `run_comparison_summary.json.current_run.comparison_reason_details[*].code` の先頭要素に対応する
 - `best_selection_reason_codes` は `run_comparison_summary.json.best_run.selection_reason_details[*].code` の先頭要素に対応する
 - 現状の代表 code は `manual_selection`, `long_run_should_stop`, `total_issue_score`, `high_severity_chapter_count`, `rerun_attempt_total`, `revision_attempt_total`, `completed_step_count`
+- 上記の code 一覧は `run_comparison_summary.json` validator の列挙型 contract として固定される
 
 schema version の現方針:
 

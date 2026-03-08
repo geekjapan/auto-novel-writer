@@ -551,6 +551,55 @@ class SaveArtifactTest(unittest.TestCase):
             ):
                 load_run_comparison_summary(Path(tmp_dir))
 
+    def test_load_run_comparison_summary_rejects_unknown_reason_detail_code(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            save_artifact(
+                Path(tmp_dir),
+                "run_comparison_summary",
+                {
+                    "schema_name": "run_comparison_summary",
+                    "schema_version": "1.0",
+                    "project_id": "Case 01",
+                    "project_slug": "case-01",
+                    "current_run": {
+                        "run_name": "latest_run",
+                        "output_dir": str(Path(tmp_dir) / "latest_run"),
+                        "comparison_metrics": {},
+                        "comparison_basis": [],
+                        "comparison_reason": [],
+                        "comparison_reason_details": [{"code": "unknown_reason", "value": 1}],
+                    },
+                    "best_run": {
+                        "run_name": "latest_run",
+                        "output_dir": str(Path(tmp_dir) / "latest_run"),
+                        "comparison_metrics": {},
+                        "comparison_basis": [],
+                        "selection_source": "automatic",
+                        "selection_reason": [],
+                        "selection_reason_details": [],
+                    },
+                    "candidate_count": 1,
+                    "compact_summary": {
+                        "selection_source": "automatic",
+                        "issue_score": {"current": 1, "best": 1},
+                        "completed_step_count": {"current": 1, "best": 1},
+                        "long_run_should_stop": {"current": False, "best": False},
+                        "policy_limits": {
+                            "max_high_severity_chapters": {"current": 10, "best": 10},
+                            "max_total_rerun_attempts": {"current": 20, "best": 20},
+                        },
+                    },
+                    "run_candidates": [],
+                },
+                "json",
+            )
+
+            with self.assertRaisesRegex(
+                ValueError,
+                r"current_run\.comparison_reason_details\[0\]\.code='unknown_reason' is not supported",
+            ):
+                load_run_comparison_summary(Path(tmp_dir))
+
 
 if __name__ == "__main__":
     unittest.main()

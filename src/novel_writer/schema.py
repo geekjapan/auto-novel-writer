@@ -167,6 +167,15 @@ def run_comparison_summary_contract() -> dict:
                 "comparison_reason_details",
             ],
         },
+        "reason_detail_codes": [
+            "manual_selection",
+            "long_run_should_stop",
+            "total_issue_score",
+            "high_severity_chapter_count",
+            "rerun_attempt_total",
+            "revision_attempt_total",
+            "completed_step_count",
+        ],
         "compact_summary": {
             "selection_source": "string",
             "issue_score": ["current", "best"],
@@ -284,6 +293,7 @@ def _validate_run_comparison_context(
     details = payload.get(detail_field)
     if not isinstance(details, list):
         raise ValueError(f"Invalid run_comparison_summary: {field_name}.{detail_field} must be a list.")
+    allowed_codes = set(run_comparison_summary_contract()["reason_detail_codes"])
     for index, detail in enumerate(details):
         if not isinstance(detail, dict):
             raise ValueError(f"Invalid run_comparison_summary: {field_name}.{detail_field}[{index}] must be an object.")
@@ -296,6 +306,13 @@ def _validate_run_comparison_context(
         if not isinstance(detail.get("code"), str):
             raise ValueError(
                 f"Invalid run_comparison_summary: {field_name}.{detail_field}[{index}].code must be a string."
+            )
+        if detail.get("code") not in allowed_codes:
+            allowed = ", ".join(sorted(allowed_codes))
+            raise ValueError(
+                "Invalid run_comparison_summary: "
+                f"{field_name}.{detail_field}[{index}].code={detail.get('code')!r} is not supported; "
+                f"expected one of: {allowed}."
             )
 
     if uses_selection_reason and not isinstance(payload.get("selection_source"), str):
