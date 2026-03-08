@@ -151,7 +151,7 @@ class CliTest(unittest.TestCase):
             self.assertEqual(resume_exit_code, 0)
             self.assertTrue((run_dir / "manifest.json").exists())
 
-    def test_cli_rerun_chapter_command_supports_chapter_1(self) -> None:
+    def test_cli_rerun_chapter_command_supports_arbitrary_chapter(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             main(
                 [
@@ -179,13 +179,23 @@ class CliTest(unittest.TestCase):
                     "--projects-dir",
                     tmp_dir,
                     "--chapter-number",
-                    "1",
+                    "2",
                 ]
             )
 
             run_dir = Path(tmp_dir) / "my-story-01" / "runs" / "latest_run"
+            manifest = load_artifact(run_dir, "manifest")
             self.assertEqual(exit_code, 0)
             self.assertTrue((run_dir / "05_chapter_1_draft.json").exists())
+            self.assertTrue((run_dir / "chapter_2_draft.json").exists())
+            self.assertTrue((run_dir / "revised_chapter_2_draft.json").exists())
+            self.assertTrue(any(entry.get("chapter_index") == 1 for entry in manifest["continuity_history"]))
+            self.assertTrue(
+                any(
+                    entry.get("chapter_index") == 1 and entry.get("triggered_by") == "manual"
+                    for entry in manifest["rerun_history"]
+                )
+            )
 
     def test_project_manifest_tracks_run_candidates_and_best_run(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

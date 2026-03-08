@@ -17,7 +17,7 @@ CLI から小説プロジェクトを作成し、章単位・作品単位で
 - rerun policy、bounded revise loop、resume / rerun、history / diff metadata 保存がある
 - `project_manifest.json` と `manifest` により、project/run の状態復元ができる
 - `story_summary.json`、`project_quality_report.json`、`publish_ready_bundle.json` を生成できる
-- 一方で、CLI や互換 artifact には chapter 1 前提の外部仕様がまだ残っている
+- `rerun-chapter` は任意章で動くが、互換 artifact には chapter 1 基準の外部仕様がまだ残っている
 
 ## 仕様上の柱
 
@@ -99,6 +99,11 @@ README / ROADMAP / TASKS / manifest / テストの間で、何が正本で何が
 - `rerun-chapter` が任意章に対応する
 - 対象章だけを安全に再実行できる
 - 章単位操作が manifest と project manifest で追える
+
+## 進行中の残課題
+
+- project manifest 側では、章単位 rerun / revise の履歴要約がまだ薄い
+- chapter 1 互換 artifact と章別 artifact の責務分離は続けて整理が必要
 
 ### M12. 作品単位評価と選抜の強化
 

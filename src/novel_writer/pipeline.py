@@ -89,6 +89,97 @@ class StoryPipeline:
 
         return artifacts
 
+    def rerun_chapter(self, resume_from: Path, chapter_number: int) -> StoryArtifacts:
+        artifacts, selected_logline, checkpoints, self.long_run_status = self._load_resume_state(resume_from)
+        chapter_index = chapter_number - 1
+        if chapter_number <= 0:
+            raise ValueError("chapter_number must be greater than 0.")
+        if chapter_index >= len(artifacts.chapter_plan):
+            raise ValueError(f"chapter_number {chapter_number} is out of range.")
+
+        artifacts.normalize_chapter_artifacts()
+        chapter_draft = self.llm_client.generate_chapter_draft(
+            artifacts.story_input,
+            selected_logline,
+            artifacts.characters,
+            artifacts.chapter_plan,
+            chapter_index=chapter_index,
+        )
+        artifacts.set_chapter_draft(chapter_index, chapter_draft)
+        self._save_chapter_draft_artifact(chapter_index, chapter_draft)
+        if chapter_index == 0:
+            save_artifact(self.output_dir, "05_chapter_1_draft", artifacts.get_chapter_draft(0), self.file_format)
+
+        chapter_report = self._build_report_with_decision(artifacts, chapter_index=chapter_index)
+        self._replace_chapter_history_entry(artifacts.continuity_history, chapter_index, chapter_report)
+        if chapter_index == 0:
+            artifacts.continuity_report = chapter_report
+            artifacts.quality_report = self.continuity_checker.build_quality_report(chapter_report)
+            save_artifact(self.output_dir, "continuity_report", artifacts.continuity_report, "json")
+            save_artifact(self.output_dir, "quality_report", artifacts.quality_report, "json")
+
+        artifacts.rerun_history.append(
+            {
+                "attempt": self._next_rerun_attempt(artifacts.rerun_history, chapter_index),
+                "chapter_index": chapter_index,
+                "triggered_by": "manual",
+                "action_taken": "reran_chapter_1_draft" if chapter_index == 0 else "reran_chapter_draft",
+                "severity": chapter_report["severity"],
+                "recommended_action": chapter_report["recommended_action"],
+                "weighted_score": chapter_report["weighted_score"],
+                "issue_counts": chapter_report.get("issue_counts", {}),
+            }
+        )
+
+        chapter_quality_report = self.continuity_checker.build_quality_report(chapter_report)
+        self._run_revision_loop(
+            artifacts.story_input,
+            artifacts,
+            chapter_index=chapter_index,
+            continuity_report=chapter_report,
+            quality_report=chapter_quality_report,
+        )
+        revised_chapter_draft = artifacts.get_revised_chapter_draft(chapter_index)
+        self._save_revised_chapter_draft_artifact(chapter_index, revised_chapter_draft)
+        if chapter_index == 0:
+            save_artifact(self.output_dir, "revised_chapter_1_draft", revised_chapter_draft, self.file_format)
+
+        artifacts.story_summary = self.llm_client.generate_story_summary(
+            artifacts.story_input,
+            selected_logline,
+            artifacts.chapter_plan,
+            artifacts.revised_chapter_drafts,
+        )
+        save_artifact(self.output_dir, "story_summary", artifacts.story_summary, "json")
+
+        artifacts.project_quality_report = self.continuity_checker.build_project_quality_report(artifacts)
+        save_artifact(self.output_dir, "project_quality_report", artifacts.project_quality_report, "json")
+
+        artifacts.publish_ready_bundle = {
+            "title": artifacts.story_summary.get("title") or selected_logline.get("title"),
+            "synopsis": artifacts.story_summary.get("synopsis", ""),
+            "chapter_count": len(artifacts.revised_chapter_drafts),
+            "chapters": artifacts.revised_chapter_drafts,
+            "story_summary": artifacts.story_summary,
+            "overall_quality_report": artifacts.project_quality_report,
+            "selected_logline": selected_logline,
+        }
+        save_artifact(self.output_dir, "publish_ready_bundle", artifacts.publish_ready_bundle, "json")
+
+        completed_steps = checkpoints[-1]["completed_steps"] if checkpoints else []
+        rerun_checkpoints = list(checkpoints)
+        if completed_steps != PIPELINE_STEP_ORDER:
+            rerun_checkpoints = [
+                {
+                    "step": step_name,
+                    "status": "completed",
+                    "completed_steps": PIPELINE_STEP_ORDER[: index + 1],
+                }
+                for index, step_name in enumerate(PIPELINE_STEP_ORDER)
+            ]
+        self._save_manifest(artifacts, selected_logline, rerun_checkpoints)
+        return artifacts
+
     def _run_story_input_step(self, artifacts: StoryArtifacts, checkpoints: list[dict]) -> None:
         save_artifact(self.output_dir, "story_input", artifacts.story_input.to_dict(), self.file_format)
         self._mark_checkpoint("story_input", checkpoints, artifacts, {})
@@ -453,6 +544,27 @@ class StoryPipeline:
                 }
             )
         return chapter_histories
+
+    def _replace_chapter_history_entry(
+        self,
+        chapter_history: list[dict],
+        chapter_index: int,
+        payload: dict,
+    ) -> None:
+        for index, entry in enumerate(chapter_history):
+            if entry.get("chapter_index") == chapter_index:
+                chapter_history[index] = payload
+                return
+        chapter_history.append(payload)
+        chapter_history.sort(key=lambda entry: entry.get("chapter_index", 0))
+
+    def _next_rerun_attempt(self, rerun_history: list[dict], chapter_index: int) -> int:
+        matching_attempts = [
+            int(entry.get("attempt", 0))
+            for entry in rerun_history
+            if entry.get("chapter_index") == chapter_index
+        ]
+        return max(matching_attempts, default=0) + 1
 
     def _build_report_with_decision(self, artifacts: StoryArtifacts, chapter_index: int = 0) -> dict:
         report = self.continuity_checker.build_report(artifacts, chapter_index=chapter_index)

@@ -189,10 +189,11 @@ novel-writer ^
 ```bash
 novel-writer create-project --project-id "my-story-01" --theme "境界" --genre "SF" --tone "ビター" --target-length 5000
 novel-writer resume-project --project-id "my-story-01"
-novel-writer rerun-chapter --project-id "my-story-01" --chapter-number 1
+novel-writer rerun-chapter --project-id "my-story-01" --chapter-number 2
 ```
 
-`rerun-chapter` は現状では chapter 1 互換運用のため `--chapter-number 1` のみ対応です。
+`rerun-chapter` は任意章の draft / continuity / revise / summary 系 artifact を再計算します。  
+ただし互換 artifact の `continuity_report.json` と `quality_report.json` は、引き続き chapter 1 基準です。
 
 ## 主な出力物
 
@@ -238,7 +239,6 @@ novel-writer rerun-chapter --project-id "my-story-01" --chapter-number 1
 
 ## 既知の限界
 
-- chapter 単位 rerun の CLI はまだ完全一般化されていません
 - continuity report は互換上 chapter 1 基準の artifact を維持しています
 - quality report は構造評価中心で、文学的評価は限定的です
 - 長編向け stop condition はあるものの、長編運用はまだ安定化段階です

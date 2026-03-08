@@ -178,6 +178,12 @@ def run_pipeline(
     return pipeline.run(story_input=story_input, resume_from=resume_from, rerun_from=rerun_from)
 
 
+def rerun_project_chapter(args: argparse.Namespace, output_dir: Path):
+    llm_client = build_llm_client(provider=args.provider, model=args.model)
+    pipeline = StoryPipeline(llm_client=llm_client, output_dir=output_dir, file_format=args.format)
+    return pipeline.rerun_chapter(resume_from=output_dir, chapter_number=args.chapter_number)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -211,10 +217,8 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "rerun-chapter":
-        if args.chapter_number != 1:
-            parser.error("rerun-chapter currently supports only --chapter-number 1.")
         project_layout, output_dir = load_project_run_context(Path(args.projects_dir), args.project_id)
-        artifacts = run_pipeline(args, output_dir, resume_from=output_dir, rerun_from="chapter_drafts")
+        artifacts = rerun_project_chapter(args, output_dir)
         save_project_state(project_layout, Path(args.projects_dir), args.project_id, output_dir, args.format)
         issue_count = sum(artifacts.continuity_report.get("issue_counts", {}).values())
         print(f"Generated short-story artifacts in: {output_dir.resolve()}")

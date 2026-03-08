@@ -5,12 +5,10 @@
 
 ## In Progress
 
-- [ ] M11: `rerun-chapter` CLI を任意章対応に一般化する
+- [ ] M11: 章単位操作の履歴を project manifest から追いやすく整理する
 
 ## Ready
 
-- [ ] M11: 対象章だけを rerun / revise できる pipeline entry point を追加する
-- [ ] M11: 章単位操作の履歴を project manifest から追いやすく整理する
 - [ ] M12: run candidates の比較指標を issue 数以外にも広げ、`best_run` の根拠を保存する
 - [ ] M12: current run と best run の比較結果を CLI と project manifest で確認しやすくする
 - [ ] M13: 長編向け stop condition / retry policy / rerun limit を整理する
@@ -54,6 +52,8 @@
 - [x] Cover current pipeline modules with tests
 - [x] Docs: Refresh README / ROADMAP / TASKS around the software-as-pipeline framing
 - [x] M10: chapter 配列ベースの内部正本と chapter 1 互換 artifact の contract を manifest / tests / docs で固定する
+- [x] M11: `rerun-chapter` CLI を任意章対応に一般化する
+- [x] M11: 対象章だけを rerun / revise できる pipeline entry point を追加する
 
 ## Task Update Rules
 
