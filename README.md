@@ -2,12 +2,6 @@
 
 短編小説向けの創作パイプラインMVPです。CLIからテーマを与えると、発想から第1章草稿までを5フェーズで生成し、各成果物を `JSON` または `YAML` で保存します。
 
-## 実装計画
-
-1. `src/novel_writer` に CLI、パイプライン、保存層、スキーマ、LLMクライアントを分離して実装する
-2. まずは `mock` プロバイダで全フローを動かし、OpenAI クライアントは任意利用の形で分離する
-3. `tests/` に最低限の自動テストを追加し、README にセットアップ・実行例・改善候補をまとめる
-
 ## ディレクトリ構成
 
 ```text
@@ -22,28 +16,32 @@
 
 ## セットアップ
 
+推奨手順:
+
 ```bash
 python -m venv .venv
 .venv\Scripts\activate
-pip install -e .
+python -m pip install -e .
 ```
 
-YAML出力を使いたい場合だけ、追加で `PyYAML` を入れてください。
+補助ライブラリ:
 
 ```bash
-pip install PyYAML
+python -m pip install PyYAML
 ```
 
-OpenAI プロバイダを使う場合は、さらに `openai` パッケージを入れて環境変数を設定します。
+OpenAI プロバイダを使う場合:
 
 ```bash
-pip install openai
+python -m pip install openai
 set OPENAI_API_KEY=your_api_key
 ```
 
 ## 実行方法
 
-既定ではモック実装で動作します。
+### 推奨実行手順
+
+インストール後はエントリポイント経由で実行します。既定プロバイダは `mock` です。
 
 ```bash
 novel-writer ^
@@ -54,7 +52,7 @@ novel-writer ^
   --output-dir data\sample_run
 ```
 
-モジュール実行でも同じです。
+`python -m` でも実行できます。
 
 ```bash
 python -m novel_writer ^
@@ -64,16 +62,12 @@ python -m novel_writer ^
   --target-length 6000
 ```
 
-YAML 出力例:
+### モック実装と OpenAI 実装の切替
 
-```bash
-novel-writer ^
-  --theme "継承" ^
-  --genre "SF" ^
-  --tone "ビター" ^
-  --target-length 10000 ^
-  --format yaml
-```
+- モック実装: `--provider mock` または省略
+- OpenAI 実装: `--provider openai`
+- OpenAI 利用時の必須環境変数: `OPENAI_API_KEY`
+- OpenAI 利用時の追加依存: `openai`
 
 OpenAI 利用例:
 
@@ -85,6 +79,28 @@ novel-writer ^
   --target-length 7000 ^
   --provider openai ^
   --model gpt-4.1-mini
+```
+
+モックに戻す場合:
+
+```bash
+novel-writer ^
+  --theme "喪失と再生" ^
+  --genre "ミステリ" ^
+  --tone "静かで切ない" ^
+  --target-length 8000 ^
+  --provider mock
+```
+
+YAML 出力例:
+
+```bash
+novel-writer ^
+  --theme "継承" ^
+  --genre "SF" ^
+  --tone "ビター" ^
+  --target-length 10000 ^
+  --format yaml
 ```
 
 ## 出力フェーズ
@@ -101,9 +117,16 @@ novel-writer ^
 
 ## テスト
 
-追加依存なしで標準ライブラリの `unittest` で実行できます。
+推奨手順:
 
 ```bash
+python -m unittest discover -s tests -v
+```
+
+開発中に未インストール状態で直接ソースを試したい場合だけ、補助的に `PYTHONPATH=src` 相当を使えます。
+
+```bash
+$env:PYTHONPATH="src"
 python -m unittest discover -s tests -v
 ```
 
