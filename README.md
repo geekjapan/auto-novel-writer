@@ -311,6 +311,23 @@ reason code の対応:
 - `project_manifest.json` の `current_run` / `best_run` / `run_candidates` でも同じ code 一覧を使う
 - status の codes mode もこの列挙順に従って表示する
 
+status summary field と artifact field の対応:
+
+- `completed_steps` は `project_manifest.json.current_run.comparison_metrics.completed_step_count` を表示する
+- `current_comparison_basis_summary` は `project_manifest.json.current_run.comparison_basis[:3]` を表示する
+- `current_comparison_reason_summary` は `project_manifest.json.current_run.comparison_reason_details[:2]` を `code=value` へ整形して表示する
+- `current_comparison_reason_codes` は `project_manifest.json.current_run.comparison_reason_details[:3].code` を schema 順へ整列して表示する
+- `current_comparison_metrics` は `project_manifest.json.current_run.comparison_metrics.total_issue_score` と `completed_step_count` を表示する
+- `best_selection_source` は `project_manifest.json.best_run.selection_source` を表示する
+- `best_comparison_basis_summary` は `project_manifest.json.best_run.comparison_basis[:3]` を表示する
+- `best_selection_reason_summary` は `project_manifest.json.best_run.selection_reason_details[:2]` を `code=value` へ整形して表示する
+- `best_selection_reason_codes` は `project_manifest.json.best_run.selection_reason_details[:3].code` を schema 順へ整列して表示する
+- `best_comparison_metrics` は `project_manifest.json.best_run.comparison_metrics.total_issue_score` と `completed_step_count` を表示する
+- `diff_summary` は `project_manifest.json.current_run.comparison_metrics` と `project_manifest.json.best_run.comparison_metrics` の比較要約を表示する
+- `diff_policy` は `project_manifest.json.current_run.policy_snapshot.long_run` と `project_manifest.json.best_run.policy_snapshot.long_run` の比較要約を表示する
+- `policy_diff.max_high_severity_chapters` などの個別差分行も `project_manifest.json.*.policy_snapshot.long_run` から出す
+- `run_comparison_summary.json` 側では同じ comparison field 名を `current_run` / `best_run` に保ち、status 表示はその project manifest 版を読む
+
 schema version の現方針:
 
 - `project_manifest.json` は `schema_name=project_manifest`, `schema_version=1.0`
