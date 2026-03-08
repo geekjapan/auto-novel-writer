@@ -19,6 +19,23 @@
 
 当面は後方互換のため chapter 1 互換 artifact も維持しますが、設計の中心は全章状態です。
 
+## 用語対応
+
+この README では読みやすさのため自然言語も使いますが、artifact や manifest の実フィールド名は以下で統一します。
+
+- 作品単位管理: `project_manifest.json`
+- 実行単位: `run`
+- 実行候補: `run_candidates`
+- 採用 run: `best_run`
+- 章別状態要約: `chapter_statuses`
+- 章別履歴束ね: `chapter_histories`
+- 全章草稿の正本: `chapter_drafts`
+- 全章改稿稿の正本: `revised_chapter_drafts`
+- chapter 1 互換出力: `chapter_1_draft`, `revised_chapter_1_draft`, `continuity_report`
+- 配布向け成果物: `publish_ready_bundle.json`
+- artifact 契約定義: `artifact_contract`
+- 長編停止状態: `long_run_status`
+
 ## 仕様の6層
 
 ### 1. 入力仕様
