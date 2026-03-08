@@ -64,6 +64,18 @@ python -m novel_writer ^
   --target-length 6000
 ```
 
+再開実行の例:
+
+```bash
+novel-writer --resume-from-output-dir data\sample_run
+```
+
+指定フェーズからの再実行例:
+
+```bash
+novel-writer --resume-from-output-dir data\sample_run --rerun-from chapter_drafts
+```
+
 ### モック実装と OpenAI 実装の切替
 
 - モック実装: `--provider mock` または省略

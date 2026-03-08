@@ -7,7 +7,7 @@ from novel_writer.continuity import ContinuityChecker
 from novel_writer.llm_client import BaseLLMClient
 from novel_writer.rerun_policy import ContinuityRerunPolicy
 from novel_writer.schema import StoryArtifacts, StoryInput
-from novel_writer.storage import save_artifact
+from novel_writer.storage import load_artifact, save_artifact
 
 
 PIPELINE_STEP_ORDER = [
@@ -37,27 +37,42 @@ class StoryPipeline:
         self.continuity_checker = continuity_checker or ContinuityChecker()
         self.rerun_policy = rerun_policy or ContinuityRerunPolicy()
 
-    def run(self, story_input: StoryInput) -> StoryArtifacts:
-        artifacts = StoryArtifacts(story_input=story_input)
-        checkpoints: list[dict] = []
-        selected_logline: dict = {}
+    def run(
+        self,
+        story_input: StoryInput | None = None,
+        resume_from: Path | None = None,
+        rerun_from: str | None = None,
+    ) -> StoryArtifacts:
+        if resume_from is None and story_input is None:
+            raise ValueError("story_input is required unless resume_from is provided.")
 
-        self._run_story_input_step(artifacts, checkpoints)
+        if rerun_from is not None and rerun_from not in PIPELINE_STEP_ORDER:
+            raise ValueError(f"Unsupported rerun step: {rerun_from}")
 
-        selected_logline = self._run_loglines_step(artifacts, checkpoints)
-        self._run_characters_step(story_input, selected_logline, artifacts, checkpoints)
-        self._run_three_act_plot_step(story_input, selected_logline, artifacts, checkpoints)
-        self._run_chapter_plan_step(story_input, selected_logline, artifacts, checkpoints)
-        self._run_chapter_drafts_step(story_input, selected_logline, artifacts, checkpoints)
+        if resume_from is not None:
+            artifacts, selected_logline, checkpoints = self._load_resume_state(resume_from)
+            if story_input is not None:
+                artifacts.story_input = story_input
+        else:
+            artifacts = StoryArtifacts(story_input=story_input)
+            selected_logline = {}
+            checkpoints = []
 
-        artifacts.continuity_report = self._build_report_with_decision(artifacts)
-        self._maybe_rerun_from_decision(story_input, selected_logline, artifacts)
-        save_artifact(self.output_dir, "continuity_report", artifacts.continuity_report, "json")
-        self._mark_checkpoint("continuity_report", checkpoints, artifacts, selected_logline)
-        for chapter_index, _chapter_draft in enumerate(artifacts.chapter_drafts):
-            self._revise_chapter(story_input, artifacts, chapter_index=chapter_index)
-        save_artifact(self.output_dir, "revised_chapter_1_draft", artifacts.revised_chapter_1_draft, self.file_format)
-        self._mark_checkpoint("revised_chapter_drafts", checkpoints, artifacts, selected_logline)
+        if rerun_from is not None:
+            checkpoints = self._truncate_checkpoints(checkpoints, rerun_from)
+            self._reset_for_step(artifacts, rerun_from)
+            start_index = PIPELINE_STEP_ORDER.index(rerun_from)
+        elif checkpoints:
+            completed_steps = checkpoints[-1]["completed_steps"]
+            if completed_steps == PIPELINE_STEP_ORDER:
+                return artifacts
+            start_index = len(completed_steps)
+        else:
+            start_index = 0
+
+        for step_name in PIPELINE_STEP_ORDER[start_index:]:
+            selected_logline = self._run_step(step_name, artifacts.story_input, selected_logline, artifacts, checkpoints)
+
         return artifacts
 
     def _run_story_input_step(self, artifacts: StoryArtifacts, checkpoints: list[dict]) -> None:
@@ -131,6 +146,146 @@ class StoryPipeline:
             artifacts.set_chapter_draft(chapter_index, chapter_draft)
         save_artifact(self.output_dir, "05_chapter_1_draft", artifacts.get_chapter_draft(0), self.file_format)
         self._mark_checkpoint("chapter_drafts", checkpoints, artifacts, selected_logline)
+
+    def _run_continuity_report_step(
+        self,
+        story_input: StoryInput,
+        selected_logline: dict,
+        artifacts: StoryArtifacts,
+        checkpoints: list[dict],
+    ) -> None:
+        artifacts.continuity_report = self._build_report_with_decision(artifacts)
+        self._maybe_rerun_from_decision(story_input, selected_logline, artifacts)
+        save_artifact(self.output_dir, "continuity_report", artifacts.continuity_report, "json")
+        self._mark_checkpoint("continuity_report", checkpoints, artifacts, selected_logline)
+
+    def _run_revised_chapter_drafts_step(
+        self,
+        story_input: StoryInput,
+        selected_logline: dict,
+        artifacts: StoryArtifacts,
+        checkpoints: list[dict],
+    ) -> None:
+        for chapter_index, _chapter_draft in enumerate(artifacts.chapter_drafts):
+            self._revise_chapter(story_input, artifacts, chapter_index=chapter_index)
+        save_artifact(self.output_dir, "revised_chapter_1_draft", artifacts.revised_chapter_1_draft, self.file_format)
+        self._mark_checkpoint("revised_chapter_drafts", checkpoints, artifacts, selected_logline)
+
+    def _run_step(
+        self,
+        step_name: str,
+        story_input: StoryInput,
+        selected_logline: dict,
+        artifacts: StoryArtifacts,
+        checkpoints: list[dict],
+    ) -> dict:
+        if step_name == "story_input":
+            self._run_story_input_step(artifacts, checkpoints)
+            return selected_logline
+        if step_name == "loglines":
+            return self._run_loglines_step(artifacts, checkpoints)
+        if step_name == "characters":
+            self._run_characters_step(story_input, selected_logline, artifacts, checkpoints)
+            return selected_logline
+        if step_name == "three_act_plot":
+            self._run_three_act_plot_step(story_input, selected_logline, artifacts, checkpoints)
+            return selected_logline
+        if step_name == "chapter_plan":
+            self._run_chapter_plan_step(story_input, selected_logline, artifacts, checkpoints)
+            return selected_logline
+        if step_name == "chapter_drafts":
+            self._run_chapter_drafts_step(story_input, selected_logline, artifacts, checkpoints)
+            return selected_logline
+        if step_name == "continuity_report":
+            self._run_continuity_report_step(story_input, selected_logline, artifacts, checkpoints)
+            return selected_logline
+        if step_name == "revised_chapter_drafts":
+            self._run_revised_chapter_drafts_step(story_input, selected_logline, artifacts, checkpoints)
+            return selected_logline
+        raise ValueError(f"Unsupported step: {step_name}")
+
+    def _load_resume_state(self, resume_from: Path) -> tuple[StoryArtifacts, dict, list[dict]]:
+        manifest = load_artifact(resume_from, "manifest")
+        artifacts_data = manifest.get("artifacts", {})
+        story_input_data = artifacts_data.get("story_input") or load_artifact(resume_from, "story_input")
+        artifacts = StoryArtifacts(story_input=StoryInput(**story_input_data))
+        for field_name in [
+            "loglines",
+            "characters",
+            "three_act_plot",
+            "chapter_plan",
+            "chapter_drafts",
+            "chapter_1_draft",
+            "continuity_report",
+            "revised_chapter_drafts",
+            "revised_chapter_1_draft",
+            "rerun_history",
+            "revise_history",
+        ]:
+            if field_name in artifacts_data:
+                setattr(artifacts, field_name, artifacts_data[field_name])
+        return artifacts, manifest.get("selected_logline", {}), list(manifest.get("checkpoints", []))
+
+    def _truncate_checkpoints(self, checkpoints: list[dict], rerun_from: str) -> list[dict]:
+        rerun_index = PIPELINE_STEP_ORDER.index(rerun_from)
+        kept_steps = set(PIPELINE_STEP_ORDER[:rerun_index])
+        return [checkpoint for checkpoint in checkpoints if checkpoint.get("step") in kept_steps]
+
+    def _reset_for_step(self, artifacts: StoryArtifacts, rerun_from: str) -> None:
+        if rerun_from == "story_input":
+            self._reset_from_loglines(artifacts)
+            return
+        if rerun_from == "loglines":
+            self._reset_from_loglines(artifacts)
+            return
+        if rerun_from == "characters":
+            self._reset_from_characters(artifacts)
+            return
+        if rerun_from == "three_act_plot":
+            self._reset_from_three_act_plot(artifacts)
+            return
+        if rerun_from == "chapter_plan":
+            self._reset_from_chapter_plan(artifacts)
+            return
+        if rerun_from == "chapter_drafts":
+            self._reset_from_chapter_drafts(artifacts)
+            return
+        if rerun_from == "continuity_report":
+            self._reset_from_continuity_report(artifacts)
+            return
+        if rerun_from == "revised_chapter_drafts":
+            self._reset_from_revised_chapter_drafts(artifacts)
+
+    def _reset_from_loglines(self, artifacts: StoryArtifacts) -> None:
+        artifacts.loglines = []
+        self._reset_from_characters(artifacts)
+
+    def _reset_from_characters(self, artifacts: StoryArtifacts) -> None:
+        artifacts.characters = []
+        self._reset_from_three_act_plot(artifacts)
+
+    def _reset_from_three_act_plot(self, artifacts: StoryArtifacts) -> None:
+        artifacts.three_act_plot = {}
+        self._reset_from_chapter_plan(artifacts)
+
+    def _reset_from_chapter_plan(self, artifacts: StoryArtifacts) -> None:
+        artifacts.chapter_plan = []
+        self._reset_from_chapter_drafts(artifacts)
+
+    def _reset_from_chapter_drafts(self, artifacts: StoryArtifacts) -> None:
+        artifacts.chapter_drafts = []
+        artifacts.chapter_1_draft = {}
+        self._reset_from_continuity_report(artifacts)
+
+    def _reset_from_continuity_report(self, artifacts: StoryArtifacts) -> None:
+        artifacts.continuity_report = {}
+        artifacts.rerun_history = []
+        self._reset_from_revised_chapter_drafts(artifacts)
+
+    def _reset_from_revised_chapter_drafts(self, artifacts: StoryArtifacts) -> None:
+        artifacts.revised_chapter_drafts = []
+        artifacts.revised_chapter_1_draft = {}
+        artifacts.revise_history = []
 
     def _mark_checkpoint(
         self,
