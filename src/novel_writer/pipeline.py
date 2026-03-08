@@ -1,0 +1,59 @@
+from __future__ import annotations
+
+from dataclasses import asdict
+from pathlib import Path
+
+from novel_writer.llm_client import BaseLLMClient
+from novel_writer.schema import StoryArtifacts, StoryInput
+from novel_writer.storage import save_artifact
+
+
+class StoryPipeline:
+    def __init__(self, llm_client: BaseLLMClient, output_dir: Path, file_format: str = "json") -> None:
+        self.llm_client = llm_client
+        self.output_dir = output_dir
+        self.file_format = file_format
+
+    def run(self, story_input: StoryInput) -> StoryArtifacts:
+        artifacts = StoryArtifacts(story_input=story_input)
+        save_artifact(self.output_dir, "story_input", story_input.to_dict(), self.file_format)
+
+        artifacts.loglines = self.llm_client.generate_loglines(story_input)
+        save_artifact(self.output_dir, "01_loglines", artifacts.loglines, self.file_format)
+
+        selected_logline = artifacts.loglines[0]
+        artifacts.characters = self.llm_client.generate_characters(story_input, selected_logline)
+        save_artifact(self.output_dir, "02_characters", artifacts.characters, self.file_format)
+
+        artifacts.three_act_plot = self.llm_client.generate_three_act_plot(
+            story_input,
+            selected_logline,
+            artifacts.characters,
+        )
+        save_artifact(self.output_dir, "03_three_act_plot", artifacts.three_act_plot, self.file_format)
+
+        artifacts.chapter_plan = self.llm_client.generate_chapter_plan(
+            story_input,
+            selected_logline,
+            artifacts.characters,
+            artifacts.three_act_plot,
+        )
+        save_artifact(self.output_dir, "04_chapter_plan", artifacts.chapter_plan, self.file_format)
+
+        artifacts.chapter_1_draft = self.llm_client.generate_chapter_draft(
+            story_input,
+            selected_logline,
+            artifacts.characters,
+            artifacts.chapter_plan,
+            chapter_index=0,
+        )
+        save_artifact(self.output_dir, "05_chapter_1_draft", artifacts.chapter_1_draft, self.file_format)
+
+        manifest = {
+            "summary": artifacts.summary(),
+            "selected_logline": selected_logline,
+            "artifacts": asdict(artifacts),
+        }
+        save_artifact(self.output_dir, "manifest", manifest, self.file_format)
+        return artifacts
+
