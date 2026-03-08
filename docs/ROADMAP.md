@@ -2,139 +2,135 @@
 
 ## Goal
 
-人手の往復を最小化しながら、プロット作成から全章ドラフト、検査、改稿、再開実行までを自動で回せる「全自動小説執筆システム」を段階的に育てる。
+CLI から小説プロジェクトを作成し、章単位・作品単位で  
+`生成 → 検査 → 再実行 → 改稿 → 要約 → 公開用成果物出力`  
+までを再開可能に回せる、小説執筆パイプラインを育てる。
+
+このソフトウェアの目標は「高性能な本文生成器」ではなく、**作品制作の制御基盤**をつくることにある。
 
 ## Current State
 
-- CLI から `story_input` を受け取り、logline から chapter 1 draft まで一連実行できる
-- `mock` / `openai` の LLM クライアント切替がある
-- artifact は JSON / YAML で保存できる
-- continuity check、rerun policy、chapter 1 revise が入っている
-- 内部データ構造は `chapter_drafts` / `revised_chapter_drafts` を持ち、複数章対応の土台がある
-- 外部仕様と保存成果物はまだ chapter 1 中心
+- CLI から `theme`、`genre`、`tone`、`target_length` を受け取り、`project_id` つきの run 管理もできる
+- `story_input → loglines → characters → three_act_plot → chapter_plan → chapter_drafts` の生成フローがある
+- chapter plan 全件に対して draft / revised draft を生成し、全章 artifact を保存できる
+- continuity check と quality report により、構造不整合、POV 一貫性、章長バランス、キャラクター継続性を評価できる
+- rerun policy、bounded revise loop、resume / rerun、history / diff metadata 保存がある
+- `project_manifest.json` と `manifest` により、project/run の状態復元ができる
+- `story_summary.json`、`project_quality_report.json`、`publish_ready_bundle.json` を生成できる
+- 一方で、CLI や互換 artifact には chapter 1 前提の外部仕様がまだ残っている
 
-## Milestones
+## 仕様上の柱
 
-### M1. Multi-Chapter Generation Foundation
+### 1. 入力と project 管理
+
+- project 単位で run を継続管理できること
+- CLI から最小入力で開始できること
+- manifest から再開できること
+
+### 2. 全章生成
+
+- chapter plan 全件をループして草稿を生成できること
+- 章ごとの内部状態が正本であること
+- chapter 1 互換 artifact は補助層として維持すること
+
+### 3. 品質管理と制御
+
+- 章別 continuity / quality 検査
+- rerun policy による再生成制御
+- bounded revise loop
+- 履歴と diff の保存
+
+### 4. 作品単位成果物
+
+- story summary / synopsis
+- project-wide quality report
+- publish-ready bundle
+- run 比較と best candidate selection
+
+## 完了済みの段階
+
+### M1. 全章草稿生成の基盤
+
+全章 `chapter_plan` と `chapter_{n}_draft` / `revised_chapter_{n}_draft` を扱う土台は実装済み。
+
+### M2. resume / rerun の基盤
+
+checkpoint と manifest を使った resume、phase rerun は実装済み。
+
+### M3. 品質検査の基盤
+
+continuity check、quality report、POV / 章長 / キャラクター継続性の評価は実装済み。
+
+### M4. 改稿制御の基盤
+
+bounded revise loop、停止条件、diff metadata 保存は実装済み。
+
+### M5. project / run 管理の基盤
+
+`project_id`、project manifest、run candidate、best run の基盤は実装済み。
+
+### M6. 最終成果物の基盤
+
+`story_summary.json`、`project_quality_report.json`、`publish_ready_bundle.json` の生成は実装済み。
+
+## 現在の本命
+
+### M10. 仕様語彙と artifact contract の固定
 
 目的:
-chapter 1 固定の実装を外し、全章を同じ生成パイプラインで扱えるようにする。
+README / ROADMAP / TASKS / manifest / テストの間で、何が正本で何が互換層かをぶらさずに固定する。
 
 完了条件:
 
-- chapter draft 生成が章番号ループで動く
-- revise/save が任意章を対象にできる
-- manifest と storage が章配列中心でも一貫する
-- chapter 1 向けの既存出力は後方互換を維持する
+- 「制作パイプライン」であることが docs 全体で一貫する
+- chapter 配列ベースの内部状態が正本だと明記される
+- chapter 1 互換 artifact の位置づけが文書とテストで一致する
+- publish-ready bundle と project/run manifest の責務が説明できる
 
-### M2. Resume And Selective Rerun
+### M11. 章単位制御の外部仕様一般化
 
 目的:
-途中成果物を再利用し、止まってもやり直しても作業を前進できるようにする。
+内部で全章対応している rerun / revise / history を、CLI と外部仕様でも任意章へ広げる。
 
 完了条件:
 
-- 既存 artifact を読み込んで途中再開できる
-- フェーズ単位の再実行ができる
-- rerun の記録が manifest で追える
-- CLI から再開実行と再実行起点を指定できる
+- `rerun-chapter` が任意章に対応する
+- 対象章だけを安全に再実行できる
+- 章単位操作が manifest と project manifest で追える
 
-### M3. Multi-Layer Quality Checks
+### M12. 作品単位評価と選抜の強化
 
 目的:
-整合性だけでなく、文体、視点、長さ配分、章間因果、人物の一貫性も機械検査できるようにする。
+複数 run の比較と best candidate 選抜を、運用可能な精度へ強化する。
 
 完了条件:
 
-- continuity 以外の quality check が追加される
-- 問題種別ごとに regenerate / revise の推奨が分かれる
-- quality report が artifact として保存される
+- best run の根拠を説明できる
+- comparison 用 metadata が整理される
+- project-level quality report が比較運用に耐える
 
-### M4. Automated Revision Loop
+### M13. 長編安定化
 
 目的:
-単発改稿ではなく、停止条件付きの反復改稿で品質を底上げする。
+中編・長編でも途中停止 / 再開しながら安定生成できるようにする。
 
 完了条件:
 
-- revise を複数回回せる
-- 反復上限回数と停止条件がある
-- 改稿前後の差分と判断理由が履歴に残る
-
-### M5. Project-Level Writing Management
-
-目的:
-単発 CLI 実行から、作品単位の継続管理へ進める。
-
-完了条件:
-
-- 作品 ID ごとに設定、進捗、成果物、履歴を管理できる
-- CLI から新規作品、再開、全体生成、章単位再生成ができる
-- project manifest から現在状態を復元できる
-
-### M6. Autonomous Agent Development Loop
-
-目的:
-システム開発自体を、Codex が GitHub と連動しながら小さく安全に前進できる状態にする。
-
-完了条件:
-
-- `docs/TASKS.md` と GitHub issue / PR の粒度がそろっている
-- Codex が 1 タスクずつ実装、テスト、docs 更新、小コミットまで進められる
-- block 時は `docs/BLOCKED.md` に停止理由が残る
-
-### M7. Chapter-Wide Continuity And Revision
-
-目的:
-chapter 1 中心の continuity / rerun / revise を、全章へ一般化する。
-
-完了条件:
-
-- continuity check を任意章に適用できる
-- rerun policy を章単位で実行できる
-- revise を任意章へ適用できる
-- manifest に章ごとの検査・再実行・改稿履歴が残る
-- chapter 1 向けの既存互換を維持する
-
-### M8. Story-Level Evaluation And Selection
-
-目的:
-作品全体の品質評価と、複数候補からの選抜を可能にする。
-
-完了条件:
-
-- 全章を通した summary / synopsis を生成できる
-- project-wide quality report を生成できる
-- 主題整合、伏線回収、視点維持、章配分を評価できる
-- 複数 run を比較し best candidate を選べる
-- 比較結果が manifest / project metadata に保存される
-
-### M9. Long-Form Novel Orchestration
-
-目的:
-短編MVPから中編・長編へ拡張し、章ループで安定生成できるようにする。
-
-完了条件:
-
-- 全章を順に生成・改稿・評価できる
-- 長編でも中断・再開できる
-- 全体要約と全体再検査が自動で走る
-- 長編向け retry / stop condition を持つ
-- publish-ready artifact bundle を出力できる
+- stop condition と retry policy が長編向けに整理される
+- rerun コストを制御できる
+- 長編時でも chapter / project の状態追跡が崩れない
 
 ## Sequencing Rationale
 
-- 先に M1 と M2 を固めないと、全章生成も自動再開も不安定になる
-- M3 と M4 は、基盤ができてから品質改善を安全に積み上げる段階
-- M5 で「作品を継続的に育てる」運用へ進める
-- M6 は開発運用そのものを半自動化する土台
-- M7 で chapter 1 固定の品質制御を全章へ広げる
-- M8 で作品単位の評価と候補選抜を扱えるようにする
-- M9 で中編・長編向けの安定オーケストレーションへ進む
+- まず M10 で仕様語彙と artifact contract を固定し、docs と実装のぶれを止める
+- 次に M11 で chapter 単位制御を外部仕様でも完成させる
+- その後 M12 で run 比較と選抜を強める
+- 最後に M13 で長編安定化へ進む
 
 ## Roadmap Notes
 
-- 直近は M1 を最優先とする
-- 広い再設計より、1 タスクずつ安全に前進する
-- GitHub では `docs/TASKS.md` の項目を基準に issue / PR を対応づける
-- 現在は M1〜M6 が一巡し、次の本命は M7 の全章一般化である
+- README は「現状できること」
+- ROADMAP は「どこへ進むか」
+- TASKS は「次に何を実装するか」
+
+この3つは役割を分けて保守する。

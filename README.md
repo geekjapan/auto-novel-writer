@@ -1,22 +1,116 @@
 # auto-novel-writer
 
-短編小説向けの創作パイプラインMVPです。CLIから `theme`, `genre`, `tone`, `target_length` を受け取り、logline 生成から chapter plan 全件分の draft 生成、全章分の revised draft 保存までを順に実行します。continuity check の互換 artifact と chapter 1 向け出力は維持しつつ、章別 draft / revised draft も保存します。
+`auto-novel-writer` は、CLI ベースの小説制作パイプラインです。  
+目指すのは「一発で完成原稿を出す本文生成器」ではなく、**小説制作を工程分解し、章単位・作品単位で再開可能に回せる制御基盤**です。
 
-## ディレクトリ構成
+現在は、CLI 入力から `story_input`、`loglines`、`characters`、`three_act_plot`、`chapter_plan`、全章 draft、全章 revised draft、quality 系 artifact、project/run 管理用 manifest までを順に生成できます。
 
-```text
-.
-├─ data/
-├─ src/
-│  └─ novel_writer/
-├─ tests/
-├─ pyproject.toml
-└─ README.md
-```
+## ソフトウェアの目的
+
+- CLI から小説プロジェクトを作成する
+- 章単位・作品単位で `生成 → 検査 → 再実行 → 改稿 → 要約 → 公開用成果物出力` を回す
+- 途中停止しても、artifact と manifest から resume / rerun できるようにする
+- 短編から長編まで、品質管理つきで安定生成できる土台をつくる
+
+## 仕様の中心
+
+このソフトウェアの中心は、プロンプト単体ではなくパイプラインです。  
+正本となる内部状態は、`chapter_drafts` / `revised_chapter_drafts` のような**章配列ベースの状態**と、`project_manifest.json` / `manifest` のような**project/run 管理情報**です。
+
+当面は後方互換のため chapter 1 互換 artifact も維持しますが、設計の中心は全章状態です。
+
+## 仕様の6層
+
+### 1. 入力仕様
+
+最低限、CLI から以下を受け取ります。
+
+- `theme`
+- `genre`
+- `tone`
+- `target_length`
+
+継続管理が必要な場合は `project_id` を指定し、project 単位の run layout を使います。
+
+### 2. 生成仕様
+
+最低限、以下の順で生成します。
+
+1. `story_input`
+2. `loglines`
+3. `characters`
+4. `three_act_plot`
+5. `chapter_plan`
+6. `chapter_drafts`
+
+`chapter_plan` は全件ループで処理し、各章の `chapter_{n}_draft` を保存します。
+
+### 3. 品質管理仕様
+
+生成後は continuity check と quality report を走らせます。  
+構造不整合だけでなく、少なくとも以下を扱います。
+
+- POV 一貫性
+- 章長バランス
+- キャラクター継続性
+- plan と draft の対応
+
+### 4. 再実行・改稿仕様
+
+問題があれば rerun policy に従って再生成し、その後 bounded loop で改稿します。  
+停止条件、再実行履歴、改稿履歴、diff metadata を manifest に残します。
+
+### 5. project/run 管理仕様
+
+単発実行だけでなく、`project_id` ごとに run を管理します。
+
+- resume
+- rerun
+- chapter 単位操作
+- `project_manifest.json` と `manifest` からの状態復元
+
+を前提にしています。
+
+### 6. 最終成果物仕様
+
+本文だけでなく、以下を最終成果物として出力します。
+
+- `story_summary.json`
+- `project_quality_report.json`
+- `publish_ready_bundle.json`
+
+これらは公開、比較、選抜、後続工程での利用を想定した artifact です。
+
+## 現在実装済みの主要機能
+
+- `mock` / `openai` の LLM プロバイダ切替
+- 全章 `chapter_plan` と全章 `chapter_{n}_draft` 生成
+- 全章 `revised_chapter_{n}_draft` 保存
+- continuity report と quality report の生成
+- rerun policy による再生成制御
+- bounded loop による改稿と diff metadata 保存
+- `manifest` の checkpoint / history 保存
+- `project_id` 単位の run layout と `project_manifest.json`
+- `story_summary.json`、`project_quality_report.json`、`publish_ready_bundle.json`
+- run candidates と `best_run` の記録
+
+## chapter 1 互換 artifact と全章状態
+
+内部処理は全章対応ですが、既存利用者向けに chapter 1 互換 artifact を残しています。
+
+- `05_chapter_1_draft.json|yaml`
+- `revised_chapter_1_draft.json|yaml`
+- `continuity_report.json`
+
+`chapter_1_draft` と `revised_chapter_1_draft` は内部配列先頭要素の互換ミラーです。  
+章ごとの履歴や検査結果は `manifest` の以下を参照します。
+
+- `continuity_history`
+- `rerun_history`
+- `revise_history`
+- `chapter_histories`
 
 ## セットアップ
-
-推奨手順:
 
 ```bash
 python -m venv .venv
@@ -24,7 +118,7 @@ python -m venv .venv
 python -m pip install -e .
 ```
 
-補助ライブラリ:
+YAML artifact を使う場合:
 
 ```bash
 python -m pip install PyYAML
@@ -37,13 +131,7 @@ python -m pip install openai
 set OPENAI_API_KEY=your_api_key
 ```
 
-`.env*` や API キーなどの secrets、`data/` 配下の生成成果物は push しない運用を前提にしています。
-
-## 実行方法
-
-### 推奨実行手順
-
-インストール後はエントリポイント経由で実行します。既定プロバイダは `mock` で、生成完了後に continuity check、必要に応じた rerun、chapter 1 の改稿まで自動実行されます。
+## 基本実行
 
 ```bash
 novel-writer ^
@@ -54,23 +142,35 @@ novel-writer ^
   --output-dir data\sample_run
 ```
 
-`python -m` でも実行できます。
+`python -m novel_writer` でも実行できます。
 
-```bash
-python -m novel_writer ^
-  --theme "秘密" ^
-  --genre "ファンタジー" ^
-  --tone "希望を残す" ^
-  --target-length 6000
-```
+## resume / rerun
 
-再開実行の例:
+既存成果物を使って途中から再開できます。
 
 ```bash
 novel-writer --resume-from-output-dir data\sample_run
+novel-writer --resume-from-output-dir data\sample_run --rerun-from chapter_drafts
 ```
 
-project 単位の run layout を使う例:
+現在の step 順序:
+
+1. `story_input`
+2. `loglines`
+3. `characters`
+4. `three_act_plot`
+5. `chapter_plan`
+6. `chapter_drafts`
+7. `continuity_report`
+8. `quality_report`
+9. `revised_chapter_drafts`
+10. `story_summary`
+11. `project_quality_report`
+12. `publish_ready_bundle`
+
+## project-level run
+
+`--project-id` を指定すると、作品単位の run layout を使います。
 
 ```bash
 novel-writer ^
@@ -81,9 +181,10 @@ novel-writer ^
   --project-id "my-story-01"
 ```
 
-この場合、既定では `data/projects/my-story-01/runs/latest_run` に成果物を保存し、`data/projects/my-story-01/project_manifest.json` に現在の run 情報を保存します。
+既定では成果物を `data/projects/my-story-01/runs/latest_run` に保存し、  
+`data/projects/my-story-01/project_manifest.json` に current run、run candidates、best run を保存します。
 
-project コマンドの例:
+専用コマンド:
 
 ```bash
 novel-writer create-project --project-id "my-story-01" --theme "境界" --genre "SF" --tone "ビター" --target-length 5000
@@ -91,196 +192,81 @@ novel-writer resume-project --project-id "my-story-01"
 novel-writer rerun-chapter --project-id "my-story-01" --chapter-number 1
 ```
 
-`rerun-chapter` は現時点では後方互換性のため chapter 1 のみを対象にします。
+`rerun-chapter` は現状では chapter 1 互換運用のため `--chapter-number 1` のみ対応です。
 
-指定フェーズからの再実行例:
+## 主な出力物
 
-```bash
-novel-writer --resume-from-output-dir data\sample_run --rerun-from chapter_drafts
-```
-
-### モック実装と OpenAI 実装の切替
-
-- モック実装: `--provider mock` または省略
-- OpenAI 実装: `--provider openai`
-- OpenAI 利用時の必須環境変数: `OPENAI_API_KEY`
-- OpenAI 利用時の追加依存: `openai`
-- OpenAI 応答は受信後に想定 JSON shape を検証し、必須 key や型が崩れている場合はエラーにします
-
-OpenAI 利用例:
-
-```bash
-novel-writer ^
-  --theme "約束" ^
-  --genre "青春ドラマ" ^
-  --tone "軽やか" ^
-  --target-length 7000 ^
-  --provider openai ^
-  --model gpt-4.1-mini
-```
-
-モックに戻す場合:
-
-```bash
-novel-writer ^
-  --theme "喪失と再生" ^
-  --genre "ミステリ" ^
-  --tone "静かで切ない" ^
-  --target-length 8000 ^
-  --provider mock
-```
-
-YAML 出力例:
-
-```bash
-novel-writer ^
-  --theme "継承" ^
-  --genre "SF" ^
-  --tone "ビター" ^
-  --target-length 10000 ^
-  --format yaml
-```
-
-## 出力フェーズ
-
-以下の成果物を順番に保存します。
-
-1. `story_input`
-2. `01_loglines`
-3. `02_characters`
-4. `03_three_act_plot`
-5. `04_chapter_plan`
-6. `05_chapter_1_draft`
-7. `chapter_{n}_draft`
-8. `continuity_report.json`
-9. `quality_report.json`
-10. `revised_chapter_1_draft`
-11. `revised_chapter_{n}_draft`
-12. `story_summary.json`
-13. `project_quality_report.json`
-14. `publish_ready_bundle.json`
-15. `manifest`
-
-`manifest` には、再開実行の土台として `checkpoints`, `current_step`, `completed_steps` も保存されます。
-また、章単位で追跡できるように `continuity_history`, `rerun_history`, `revise_history`, `chapter_histories` と、長編向け stop condition の状態である `long_run_status` も保存されます。
-
-`publish_ready_bundle.json` には、最終的な synopsis、全章 revised draft、作品全体 quality report をひとまとめにした配布向け payload を保存します。
-
-## Continuity Check
-
-continuity check はルールベースで成果物間の構造的不整合候補を洗い出します。面白さ評価ではなく、最低限の整合性確認が目的です。
-
-参照する成果物:
-
-- `logline`
-- `characters`
-- `three_act_plot`
-- `chapter_plan`
-- `chapter_1_draft`
-
-内部実装の continuity checker は `chapter_index` 指定で任意章を検査できますが、互換 artifact の `continuity_report.json` は chapter 1 基準の出力を維持しています。章ごとの continuity 結果は `manifest` の `continuity_history` と `chapter_histories` から参照できます。
-
-出力ファイル:
-
+- `story_input`
+- `01_loglines`
+- `02_characters`
+- `03_three_act_plot`
+- `04_chapter_plan`
+- `05_chapter_1_draft`
+- `chapter_{n}_draft`
 - `continuity_report.json`
+- `quality_report.json`
+- `revised_chapter_1_draft`
+- `revised_chapter_{n}_draft`
+- `story_summary.json`
+- `project_quality_report.json`
+- `publish_ready_bundle.json`
+- `manifest`
 
-主なチェック項目:
+`manifest` には以下も保存します。
 
-- `missing_fields`
-- `character_name_mismatches`
-- `plot_to_plan_gaps`
-- `plan_to_draft_gaps`
-- `length_warnings`
-- `pov_consistency_issues`
-- `chapter_length_balance_warnings`
-- `character_continuity_issues`
-- `quality_report.json` には各問題種別ごとの `regenerate` / `revise` 推奨と全体推奨が保存されます
+- `checkpoints`
+- `current_step`
+- `completed_steps`
+- `continuity_history`
+- `rerun_history`
+- `revise_history`
+- `chapter_histories`
+- `long_run_status`
 
-実行方法:
+## 現時点でできること
 
-- 通常の `novel-writer ...` 実行に continuity check が含まれます
-- 追加オプションなしで `continuity_report.json` が出力されます
-
-## Re-run Policy
-
-continuity check 後は `issue_counts` を見て重大度を判定し、必要なら生成を 1 回だけ再実行します。判定ルールは [rerun_policy.py](src/novel_writer/rerun_policy.py) の定数として分離しています。
-
-制御フロー:
-
-- `low`: 警告のみ。生成結果をそのまま採用
-- `medium`: `chapter_1_draft` を再生成
-- `high`: `chapter_plan` から `chapter_1_draft` まで再生成
-
-内部実装では rerun 判定を章ごとに適用できる形に寄せていますが、互換 artifact と説明は chapter 1 を基準に維持しています。
-
-長編向けには、`rerun_policy` 設定で高重大度章数や総 rerun 回数の上限を与えると、`continuity_report` 完了時点で pipeline を停止できます。停止状態は `manifest.long_run_status` に保存され、明示的に rerun 指定しない限り途中再開でもその停止状態を維持します。
-
-記録:
-
-- 最終判定は `continuity_report.json` の `severity`, `recommended_action`, `weighted_score` に保存
-- 再実行履歴は `manifest` の `rerun_history` に保存
-- 章ごとの continuity / rerun / revise の束ねは `manifest` の `chapter_histories` でも参照できる
-
-## Revise Chapter 1
-
-continuity check と rerun の後に、各章 draft を最小限の改稿ルールで整えます。入力として `story_input`, `chapter_plan`, 各章 draft, 各章 continuity report を使い、全章分の `revised_chapter_{n}_draft` を保存します。後方互換のため `revised_chapter_1_draft` も引き続き保存します。
-
-内部実装では改稿メソッドを `chapter_index` ベースに一般化してあり、現在はその結果を全章 artifact として保存します。CLI と保存成果物では後方互換性のため chapter 1 の互換ファイル名も併存させています。
-
-また、内部データ構造として `chapter_drafts` と `revised_chapter_drafts` を導入しており、将来の複数章対応ではこの章番号付き保持構造を中心に拡張する想定です。現時点では chapter draft と revised draft は全章分を内部保持し、改稿判定も章ごとに行いますが、compatibility output は chapter index `0` を中心に維持しています。
-
-改稿は最大 2 回までの bounded loop で実行します。改稿結果に変化がなくなった場合、または上限回数に達した場合にその章の改稿を停止します。
-
-改稿ルール:
-
-- `chapter_plan[0].purpose` に `summary` を寄せる
-- 草稿本文の重複文を削減する
-- 冗長な言い回しを短くし、文体を軽く整える
-
-記録:
-
-- 改稿結果は `revised_chapter_{n}_draft(.json|.yaml)` に保存し、chapter 1 については `revised_chapter_1_draft(.json|.yaml)` も互換保存
-- 改稿履歴は `manifest` の `revise_history` に attempt 単位で保存し、各 attempt の before/after diff metadata も含みます
-- 章ごとの continuity / rerun / revise の束ねは `manifest` の `chapter_histories` でも参照できます
+- 章計画に基づく全章 draft 生成
+- 章別 continuity / quality 検査
+- rerun policy による再実行
+- bounded revise loop
+- 作品全体 summary / synopsis 生成
+- project 単位の resume / rerun
+- publish-ready bundle 出力
 
 ## 既知の限界
 
-- continuity check はルールベースのため、比喩や長い因果関係の理解にはまだ弱いです
-- plot と summary の判定は主要語の反映率を見るため、短すぎる文や抽象度の高い文では揺れます
-- 名前検出は一般的なフルネーム表記を優先して誤検知を抑えていますが、あだ名、単名、特殊な表記には弱いです
-- 改稿フェーズは局所的な整文に留まり、構成の大きな改善や高品質なリライトまでは行いません
+- chapter 単位 rerun の CLI はまだ完全一般化されていません
+- continuity report は互換上 chapter 1 基準の artifact を維持しています
+- quality report は構造評価中心で、文学的評価は限定的です
+- 長編向け stop condition はあるものの、長編運用はまだ安定化段階です
+- publish-ready bundle の schema は今後さらに明文化する余地があります
+
+## 内部設計原則
+
+- 正本は chapter 配列ベースの内部状態
+- chapter 1 互換 artifact は当面維持
+- manifest に履歴を残す
+- `mock` / `openai` を切替可能
+- artifact は JSON / YAML で保存する
+- secrets と生成成果物は repo に push しない運用を前提にする
+
+## 最終到達像
+
+- 中編・長編でも途中停止 / 再開できる
+- 全章を順に生成・検査・改稿できる
+- 複数 run を比較し best candidate を選べる
+- publish-ready bundle まで一括出力できる
 
 ## テスト
 
-推奨手順:
-
 ```bash
 python -m unittest discover -s tests -v
 ```
 
-開発中に未インストール状態で直接ソースを試したい場合だけ、補助的に `PYTHONPATH=src` 相当を使えます。
+## 開発ドキュメント
 
-```bash
-$env:PYTHONPATH="src"
-python -m unittest discover -s tests -v
-```
-
-## 開発フロー
-
-Codex に継続実装を任せる前提の運用ドキュメントを `docs/` に置いています。
-
-- [docs/ROADMAP.md](docs/ROADMAP.md): 現在のマイルストーンと到達順
-- [docs/TASKS.md](docs/TASKS.md): 実装キュー。`In Progress / Ready / Done` で管理
-- [docs/CODEX_WORKFLOW.md](docs/CODEX_WORKFLOW.md): Codex が 1 タスクずつ自律的に進める標準手順
-- [docs/GITHUB_CONVENTIONS.md](docs/GITHUB_CONVENTIONS.md): issue / PR / branch の運用ルール
-
-基本ルールは、`In Progress` の先頭 1 件だけを実装し、テスト後に `TASKS.md` を更新して小さくコミットすることです。GitHub ではこのタスク文言をそのまま issue / PR に対応づける想定です。
-
-## 次の改善候補
-
-- OpenAI レスポンスを JSON schema ベースでより厳密に検証する
-- 生成対象を第1章だけでなく全章草稿まで拡張する
-- フェーズごとの再実行や途中再開をサポートする
-- 生成物の評価・リライトフェーズを追加する
-
-
+- `docs/ROADMAP.md`: 現在地と次のマイルストーン
+- `docs/TASKS.md`: 直近の実装キュー
+- `docs/CODEX_WORKFLOW.md`: 1 タスクずつ進める標準手順
+- `docs/GITHUB_CONVENTIONS.md`: issue / PR / branch / commit の運用
+- `docs/BLOCKED.md`: ブロック時の記録テンプレート

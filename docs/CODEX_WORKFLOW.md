@@ -2,52 +2,80 @@
 
 ## Purpose
 
-Codex が人手の往復を最小化しつつ、小さな安全な単位で実装を前進させる。
+Codex がこのリポジトリで、1 タスクずつ安全に実装を前進させるための標準手順を定義する。
+
+## Source Of Truth
+
+優先順は以下とする。
+
+1. `AGENTS.md`
+2. `docs/TASKS.md`
+3. `docs/ROADMAP.md`
+4. `README.md`
+
+使い分け:
+
+- `AGENTS.md`: リポジトリ全体の恒久ルール
+- `TASKS.md`: 今まさに着手すべき作業単位
+- `ROADMAP.md`: 現在地と次段階
+- `README.md`: 利用者向け現状仕様
 
 ## Standard Loop
 
-1. `docs/ROADMAP.md` を読んで現在のマイルストーンを確認する
-2. `docs/TASKS.md` を読み、`In Progress` の最上位 1 件を現在タスクとする
-3. `In Progress` が空なら `Ready` の最上位を `In Progress` に上げてから着手する
-4. 現在タスクの達成に必要な最小変更だけを実装する
-5. 関連テストを追加または更新し、既存テストを実行する
-6. 振る舞いが変わったら `README.md` と該当 docs を更新する
-7. `docs/TASKS.md` の状態を更新する
-8. 小さいコミットを作る
-9. 未完の `Ready` が残っていれば同じループを続ける
+1. `AGENTS.md`、`docs/TASKS.md`、`docs/CODEX_WORKFLOW.md`、必要に応じて `docs/ROADMAP.md` を読む
+2. `docs/TASKS.md` の `In Progress` 先頭 1 件を現在タスクとして扱う
+3. `In Progress` が空なら `Ready` の先頭を `In Progress` に上げてから着手する
+4. 現在タスクの完了条件を確認し、必要最小限の変更だけを入れる
+5. 新規・変更された振る舞いに対応するテストを追加または更新する
+6. 振る舞い、CLI、artifact contract、運用ルールが変わったら `README.md` と該当 docs を更新する
+7. テストを実行する
+8. `docs/TASKS.md` の状態を更新する
+9. 小さなコミットを作る
+10. 次の `Ready` が残っていれば、同じ手順で次タスクへ進む
 
 ## Guardrails
 
-- 1 回の作業で扱う主目的は 1 つだけにする
-- リファクタは現在タスク達成に必要な範囲へ限定する
+- 1 回の主目的は 1 タスクだけにする
+- リファクタは現在タスク達成に必要な範囲に限定する
 - 依存追加は必要最小限にする
-- OpenAI 関連コードは専用 client/module の境界内に閉じ込める
-- 既存の CLI 振る舞いと成果物名を壊す変更は、互換レイヤーなしでは行わない
-- 変更後は必ずテストを実行する
+- OpenAI 関連の変更は `src/novel_writer/llm/` 境界の中に閉じ込める
+- 既存の artifact 名や CLI を壊す変更は、互換層か docs での明示なしに行わない
+- `README` に未来機能を書かない
 
-## GitHub Tracking
+## When To Stop
 
-- `docs/TASKS.md` の各項目は GitHub issue 1 件に対応づける想定で扱う
-- 実装は原則として 1 issue = 1 小コミット以上、1 PR = 1 タスクに寄せる
-- issue / PR タイトルは `TASKS.md` の文言をできるだけそのまま使う
-- 進捗の正本はコードと `docs/TASKS.md`、GitHub では同じ状態を反映する
-- 詳細な運用ルールは `docs/GITHUB_CONVENTIONS.md` を参照する
+以下では推測で広げずに停止する。
 
-## Definition of Done
+- 現在タスクの受け入れ条件が docs だけでは解決できず、コード仕様の判断が必要
+- 既存ユーザーの利用方法を大きく変える可能性がある
+- どの挙動を正とするか、実装と docs のどちらを基準にすべきか判断できない
+- 作業中にユーザー変更と衝突する差分を見つけた
 
-- 現在タスクの受け入れ条件を満たす
-- 新規または変更された振る舞いにテストがある
-- テストが通る
+停止時は `docs/BLOCKED.md` を更新し、必要ならユーザーに判断を求める。
+
+## When To Ask For Human Direction
+
+- 外部仕様を破るかもしれない rename / remove が必要
+- 互換維持より整理を優先すべきか決められない
+- タスクが大きすぎて分割方針に複数の妥当案がある
+- OpenAI API 利用方針や評価軸のように、プロダクト判断が必要
+
+## Definition Of Done
+
+- 現在タスクの完了条件を満たす
+- 必要なコード、テスト、docs がそろっている
+- テスト結果を確認している
 - `docs/TASKS.md` が更新されている
-- 変更理由が短いコミット単位で説明できる
+- 変更理由を短いコミット単位で説明できる
 
-## If Blocked
+## Status Sync
 
-- 推測で広げずに停止する
-- `docs/BLOCKED.md` の template を使って記録する
-- `docs/TASKS.md` の状態と GitHub issue / PR の状態を同じ理由で同期する
-- 記録する内容
-- 詰まっているタスク名
-- 事実ベースの症状
-- 試したこと
-- 次に必要な判断または情報
+- `docs/TASKS.md` を実装順の正本とする
+- GitHub issue / PR / branch は `TASKS.md` と同じ粒度へ寄せる
+- ブロック時は `docs/BLOCKED.md` と GitHub 側の状態を同期する
+
+## Notes For Docs Work
+
+- docs-only のタスクでも、実装とずれていないかコードを確認する
+- README は「現状仕様」、ROADMAP は「次段階」、TASKS は「直近キュー」に役割を分ける
+- docs 間で同じ説明を重複させすぎず、参照関係を明確にする
