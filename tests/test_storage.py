@@ -7,6 +7,7 @@ from pathlib import Path
 from novel_writer.storage import (
     build_project_layout,
     load_artifact,
+    load_project_manifest,
     normalize_project_id,
     resolve_artifact_path,
     save_artifact,
@@ -123,6 +124,8 @@ class SaveArtifactTest(unittest.TestCase):
     def test_save_project_manifest_uses_project_directory(self) -> None:
         payload = {
             "project_id": "My Story 01",
+            "project_slug": "my-story-01",
+            "projects_dir": "data/projects",
             "current_run": {"name": "latest_run"},
             "run_candidates": [{"run_name": "latest_run", "output_dir": "data/projects/my-story-01/runs/latest_run"}],
             "best_run": {"run_name": "latest_run", "output_dir": "data/projects/my-story-01/runs/latest_run", "score": 0},
@@ -130,9 +133,54 @@ class SaveArtifactTest(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmp_dir:
             target = save_project_manifest(Path(tmp_dir), "My Story 01", payload, "json")
+            saved = json.loads(target.read_text(encoding="utf-8"))
 
             self.assertEqual(target, Path(tmp_dir) / "my-story-01" / "project_manifest.json")
-            self.assertEqual(json.loads(target.read_text(encoding="utf-8")), payload)
+            self.assertEqual(saved["project_id"], payload["project_id"])
+            self.assertEqual(saved["schema_name"], "project_manifest")
+            self.assertEqual(saved["schema_version"], "1.0")
+
+    def test_load_project_manifest_validates_required_fields(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            project_dir = Path(tmp_dir) / "case-01"
+            save_artifact(
+                project_dir,
+                "project_manifest",
+                {
+                    "schema_name": "project_manifest",
+                    "schema_version": "1.0",
+                    "project_id": "Case 01",
+                    "project_slug": "case-01",
+                    "projects_dir": str(Path(tmp_dir)),
+                    "best_run": {},
+                },
+                "json",
+            )
+
+            with self.assertRaisesRegex(ValueError, "missing required fields: current_run, run_candidates"):
+                load_project_manifest(project_dir)
+
+    def test_load_project_manifest_rejects_unsupported_schema_version(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            project_dir = Path(tmp_dir) / "case-01"
+            save_artifact(
+                project_dir,
+                "project_manifest",
+                {
+                    "schema_name": "project_manifest",
+                    "schema_version": "9.9",
+                    "project_id": "Case 01",
+                    "project_slug": "case-01",
+                    "projects_dir": str(Path(tmp_dir)),
+                    "current_run": {"name": "latest_run"},
+                    "run_candidates": [],
+                    "best_run": {},
+                },
+                "json",
+            )
+
+            with self.assertRaisesRegex(ValueError, "schema_version='9.9' is not supported; expected '1.0'"):
+                load_project_manifest(project_dir)
 
 
 if __name__ == "__main__":

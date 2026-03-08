@@ -64,6 +64,48 @@ def publish_ready_bundle_contract() -> dict:
     }
 
 
+def project_manifest_contract() -> dict:
+    return {
+        "schema_name": "project_manifest",
+        "schema_version": "1.0",
+        "required_fields": [
+            "project_id",
+            "project_slug",
+            "projects_dir",
+            "current_run",
+            "run_candidates",
+            "best_run",
+        ],
+    }
+
+
+def validate_project_manifest(payload: dict) -> dict:
+    contract = project_manifest_contract()
+    missing_fields = [field for field in contract["required_fields"] if field not in payload]
+    if missing_fields:
+        missing = ", ".join(sorted(missing_fields))
+        raise ValueError(
+            "Invalid project_manifest: missing required fields: "
+            f"{missing}. Recreate the manifest or rerun create-project."
+        )
+
+    schema_name = payload.get("schema_name")
+    if schema_name is not None and schema_name != contract["schema_name"]:
+        raise ValueError(
+            "Invalid project_manifest: "
+            f"schema_name={schema_name!r} is not supported; expected {contract['schema_name']!r}."
+        )
+
+    schema_version = payload.get("schema_version")
+    if schema_version is not None and schema_version != contract["schema_version"]:
+        raise ValueError(
+            "Invalid project_manifest: "
+            f"schema_version={schema_version!r} is not supported; expected {contract['schema_version']!r}."
+        )
+
+    return payload
+
+
 @dataclass(slots=True)
 class StoryInput:
     theme: str

@@ -7,7 +7,7 @@ from typing import Any
 from novel_writer.llm_client import build_llm_client
 from novel_writer.pipeline import PIPELINE_STEP_ORDER, StoryPipeline
 from novel_writer.schema import StoryInput
-from novel_writer.storage import build_project_layout, load_artifact, save_project_manifest
+from novel_writer.storage import build_project_layout, load_artifact, load_project_manifest, save_project_manifest
 
 
 DEFAULT_OUTPUT_DIR = "data/latest_run"
@@ -170,13 +170,13 @@ def build_run_comparison_lines(project_manifest: dict[str, Any]) -> list[str]:
 
 def load_project_run_context(projects_dir: Path, project_id: str) -> tuple[dict, Path]:
     project_layout = build_project_layout(projects_dir, project_id)
-    project_manifest = load_artifact(project_layout["project_dir"], "project_manifest")
+    project_manifest = load_project_manifest(project_layout["project_dir"])
     return project_layout, Path(project_manifest["current_run"]["output_dir"])
 
 
 def _load_existing_project_manifest(project_dir: Path) -> dict[str, Any]:
     try:
-        return load_artifact(project_dir, "project_manifest")
+        return load_project_manifest(project_dir)
     except FileNotFoundError:
         return {}
 
@@ -440,7 +440,7 @@ def main(argv: list[str] | None = None) -> int:
         story_input = build_story_input_from_args(parser, args)
         artifacts = run_pipeline(args, output_dir, story_input=story_input)
         save_project_state(project_layout, Path(args.projects_dir), args.project_id, output_dir, args.format)
-        project_manifest = load_artifact(project_layout["project_dir"], "project_manifest")
+        project_manifest = load_project_manifest(project_layout["project_dir"])
         print_run_summary(artifacts, output_dir, project_manifest)
         return 0
 
@@ -448,13 +448,13 @@ def main(argv: list[str] | None = None) -> int:
         project_layout, output_dir = load_project_run_context(Path(args.projects_dir), args.project_id)
         artifacts = run_pipeline(args, output_dir, resume_from=output_dir, rerun_from=args.rerun_from)
         save_project_state(project_layout, Path(args.projects_dir), args.project_id, output_dir, args.format)
-        project_manifest = load_artifact(project_layout["project_dir"], "project_manifest")
+        project_manifest = load_project_manifest(project_layout["project_dir"])
         print_run_summary(artifacts, output_dir, project_manifest)
         return 0
 
     if args.command == "show-project-status":
         project_layout = build_project_layout(Path(args.projects_dir), args.project_id)
-        project_manifest = load_artifact(project_layout["project_dir"], "project_manifest")
+        project_manifest = load_project_manifest(project_layout["project_dir"])
         print_project_status(project_manifest)
         return 0
 
@@ -462,7 +462,7 @@ def main(argv: list[str] | None = None) -> int:
         project_layout, output_dir = load_project_run_context(Path(args.projects_dir), args.project_id)
         artifacts = rerun_project_chapter(args, output_dir)
         save_project_state(project_layout, Path(args.projects_dir), args.project_id, output_dir, args.format)
-        project_manifest = load_artifact(project_layout["project_dir"], "project_manifest")
+        project_manifest = load_project_manifest(project_layout["project_dir"])
         print_run_summary(artifacts, output_dir, project_manifest)
         return 0
 
@@ -487,7 +487,7 @@ def main(argv: list[str] | None = None) -> int:
     artifacts = run_pipeline(args, output_dir, story_input=story_input, resume_from=resume_from, rerun_from=args.rerun_from)
     if project_layout is not None:
         save_project_state(project_layout, Path(args.projects_dir), args.project_id, output_dir, args.format)
-    project_manifest = load_artifact(project_layout["project_dir"], "project_manifest") if project_layout is not None else None
+    project_manifest = load_project_manifest(project_layout["project_dir"]) if project_layout is not None else None
     print_run_summary(artifacts, output_dir, project_manifest)
     return 0
 

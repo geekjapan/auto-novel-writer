@@ -250,6 +250,7 @@ novel-writer rerun-chapter --project-id "my-story-01" --chapter-number 2
 `artifact_contract` は、chapter 配列ベースの正本と chapter 1 互換 artifact の対応を明示するための metadata です。
 `long_run_status` は、長編向け stop condition、残り rerun 余地、resume guidance を記録する metadata です。
 `publish_ready_bundle.json` は `schema_version=1.0` の固定 schema を持ち、downstream 利用向けに `source_artifacts` と `sections` を含みます。
+`project_manifest.json` も `schema_name=project_manifest` と `schema_version=1.0` を持ち、保存時・読込時に validation されます。
 
 ## 現時点でできること
 

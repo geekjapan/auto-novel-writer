@@ -5,6 +5,8 @@ import re
 from pathlib import Path
 from typing import Any
 
+from novel_writer.schema import project_manifest_contract, validate_project_manifest
+
 
 SUPPORTED_FORMATS = ("json", "yaml")
 DEFAULT_PROJECT_RUN_NAME = "latest_run"
@@ -79,7 +81,18 @@ def save_project_manifest(
     file_format: str = "json",
 ) -> Path:
     project_layout = build_project_layout(projects_dir, project_id)
-    return save_artifact(project_layout["project_dir"], "project_manifest", payload, file_format)
+    contract = project_manifest_contract()
+    manifest_payload = dict(payload)
+    manifest_payload.setdefault("schema_name", contract["schema_name"])
+    manifest_payload.setdefault("schema_version", contract["schema_version"])
+    validate_project_manifest(manifest_payload)
+    return save_artifact(project_layout["project_dir"], "project_manifest", manifest_payload, file_format)
+
+
+def load_project_manifest(project_dir: Path, file_format: str | None = None) -> dict[str, Any]:
+    payload = load_artifact(project_dir, "project_manifest", file_format)
+    validate_project_manifest(payload)
+    return payload
 
 
 def load_artifact(output_dir: Path, phase_name: str, file_format: str | None = None) -> Any:
