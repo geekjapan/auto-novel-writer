@@ -44,13 +44,19 @@ class StoryPipelineTest(unittest.TestCase):
             self.assertIn("overall_recommendation", quality_report)
             self.assertIn("rerun_history", manifest)
             self.assertIn("revise_history", manifest)
+            self.assertIn("continuity_history", manifest)
+            self.assertIn("chapter_histories", manifest)
             self.assertTrue(manifest["rerun_history"])
             self.assertTrue(manifest["revise_history"])
+            self.assertEqual(len(manifest["continuity_history"]), len(artifacts.chapter_plan))
+            self.assertEqual(len(manifest["chapter_histories"]), len(artifacts.chapter_plan))
             self.assertIn("severity", continuity_report)
             self.assertEqual(artifacts.quality_report, quality_report)
             self.assertEqual(manifest["artifacts"]["quality_report"], quality_report)
+            self.assertEqual(manifest["artifacts"]["continuity_history"], manifest["continuity_history"])
             self.assertEqual(artifacts.revised_chapter_1_draft["chapter_number"], 1)
             self.assertEqual(manifest["revise_history"][0]["chapter_index"], 0)
+            self.assertEqual(manifest["continuity_history"][0]["chapter_index"], 0)
             self.assertTrue(artifacts.chapter_drafts)
             self.assertTrue(artifacts.revised_chapter_drafts)
             self.assertEqual(artifacts.chapter_drafts[0], artifacts.chapter_1_draft)
@@ -95,6 +101,17 @@ class StoryPipelineTest(unittest.TestCase):
                 list(range(len(artifacts.chapter_plan))),
             )
             self.assertTrue(any(entry["stop_reason"] for entry in manifest["revise_history"]))
+            self.assertEqual(
+                [entry["chapter_index"] for entry in manifest["continuity_history"]],
+                list(range(len(artifacts.chapter_plan))),
+            )
+            self.assertEqual(
+                [entry["chapter_index"] for entry in manifest["chapter_histories"]],
+                list(range(len(artifacts.chapter_plan))),
+            )
+            self.assertTrue(all(history["continuity"] for history in manifest["chapter_histories"]))
+            self.assertTrue(all(isinstance(history["reruns"], list) for history in manifest["chapter_histories"]))
+            self.assertTrue(all(isinstance(history["revisions"], list) for history in manifest["chapter_histories"]))
             self.assertEqual(
                 [draft["chapter_number"] for draft in manifest["artifacts"]["chapter_drafts"]],
                 [chapter["chapter_number"] for chapter in manifest["artifacts"]["chapter_plan"]],

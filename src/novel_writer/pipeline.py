@@ -159,6 +159,7 @@ class StoryPipeline:
         checkpoints: list[dict],
     ) -> None:
         compatibility_report = {}
+        artifacts.continuity_history = []
         for chapter_index, _chapter_draft in enumerate(artifacts.chapter_drafts):
             chapter_report = self._build_report_with_decision(artifacts, chapter_index=chapter_index)
             chapter_report = self._maybe_rerun_from_decision(
@@ -168,6 +169,7 @@ class StoryPipeline:
                 chapter_index=chapter_index,
                 chapter_report=chapter_report,
             )
+            artifacts.continuity_history.append(chapter_report)
             if chapter_index == 0:
                 compatibility_report = chapter_report
         artifacts.continuity_report = compatibility_report
@@ -253,6 +255,7 @@ class StoryPipeline:
             "chapter_drafts",
             "chapter_1_draft",
             "continuity_report",
+            "continuity_history",
             "quality_report",
             "revised_chapter_drafts",
             "revised_chapter_1_draft",
@@ -319,6 +322,7 @@ class StoryPipeline:
 
     def _reset_from_continuity_report(self, artifacts: StoryArtifacts) -> None:
         artifacts.continuity_report = {}
+        artifacts.continuity_history = []
         artifacts.rerun_history = []
         self._reset_from_quality_report(artifacts)
 
@@ -357,14 +361,36 @@ class StoryPipeline:
         manifest = {
             "summary": artifacts.summary(),
             "selected_logline": selected_logline,
+            "continuity_history": artifacts.continuity_history,
             "rerun_history": artifacts.rerun_history,
             "revise_history": artifacts.revise_history,
+            "chapter_histories": self._build_chapter_histories(artifacts),
             "checkpoints": checkpoints,
             "current_step": checkpoints[-1]["step"] if checkpoints else None,
             "completed_steps": checkpoints[-1]["completed_steps"] if checkpoints else [],
             "artifacts": asdict(artifacts),
         }
         save_artifact(self.output_dir, "manifest", manifest, self.file_format)
+
+    def _build_chapter_histories(self, artifacts: StoryArtifacts) -> list[dict]:
+        chapter_histories: list[dict] = []
+        for chapter_index, chapter in enumerate(artifacts.chapter_plan):
+            chapter_histories.append(
+                {
+                    "chapter_index": chapter_index,
+                    "chapter_number": chapter.get("chapter_number"),
+                    "continuity": [
+                        entry for entry in artifacts.continuity_history if entry.get("chapter_index") == chapter_index
+                    ],
+                    "reruns": [
+                        entry for entry in artifacts.rerun_history if entry.get("chapter_index") == chapter_index
+                    ],
+                    "revisions": [
+                        entry for entry in artifacts.revise_history if entry.get("chapter_index") == chapter_index
+                    ],
+                }
+            )
+        return chapter_histories
 
     def _build_report_with_decision(self, artifacts: StoryArtifacts, chapter_index: int = 0) -> dict:
         report = self.continuity_checker.build_report(artifacts, chapter_index=chapter_index)

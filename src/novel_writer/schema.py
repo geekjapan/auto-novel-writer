@@ -24,6 +24,7 @@ class StoryArtifacts:
     chapter_drafts: list[dict] = field(default_factory=list)
     chapter_1_draft: dict = field(default_factory=dict)
     continuity_report: dict = field(default_factory=dict)
+    continuity_history: list[dict] = field(default_factory=list)
     quality_report: dict = field(default_factory=dict)
     revised_chapter_drafts: list[dict] = field(default_factory=list)
     revised_chapter_1_draft: dict = field(default_factory=dict)
