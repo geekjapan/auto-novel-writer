@@ -116,6 +116,10 @@ class CliTest(unittest.TestCase):
             self.assertEqual(project_manifest["project_slug"], "my-story-01")
             self.assertEqual(project_manifest["current_run"]["output_dir"], str(run_dir))
             self.assertEqual(project_manifest["current_run"]["name"], "latest_run")
+            self.assertEqual(
+                len(project_manifest["current_run"]["chapter_statuses"]),
+                project_manifest["current_run"]["summary"]["counts"]["chapters"],
+            )
 
     def test_cli_create_and_resume_project_commands(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -196,6 +200,13 @@ class CliTest(unittest.TestCase):
                     for entry in manifest["rerun_history"]
                 )
             )
+            project_manifest = load_artifact(Path(tmp_dir) / "my-story-01", "project_manifest")
+            chapter_2_status = next(
+                status for status in project_manifest["current_run"]["chapter_statuses"] if status["chapter_number"] == 2
+            )
+            self.assertEqual(chapter_2_status["chapter_index"], 1)
+            self.assertEqual(chapter_2_status["latest_rerun_action"], "reran_chapter_draft")
+            self.assertIsNotNone(chapter_2_status["latest_revision_attempt"])
 
     def test_project_manifest_tracks_run_candidates_and_best_run(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -249,6 +260,7 @@ class CliTest(unittest.TestCase):
             self.assertEqual(len(project_manifest["run_candidates"]), 2)
             self.assertEqual(project_manifest["current_run"]["output_dir"], str(second_run_dir))
             self.assertIn(project_manifest["best_run"]["output_dir"], {str(first_run_dir), str(second_run_dir)})
+            self.assertTrue(all("chapter_statuses" in candidate for candidate in project_manifest["run_candidates"]))
             self.assertEqual(
                 {candidate["output_dir"] for candidate in project_manifest["run_candidates"]},
                 {str(first_run_dir), str(second_run_dir)},

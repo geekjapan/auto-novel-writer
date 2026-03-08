@@ -90,6 +90,7 @@ def save_project_state(
     run_candidate = _build_run_candidate(run_manifest, output_dir)
     run_candidates = _merge_run_candidates(existing_project_manifest.get("run_candidates", []), run_candidate)
     best_run = _select_best_run(run_candidates)
+    chapter_statuses = _build_project_chapter_statuses(run_manifest)
     save_project_manifest(
         projects_dir,
         project_id,
@@ -103,6 +104,7 @@ def save_project_state(
                 "current_step": run_manifest.get("current_step"),
                 "completed_steps": run_manifest.get("completed_steps", []),
                 "summary": run_manifest.get("summary", {}),
+                "chapter_statuses": chapter_statuses,
             },
             "run_candidates": run_candidates,
             "best_run": best_run,
@@ -137,11 +139,38 @@ def _build_run_candidate(run_manifest: dict[str, Any], output_dir: Path) -> dict
         "output_dir": str(output_dir),
         "completed_steps": run_manifest.get("completed_steps", []),
         "summary": run_manifest.get("summary", {}),
+        "chapter_statuses": _build_project_chapter_statuses(run_manifest),
         "score": score,
         "continuity_issue_total": continuity_issue_total,
         "quality_issue_total": quality_issue_total,
         "project_issue_total": project_issue_total,
     }
+
+
+def _build_project_chapter_statuses(run_manifest: dict[str, Any]) -> list[dict[str, Any]]:
+    chapter_histories = run_manifest.get("chapter_histories", [])
+    chapter_statuses: list[dict[str, Any]] = []
+    for chapter_history in chapter_histories:
+        continuity_entries = chapter_history.get("continuity", [])
+        rerun_entries = chapter_history.get("reruns", [])
+        revision_entries = chapter_history.get("revisions", [])
+        latest_continuity = continuity_entries[-1] if continuity_entries else {}
+        latest_rerun = rerun_entries[-1] if rerun_entries else {}
+        latest_revision = revision_entries[-1] if revision_entries else {}
+        chapter_statuses.append(
+            {
+                "chapter_index": chapter_history.get("chapter_index"),
+                "chapter_number": chapter_history.get("chapter_number"),
+                "continuity_issue_total": sum(latest_continuity.get("issue_counts", {}).values()),
+                "continuity_severity": latest_continuity.get("severity"),
+                "continuity_recommended_action": latest_continuity.get("recommended_action"),
+                "latest_rerun_attempt": latest_rerun.get("attempt"),
+                "latest_rerun_action": latest_rerun.get("action_taken") or latest_rerun.get("action"),
+                "latest_revision_attempt": latest_revision.get("attempt"),
+                "latest_revision_stop_reason": latest_revision.get("stop_reason"),
+            }
+        )
+    return chapter_statuses
 
 
 def _merge_run_candidates(existing_candidates: list[dict[str, Any]], current_candidate: dict[str, Any]) -> list[dict[str, Any]]:

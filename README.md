@@ -182,7 +182,7 @@ novel-writer ^
 ```
 
 既定では成果物を `data/projects/my-story-01/runs/latest_run` に保存し、  
-`data/projects/my-story-01/project_manifest.json` に current run、run candidates、best run を保存します。
+`data/projects/my-story-01/project_manifest.json` に current run、run candidates、best run、章別 status 要約を保存します。
 
 専用コマンド:
 

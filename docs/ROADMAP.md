@@ -102,7 +102,6 @@ README / ROADMAP / TASKS / manifest / テストの間で、何が正本で何が
 
 ## 進行中の残課題
 
-- project manifest 側では、章単位 rerun / revise の履歴要約がまだ薄い
 - chapter 1 互換 artifact と章別 artifact の責務分離は続けて整理が必要
 
 ### M12. 作品単位評価と選抜の強化
