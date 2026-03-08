@@ -158,8 +158,19 @@ class StoryPipeline:
         artifacts: StoryArtifacts,
         checkpoints: list[dict],
     ) -> None:
-        artifacts.continuity_report = self._build_report_with_decision(artifacts)
-        self._maybe_rerun_from_decision(story_input, selected_logline, artifacts)
+        compatibility_report = {}
+        for chapter_index, _chapter_draft in enumerate(artifacts.chapter_drafts):
+            chapter_report = self._build_report_with_decision(artifacts, chapter_index=chapter_index)
+            chapter_report = self._maybe_rerun_from_decision(
+                story_input,
+                selected_logline,
+                artifacts,
+                chapter_index=chapter_index,
+                chapter_report=chapter_report,
+            )
+            if chapter_index == 0:
+                compatibility_report = chapter_report
+        artifacts.continuity_report = compatibility_report
         save_artifact(self.output_dir, "continuity_report", artifacts.continuity_report, "json")
         self._mark_checkpoint("continuity_report", checkpoints, artifacts, selected_logline)
 
@@ -181,7 +192,15 @@ class StoryPipeline:
         checkpoints: list[dict],
     ) -> None:
         for chapter_index, _chapter_draft in enumerate(artifacts.chapter_drafts):
-            self._run_revision_loop(story_input, artifacts, chapter_index=chapter_index)
+            chapter_report = self._build_report_with_decision(artifacts, chapter_index=chapter_index)
+            chapter_quality_report = self.continuity_checker.build_quality_report(chapter_report)
+            self._run_revision_loop(
+                story_input,
+                artifacts,
+                chapter_index=chapter_index,
+                continuity_report=chapter_report,
+                quality_report=chapter_quality_report,
+            )
         save_artifact(self.output_dir, "revised_chapter_1_draft", artifacts.revised_chapter_1_draft, self.file_format)
         self._mark_checkpoint("revised_chapter_drafts", checkpoints, artifacts, selected_logline)
 
@@ -347,8 +366,8 @@ class StoryPipeline:
         }
         save_artifact(self.output_dir, "manifest", manifest, self.file_format)
 
-    def _build_report_with_decision(self, artifacts: StoryArtifacts) -> dict:
-        report = self.continuity_checker.build_report(artifacts)
+    def _build_report_with_decision(self, artifacts: StoryArtifacts, chapter_index: int = 0) -> dict:
+        report = self.continuity_checker.build_report(artifacts, chapter_index=chapter_index)
         decision = self.rerun_policy.decide(report.get("issue_counts", {}))
         report["severity"] = decision.severity
         report["recommended_action"] = decision.action
@@ -360,11 +379,14 @@ class StoryPipeline:
         story_input: StoryInput,
         selected_logline: dict,
         artifacts: StoryArtifacts,
-    ) -> None:
-        decision = self.rerun_policy.decide(artifacts.continuity_report.get("issue_counts", {}))
+        chapter_index: int,
+        chapter_report: dict,
+    ) -> dict:
+        decision = self.rerun_policy.decide(chapter_report.get("issue_counts", {}))
         artifacts.rerun_history.append(
             {
                 "attempt": 1,
+                "chapter_index": chapter_index,
                 **decision.to_dict(),
             }
         )
@@ -375,22 +397,23 @@ class StoryPipeline:
                 selected_logline,
                 artifacts.characters,
                 artifacts.chapter_plan,
-                chapter_index=0,
+                chapter_index=chapter_index,
             )
-            artifacts.set_chapter_draft(0, chapter_draft)
-            save_artifact(self.output_dir, "05_chapter_1_draft", artifacts.get_chapter_draft(0), self.file_format)
-            artifacts.continuity_report = self._build_report_with_decision(artifacts)
+            artifacts.set_chapter_draft(chapter_index, chapter_draft)
+            if chapter_index == 0:
+                save_artifact(self.output_dir, "05_chapter_1_draft", artifacts.get_chapter_draft(0), self.file_format)
+            chapter_report = self._build_report_with_decision(artifacts, chapter_index=chapter_index)
             artifacts.rerun_history.append(
                 {
                     "attempt": 2,
-                    "chapter_index": 0,
+                    "chapter_index": chapter_index,
                     "triggered_by": "medium",
-                    "action_taken": "reran_chapter_1_draft",
-                    "resulting_severity": artifacts.continuity_report["severity"],
-                    "issue_counts": artifacts.continuity_report.get("issue_counts", {}),
+                    "action_taken": "reran_chapter_1_draft" if chapter_index == 0 else "reran_chapter_draft",
+                    "resulting_severity": chapter_report["severity"],
+                    "issue_counts": chapter_report.get("issue_counts", {}),
                 }
             )
-            return
+            return chapter_report
 
         if decision.severity == "high":
             artifacts.chapter_plan = self.llm_client.generate_chapter_plan(
@@ -401,29 +424,40 @@ class StoryPipeline:
             )
             save_artifact(self.output_dir, "04_chapter_plan", artifacts.chapter_plan, self.file_format)
 
-            chapter_draft = self.llm_client.generate_chapter_draft(
-                story_input,
-                selected_logline,
-                artifacts.characters,
-                artifacts.chapter_plan,
-                chapter_index=0,
-            )
-            artifacts.set_chapter_draft(0, chapter_draft)
+            for rerun_chapter_index, _chapter in enumerate(artifacts.chapter_plan):
+                chapter_draft = self.llm_client.generate_chapter_draft(
+                    story_input,
+                    selected_logline,
+                    artifacts.characters,
+                    artifacts.chapter_plan,
+                    chapter_index=rerun_chapter_index,
+                )
+                artifacts.set_chapter_draft(rerun_chapter_index, chapter_draft)
             save_artifact(self.output_dir, "05_chapter_1_draft", artifacts.get_chapter_draft(0), self.file_format)
-            artifacts.continuity_report = self._build_report_with_decision(artifacts)
+            chapter_report = self._build_report_with_decision(artifacts, chapter_index=chapter_index)
             artifacts.rerun_history.append(
                 {
                     "attempt": 2,
-                    "chapter_index": 0,
+                    "chapter_index": chapter_index,
                     "triggered_by": "high",
                     "action_taken": "reran_from_chapter_plan",
-                    "resulting_severity": artifacts.continuity_report["severity"],
-                    "issue_counts": artifacts.continuity_report.get("issue_counts", {}),
+                    "resulting_severity": chapter_report["severity"],
+                    "issue_counts": chapter_report.get("issue_counts", {}),
                 }
             )
+            return chapter_report
 
-    def _run_revision_loop(self, story_input: StoryInput, artifacts: StoryArtifacts, chapter_index: int) -> None:
-        max_attempts = 1 if artifacts.quality_report.get("overall_recommendation") == "accept" else REVISION_MAX_ATTEMPTS
+        return chapter_report
+
+    def _run_revision_loop(
+        self,
+        story_input: StoryInput,
+        artifacts: StoryArtifacts,
+        chapter_index: int,
+        continuity_report: dict,
+        quality_report: dict,
+    ) -> None:
+        max_attempts = 1 if quality_report.get("overall_recommendation") == "accept" else REVISION_MAX_ATTEMPTS
         current_source = artifacts.get_chapter_draft(chapter_index)
 
         for attempt in range(1, max_attempts + 1):
@@ -432,6 +466,7 @@ class StoryPipeline:
                 artifacts,
                 chapter_index=chapter_index,
                 source_draft=current_source,
+                continuity_report=continuity_report,
             )
             artifacts.set_revised_chapter_draft(chapter_index, revised_chapter_draft)
             changed = revised_chapter_draft != current_source
@@ -447,8 +482,8 @@ class StoryPipeline:
                     "chapter_index": chapter_index,
                     "source": "chapter_1_draft" if chapter_index == 0 and attempt == 1 else f"revised_chapter_drafts[{chapter_index}]",
                     "target": "revised_chapter_1_draft" if chapter_index == 0 else f"revised_chapter_drafts[{chapter_index}]",
-                    "continuity_severity": artifacts.continuity_report.get("severity"),
-                    "quality_recommendation": artifacts.quality_report.get("overall_recommendation"),
+                    "continuity_severity": continuity_report.get("severity"),
+                    "quality_recommendation": quality_report.get("overall_recommendation"),
                     "applied_rules": [
                         "style_adjustment",
                         "redundancy_reduction",
@@ -468,12 +503,13 @@ class StoryPipeline:
         artifacts: StoryArtifacts,
         chapter_index: int,
         source_draft: dict,
+        continuity_report: dict,
     ) -> dict:
         revised_chapter_draft = self.llm_client.revise_chapter_draft(
             story_input,
             artifacts.chapter_plan,
             source_draft,
-            artifacts.continuity_report,
+            continuity_report,
             chapter_index=chapter_index,
         )
         return revised_chapter_draft

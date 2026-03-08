@@ -12,19 +12,21 @@ class SequencedContinuityChecker:
         self.reports = reports
         self.calls = 0
 
-    def build_report(self, artifacts) -> dict:
+    def build_report(self, artifacts, chapter_index=0) -> dict:
         report = self.reports[min(self.calls, len(self.reports) - 1)]
         self.calls += 1
         return report
 
     def build_quality_report(self, continuity_report) -> dict:
+        issue_counts = continuity_report.get("issue_counts", {})
+        overall_recommendation = "accept" if sum(issue_counts.values()) == 0 else "revise"
         return {
-            "overall_recommendation": "revise",
+            "overall_recommendation": overall_recommendation,
             "severity": continuity_report.get("severity", "unknown"),
             "source_report": "continuity_report",
             "recommendations": [],
-            "issue_counts": continuity_report.get("issue_counts", {}),
-            "total_issue_count": sum(continuity_report.get("issue_counts", {}).values()),
+            "issue_counts": issue_counts,
+            "total_issue_count": sum(issue_counts.values()),
         }
 
 
@@ -56,6 +58,13 @@ class CountingLLMClient:
                 "purpose": "setup",
                 "point_of_view": "篠崎 遥",
                 "target_words": 1000,
+            },
+            {
+                "chapter_number": 2,
+                "title": f"第2章 対立 {self.chapter_plan_calls}",
+                "purpose": "conflict",
+                "point_of_view": "篠崎 遥",
+                "target_words": 1000,
             }
         ]
 
@@ -84,6 +93,7 @@ class CountingLLMClient:
             "summary": chapter_plan[chapter_index]["purpose"],
             "chapter_index": chapter_index,
             "text": f"{chapter_draft['text']} 改稿済み",
+            "source_issue_counts": continuity_report.get("issue_counts", {}),
         }
 
 
@@ -135,9 +145,37 @@ class ContinuityRerunPolicyTest(unittest.TestCase):
                     "length_warnings": [],
                     "issue_counts": {
                         "missing_fields": 0,
+                        "character_name_mismatches": 0,
+                        "plot_to_plan_gaps": 0,
+                        "plan_to_draft_gaps": 0,
+                        "length_warnings": 0,
+                    },
+                },
+                {
+                    "missing_fields": [],
+                    "character_name_mismatches": [{"reason": "x"}],
+                    "plot_to_plan_gaps": [],
+                    "plan_to_draft_gaps": [{"reason": "y"}],
+                    "length_warnings": [],
+                    "issue_counts": {
+                        "missing_fields": 0,
                         "character_name_mismatches": 1,
                         "plot_to_plan_gaps": 0,
                         "plan_to_draft_gaps": 1,
+                        "length_warnings": 0,
+                    },
+                },
+                {
+                    "missing_fields": [],
+                    "character_name_mismatches": [],
+                    "plot_to_plan_gaps": [],
+                    "plan_to_draft_gaps": [],
+                    "length_warnings": [],
+                    "issue_counts": {
+                        "missing_fields": 0,
+                        "character_name_mismatches": 0,
+                        "plot_to_plan_gaps": 0,
+                        "plan_to_draft_gaps": 0,
                         "length_warnings": 0,
                     },
                 },
@@ -163,14 +201,16 @@ class ContinuityRerunPolicyTest(unittest.TestCase):
             artifacts = pipeline.run(StoryInput(theme="記憶", genre="SF", tone="静謐", target_length=5000))
 
         self.assertEqual(client.chapter_plan_calls, 1)
-        self.assertEqual(client.chapter_draft_calls, 2)
+        self.assertEqual(client.chapter_draft_calls, 3)
         self.assertEqual(client.revise_calls, 2)
         self.assertEqual(artifacts.continuity_report["severity"], "low")
-        self.assertEqual(artifacts.rerun_history[0]["severity"], "medium")
-        self.assertEqual(artifacts.rerun_history[1]["action_taken"], "reran_chapter_1_draft")
-        self.assertEqual(artifacts.rerun_history[1]["chapter_index"], 0)
+        self.assertEqual(artifacts.rerun_history[0]["severity"], "low")
+        self.assertEqual(artifacts.rerun_history[1]["severity"], "medium")
+        self.assertEqual(artifacts.rerun_history[2]["action_taken"], "reran_chapter_draft")
+        self.assertEqual(artifacts.rerun_history[2]["chapter_index"], 1)
         self.assertEqual(artifacts.revised_chapter_1_draft["summary"], "setup")
         self.assertEqual(artifacts.revised_chapter_1_draft["chapter_index"], 0)
+        self.assertEqual(artifacts.revised_chapter_drafts[1]["chapter_index"], 1)
 
     def test_high_reruns_from_chapter_plan(self) -> None:
         client = CountingLLMClient()
@@ -204,6 +244,20 @@ class ContinuityRerunPolicyTest(unittest.TestCase):
                         "length_warnings": 0,
                     },
                 },
+                {
+                    "missing_fields": [],
+                    "character_name_mismatches": [],
+                    "plot_to_plan_gaps": [],
+                    "plan_to_draft_gaps": [],
+                    "length_warnings": [],
+                    "issue_counts": {
+                        "missing_fields": 0,
+                        "character_name_mismatches": 0,
+                        "plot_to_plan_gaps": 0,
+                        "plan_to_draft_gaps": 0,
+                        "length_warnings": 0,
+                    },
+                },
             ]
         )
 
@@ -212,11 +266,93 @@ class ContinuityRerunPolicyTest(unittest.TestCase):
             artifacts = pipeline.run(StoryInput(theme="記憶", genre="SF", tone="静謐", target_length=5000))
 
         self.assertEqual(client.chapter_plan_calls, 2)
-        self.assertEqual(client.chapter_draft_calls, 2)
+        self.assertEqual(client.chapter_draft_calls, 4)
         self.assertEqual(client.revise_calls, 2)
         self.assertEqual(artifacts.rerun_history[0]["severity"], "high")
         self.assertEqual(artifacts.rerun_history[1]["action_taken"], "reran_from_chapter_plan")
         self.assertEqual(artifacts.rerun_history[1]["chapter_index"], 0)
+
+    def test_revision_loop_uses_per_chapter_quality_reports(self) -> None:
+        client = CountingLLMClient()
+        checker = SequencedContinuityChecker(
+            [
+                {
+                    "missing_fields": [],
+                    "character_name_mismatches": [],
+                    "plot_to_plan_gaps": [],
+                    "plan_to_draft_gaps": [],
+                    "length_warnings": [],
+                    "chapter_length_balance_warnings": [],
+                    "issue_counts": {
+                        "missing_fields": 0,
+                        "character_name_mismatches": 0,
+                        "plot_to_plan_gaps": 0,
+                        "plan_to_draft_gaps": 0,
+                        "length_warnings": 0,
+                        "chapter_length_balance_warnings": 0,
+                    },
+                },
+                {
+                    "missing_fields": [],
+                    "character_name_mismatches": [],
+                    "plot_to_plan_gaps": [],
+                    "plan_to_draft_gaps": [],
+                    "length_warnings": [],
+                    "chapter_length_balance_warnings": [{"reason": "balance"}],
+                    "issue_counts": {
+                        "missing_fields": 0,
+                        "character_name_mismatches": 0,
+                        "plot_to_plan_gaps": 0,
+                        "plan_to_draft_gaps": 0,
+                        "length_warnings": 0,
+                        "chapter_length_balance_warnings": 1,
+                    },
+                },
+                {
+                    "missing_fields": [],
+                    "character_name_mismatches": [],
+                    "plot_to_plan_gaps": [],
+                    "plan_to_draft_gaps": [],
+                    "length_warnings": [],
+                    "chapter_length_balance_warnings": [],
+                    "issue_counts": {
+                        "missing_fields": 0,
+                        "character_name_mismatches": 0,
+                        "plot_to_plan_gaps": 0,
+                        "plan_to_draft_gaps": 0,
+                        "length_warnings": 0,
+                        "chapter_length_balance_warnings": 0,
+                    },
+                },
+                {
+                    "missing_fields": [],
+                    "character_name_mismatches": [],
+                    "plot_to_plan_gaps": [],
+                    "plan_to_draft_gaps": [],
+                    "length_warnings": [],
+                    "chapter_length_balance_warnings": [{"reason": "balance"}],
+                    "issue_counts": {
+                        "missing_fields": 0,
+                        "character_name_mismatches": 0,
+                        "plot_to_plan_gaps": 0,
+                        "plan_to_draft_gaps": 0,
+                        "length_warnings": 0,
+                        "chapter_length_balance_warnings": 1,
+                    },
+                },
+            ]
+        )
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            pipeline = StoryPipeline(client, Path(tmp_dir), continuity_checker=checker)
+            artifacts = pipeline.run(StoryInput(theme="記憶", genre="SF", tone="静謐", target_length=5000))
+
+        self.assertEqual(client.revise_calls, 3)
+        chapter_0_attempts = [entry for entry in artifacts.revise_history if entry["chapter_index"] == 0]
+        chapter_1_attempts = [entry for entry in artifacts.revise_history if entry["chapter_index"] == 1]
+        self.assertEqual(len(chapter_0_attempts), 1)
+        self.assertEqual(len(chapter_1_attempts), 2)
+        self.assertEqual(artifacts.revised_chapter_drafts[1]["source_issue_counts"]["chapter_length_balance_warnings"], 1)
 
 
 if __name__ == "__main__":
