@@ -19,6 +19,7 @@ class MockLLMClientTest(unittest.TestCase):
             chapter_plan,
             draft,
             {"issue_counts": {"length_warnings": 1}, "severity": "medium"},
+            chapter_index=0,
         )
 
         self.assertEqual(len(loglines), 3)
@@ -27,6 +28,7 @@ class MockLLMClientTest(unittest.TestCase):
         self.assertEqual(chapter_plan[0]["chapter_number"], 1)
         self.assertEqual(draft["chapter_number"], 1)
         self.assertEqual(revised["chapter_number"], 1)
+        self.assertEqual(revised["chapter_index"], 0)
         self.assertIn("revision_notes", revised)
 
 

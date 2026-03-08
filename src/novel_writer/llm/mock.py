@@ -136,13 +136,14 @@ class MockLLMClient(BaseLLMClient):
         self,
         story_input: StoryInput,
         chapter_plan: list[dict[str, Any]],
-        chapter_1_draft: dict[str, Any],
+        chapter_draft: dict[str, Any],
         continuity_report: dict[str, Any],
+        chapter_index: int = 0,
     ) -> dict[str, Any]:
-        first_plan = chapter_plan[0] if chapter_plan else {}
-        original_text = str(chapter_1_draft.get("text", ""))
+        target_plan = chapter_plan[chapter_index] if chapter_plan else {}
+        original_text = str(chapter_draft.get("text", ""))
         cleaned_text = self._dedupe_sentences(original_text)
-        summary = str(first_plan.get("purpose") or chapter_1_draft.get("summary", ""))
+        summary = str(target_plan.get("purpose") or chapter_draft.get("summary", ""))
         revised_text = cleaned_text
         if summary and summary not in revised_text:
             revised_text = f"{summary} {revised_text}".strip()
@@ -150,15 +151,16 @@ class MockLLMClient(BaseLLMClient):
         revised_text = re.sub(r"\s+", " ", revised_text).strip()
 
         return {
-            "chapter_number": chapter_1_draft.get("chapter_number"),
-            "title": chapter_1_draft.get("title"),
+            "chapter_number": chapter_draft.get("chapter_number"),
+            "title": chapter_draft.get("title"),
             "summary": summary,
             "text": revised_text,
             "revision_notes": [
-                "chapter_plan の purpose に summary を寄せた",
+                f"chapter_plan[{chapter_index}] の purpose に summary を寄せた",
                 "重複文を削減した",
                 f"{story_input.tone}な文体に合わせて冗長表現を短くした",
             ],
+            "chapter_index": chapter_index,
             "source_issue_counts": continuity_report.get("issue_counts", {}),
         }
 

@@ -50,7 +50,8 @@ class BaseLLMClient(ABC):
         self,
         story_input: StoryInput,
         chapter_plan: list[dict[str, Any]],
-        chapter_1_draft: dict[str, Any],
+        chapter_draft: dict[str, Any],
         continuity_report: dict[str, Any],
+        chapter_index: int = 0,
     ) -> dict[str, Any]:
         raise NotImplementedError

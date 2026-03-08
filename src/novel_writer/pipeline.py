@@ -63,7 +63,7 @@ class StoryPipeline:
         artifacts.continuity_report = self._build_report_with_decision(artifacts)
         self._maybe_rerun_from_decision(story_input, selected_logline, artifacts)
         save_artifact(self.output_dir, "continuity_report", artifacts.continuity_report, "json")
-        self._revise_chapter_1(story_input, artifacts)
+        self._revise_chapter(story_input, artifacts, chapter_index=0)
         save_artifact(self.output_dir, "revised_chapter_1_draft", artifacts.revised_chapter_1_draft, self.file_format)
 
         manifest = {
@@ -147,16 +147,20 @@ class StoryPipeline:
                 }
             )
 
-    def _revise_chapter_1(self, story_input: StoryInput, artifacts: StoryArtifacts) -> None:
-        artifacts.revised_chapter_1_draft = self.llm_client.revise_chapter_draft(
+    def _revise_chapter(self, story_input: StoryInput, artifacts: StoryArtifacts, chapter_index: int) -> None:
+        revised_chapter_draft = self.llm_client.revise_chapter_draft(
             story_input,
             artifacts.chapter_plan,
             artifacts.chapter_1_draft,
             artifacts.continuity_report,
+            chapter_index=chapter_index,
         )
+        if chapter_index == 0:
+            artifacts.revised_chapter_1_draft = revised_chapter_draft
         artifacts.revise_history.append(
             {
                 "attempt": 1,
+                "chapter_index": chapter_index,
                 "source": "chapter_1_draft",
                 "target": "revised_chapter_1_draft",
                 "continuity_severity": artifacts.continuity_report.get("severity"),

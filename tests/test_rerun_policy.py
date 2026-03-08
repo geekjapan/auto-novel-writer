@@ -58,13 +58,21 @@ class CountingLLMClient:
             "text": f"篠崎 遥の草稿 {self.chapter_draft_calls}",
         }
 
-    def revise_chapter_draft(self, story_input, chapter_plan, chapter_1_draft, continuity_report):
+    def revise_chapter_draft(
+        self,
+        story_input,
+        chapter_plan,
+        chapter_draft,
+        continuity_report,
+        chapter_index=0,
+    ):
         self.revise_calls += 1
         return {
-            "chapter_number": chapter_1_draft["chapter_number"],
-            "title": chapter_1_draft["title"],
-            "summary": chapter_plan[0]["purpose"],
-            "text": f"{chapter_1_draft['text']} 改稿済み",
+            "chapter_number": chapter_draft["chapter_number"],
+            "title": chapter_draft["title"],
+            "summary": chapter_plan[chapter_index]["purpose"],
+            "chapter_index": chapter_index,
+            "text": f"{chapter_draft['text']} 改稿済み",
         }
 
 
@@ -150,6 +158,7 @@ class ContinuityRerunPolicyTest(unittest.TestCase):
         self.assertEqual(artifacts.rerun_history[0]["severity"], "medium")
         self.assertEqual(artifacts.rerun_history[1]["action_taken"], "reran_chapter_1_draft")
         self.assertEqual(artifacts.revised_chapter_1_draft["summary"], "setup")
+        self.assertEqual(artifacts.revised_chapter_1_draft["chapter_index"], 0)
 
     def test_high_reruns_from_chapter_plan(self) -> None:
         client = CountingLLMClient()

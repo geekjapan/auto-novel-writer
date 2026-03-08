@@ -115,18 +115,20 @@ class OpenAIClient(BaseLLMClient):
         self,
         story_input: StoryInput,
         chapter_plan: list[dict[str, Any]],
-        chapter_1_draft: dict[str, Any],
+        chapter_draft: dict[str, Any],
         continuity_report: dict[str, Any],
+        chapter_index: int = 0,
     ) -> dict[str, Any]:
         data = self._generate_json(
-            "You revise a Japanese first chapter draft for consistency, concision, and tone.",
+            "You revise a Japanese chapter draft for consistency, concision, and tone.",
             (
-                "Return JSON with key 'revised_chapter_1_draft'. "
+                "Return JSON with key 'revised_chapter_draft'. "
                 f"story={story_input.to_dict()}, "
                 f"chapter_plan={json.dumps(chapter_plan, ensure_ascii=False)}, "
-                f"chapter_1_draft={json.dumps(chapter_1_draft, ensure_ascii=False)}, "
-                f"continuity_report={json.dumps(continuity_report, ensure_ascii=False)}. "
-                "Keep the same chapter number and title, improve style, remove redundancy, and align summary to the plan."
+                f"chapter_draft={json.dumps(chapter_draft, ensure_ascii=False)}, "
+                f"continuity_report={json.dumps(continuity_report, ensure_ascii=False)}, "
+                f"chapter_index={chapter_index}. "
+                "Keep the same chapter number and title, improve style, remove redundancy, and align summary to the selected chapter plan."
             ),
         )
-        return data["revised_chapter_1_draft"]
+        return data["revised_chapter_draft"]

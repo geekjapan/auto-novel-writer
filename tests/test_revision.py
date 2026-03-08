@@ -29,8 +29,10 @@ class RevisionTest(unittest.TestCase):
             chapter_plan,
             draft,
             {"severity": "medium", "issue_counts": {"plan_to_draft_gaps": 1}},
+            chapter_index=0,
         )
 
         self.assertEqual(revised["summary"], chapter_plan[0]["purpose"])
         self.assertEqual(revised["text"].count("篠崎 遥は立ち尽くした。"), 1)
+        self.assertEqual(revised["chapter_index"], 0)
         self.assertIn("revision_notes", revised)

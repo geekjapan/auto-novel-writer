@@ -58,6 +58,7 @@
   "revise_history": [
     {
       "attempt": 1,
+      "chapter_index": 0,
       "source": "chapter_1_draft",
       "target": "revised_chapter_1_draft",
       "continuity_severity": "high",
@@ -216,10 +217,11 @@
       "summary": "篠崎 遥は秘密に関する未解決の問題を抱えながら日常を送っている。",
       "text": "篠崎 遥は秘密に関する未解決の問題を抱えながら日常を送っている。 篠崎 遥はまだ夜の静けさに慣れずにいた。秘密の気配は、窓を叩く風よりも近くで息をしている。目の前の選択は小さく見えて、これから失うものすべてを量っていた。『鏡の中の約束』の始まりとして、静謐な空気と不穏さだけを残した。",
       "revision_notes": [
-        "chapter_plan の purpose に summary を寄せた",
+        "chapter_plan[0] の purpose に summary を寄せた",
         "重複文を削減した",
         "静謐な文体に合わせて冗長表現を短くした"
       ],
+      "chapter_index": 0,
       "source_issue_counts": {
         "missing_fields": 0,
         "character_name_mismatches": 0,
@@ -259,6 +261,7 @@
     "revise_history": [
       {
         "attempt": 1,
+        "chapter_index": 0,
         "source": "chapter_1_draft",
         "target": "revised_chapter_1_draft",
         "continuity_severity": "high",
