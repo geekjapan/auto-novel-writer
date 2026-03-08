@@ -2,7 +2,7 @@
 
 ## Goal
 
-短編小説向けの CLI パイプライン MVP を、段階的に安全拡張できる状態で育てる。
+人手の往復を最小化しながら、プロット作成から全章ドラフト、検査、改稿、再開実行までを自動で回せる「全自動小説執筆システム」を段階的に育てる。
 
 ## Current State
 
@@ -15,50 +15,80 @@
 
 ## Milestones
 
-### M1. Internal multi-chapter foundation
+### M1. Multi-Chapter Generation Foundation
 
 目的:
-chapter 1 固定の内部実装を、複数章へ無理なく広げられる形にそろえる。
+chapter 1 固定の実装を外し、全章を同じ生成パイプラインで扱えるようにする。
 
 完了条件:
 
 - chapter draft 生成が章番号ループで動く
-- revise 処理が任意章を対象にできる
-- storage と manifest が章配列中心でも一貫する
+- revise/save が任意章を対象にできる
+- manifest と storage が章配列中心でも一貫する
 - chapter 1 向けの既存出力は後方互換を維持する
 
-### M2. Resume and selective rerun
+### M2. Resume And Selective Rerun
 
 目的:
-失敗や試行錯誤を前提に、途中成果物から安全に再開できるようにする。
+途中成果物を再利用し、止まってもやり直しても作業を前進できるようにする。
 
 完了条件:
 
 - 既存 artifact を読み込んで途中再開できる
 - フェーズ単位の再実行ができる
 - rerun の記録が manifest で追える
+- CLI から再開実行と再実行起点を指定できる
 
-### M3. Stronger provider boundary
+### M3. Multi-Layer Quality Checks
 
 目的:
-Mock 実装と OpenAI 実装を同じ契約で保ち、検証しやすくする。
+整合性だけでなく、文体、視点、長さ配分、章間因果、人物の一貫性も機械検査できるようにする。
 
 完了条件:
 
-- provider ごとの入出力契約が明文化されている
-- OpenAI 応答の構造検証が強化されている
-- provider 依存テストと provider 非依存テストが分離されている
+- continuity 以外の quality check が追加される
+- 問題種別ごとに regenerate / revise の推奨が分かれる
+- quality report が artifact として保存される
 
-### M4. Story quality loop
+### M4. Automated Revision Loop
 
 目的:
-生成するだけでなく、評価と改善の反復を導入する。
+単発改稿ではなく、停止条件付きの反復改稿で品質を底上げする。
 
 完了条件:
 
-- quality check フェーズが追加される
-- revise が continuity 以外の観点も扱える
-- 改善前後の差分が成果物として残る
+- revise を複数回回せる
+- 反復上限回数と停止条件がある
+- 改稿前後の差分と判断理由が履歴に残る
+
+### M5. Project-Level Writing Management
+
+目的:
+単発 CLI 実行から、作品単位の継続管理へ進める。
+
+完了条件:
+
+- 作品 ID ごとに設定、進捗、成果物、履歴を管理できる
+- CLI から新規作品、再開、全体生成、章単位再生成ができる
+- project manifest から現在状態を復元できる
+
+### M6. Autonomous Agent Development Loop
+
+目的:
+システム開発自体を、Codex が GitHub と連動しながら小さく安全に前進できる状態にする。
+
+完了条件:
+
+- `docs/TASKS.md` と GitHub issue / PR の粒度がそろっている
+- Codex が 1 タスクずつ実装、テスト、docs 更新、小コミットまで進められる
+- block 時は `docs/BLOCKED.md` に停止理由が残る
+
+## Sequencing Rationale
+
+- 先に M1 と M2 を固めないと、全章生成も自動再開も不安定になる
+- M3 と M4 は、基盤ができてから品質改善を安全に積み上げる段階
+- M5 で「作品を継続的に育てる」運用へ進める
+- M6 は開発運用そのものを半自動化する最終段階
 
 ## Roadmap Notes
 
