@@ -155,7 +155,8 @@ novel-writer ^
 8. `quality_report.json`
 9. `revised_chapter_1_draft`
 10. `story_summary.json`
-11. `manifest`
+11. `project_quality_report.json`
+12. `manifest`
 
 `manifest` には、再開実行の土台として `checkpoints`, `current_step`, `completed_steps` も保存されます。
 また、章単位で追跡できるように `continuity_history`, `rerun_history`, `revise_history`, `chapter_histories` も保存されます。

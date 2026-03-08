@@ -341,6 +341,52 @@ class ContinuityCheckerTest(unittest.TestCase):
 
         self.assertEqual(quality_report["overall_recommendation"], "revise")
 
+    def test_build_project_quality_report_summarizes_story_level_checks(self) -> None:
+        artifacts = StoryArtifacts(
+            story_input=StoryInput(theme="秘密", genre="ミステリ", tone="静謐", target_length=6000),
+            chapter_plan=[
+                {
+                    "chapter_number": 1,
+                    "title": "第1章 導入",
+                    "purpose": "秘密を抱えた主人公が異変に気づく。",
+                    "point_of_view": "篠崎 遥",
+                    "target_words": 1000,
+                },
+                {
+                    "chapter_number": 2,
+                    "title": "第2章 対立",
+                    "purpose": "秘密を追ううちに対立が深まる。",
+                    "point_of_view": "木崎 蓮",
+                    "target_words": 2200,
+                },
+                {
+                    "chapter_number": 3,
+                    "title": "第3章 結末",
+                    "purpose": "秘密の核心が明かされる。",
+                    "point_of_view": "篠崎 遥",
+                    "target_words": 800,
+                },
+            ],
+            story_summary={
+                "title": "消えた手紙",
+                "synopsis": "秘密を抱えた主人公が異変を追い、最後に秘密の核心へ辿り着く。",
+                "chapter_summaries": [
+                    {"chapter_number": 1, "title": "第1章 導入", "summary": "秘密を抱えた主人公が異変に気づく。"},
+                    {"chapter_number": 2, "title": "第2章 対立", "summary": "秘密を追ううちに対立が深まる。"},
+                    {"chapter_number": 3, "title": "第3章 結末", "summary": "秘密の核心が明かされる。"},
+                ],
+            },
+        )
+
+        project_quality_report = ContinuityChecker().build_project_quality_report(artifacts)
+
+        self.assertEqual(project_quality_report["overall_recommendation"], "revise")
+        self.assertEqual(project_quality_report["source_report"], "project_quality_report")
+        self.assertIn("theme_coherence", project_quality_report["checks"])
+        self.assertEqual(project_quality_report["checks"]["theme_coherence"]["status"], "pass")
+        self.assertEqual(project_quality_report["checks"]["pov_consistency"]["status"], "warn")
+        self.assertEqual(project_quality_report["checks"]["chapter_balance"]["status"], "warn")
+
 
 if __name__ == "__main__":
     unittest.main()

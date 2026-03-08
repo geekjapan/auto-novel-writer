@@ -135,12 +135,72 @@ class ContinuityChecker:
             "issue_counts": dict(issue_counts),
         }
 
+    def build_project_quality_report(self, artifacts: StoryArtifacts) -> dict[str, Any]:
+        checks = {
+            "theme_coherence": self._evaluate_theme_coherence(artifacts),
+            "pov_consistency": self._evaluate_project_pov_consistency(artifacts.chapter_plan),
+            "foreshadowing_coverage": self._evaluate_foreshadowing_coverage(artifacts),
+            "chapter_balance": self._evaluate_project_chapter_balance(artifacts.chapter_plan),
+        }
+        issues = [
+            {"check": name, **payload}
+            for name, payload in checks.items()
+            if payload.get("status") != "pass"
+        ]
+        overall_recommendation = "accept" if not issues else "revise"
+        return {
+            "overall_recommendation": overall_recommendation,
+            "source_report": "project_quality_report",
+            "checks": checks,
+            "issue_count": len(issues),
+            "issues": issues,
+        }
+
     def _recommend_action_for_category(self, category: str) -> str:
         if category in REGENERATE_CATEGORIES:
             return "regenerate"
         if category in REVISE_CATEGORIES:
             return "revise"
         return "inspect"
+
+    def _evaluate_theme_coherence(self, artifacts: StoryArtifacts) -> dict[str, Any]:
+        theme = artifacts.story_input.theme.strip().lower()
+        synopsis = str(artifacts.story_summary.get("synopsis", "")).lower()
+        if not theme:
+            return {"status": "warn", "reason": "theme_missing_from_story_input"}
+        if theme and theme in synopsis:
+            return {"status": "pass", "reason": "theme_visible_in_story_summary"}
+        summary_keywords = self._extract_keywords(synopsis)
+        theme_keywords = self._extract_keywords(theme)
+        if self._has_keyword_overlap(theme_keywords, summary_keywords, minimum_ratio=0.5):
+            return {"status": "pass", "reason": "theme_keywords_overlap_story_summary"}
+        return {"status": "warn", "reason": "theme_not_visible_in_story_summary"}
+
+    def _evaluate_project_pov_consistency(self, chapter_plan: list[dict[str, Any]]) -> dict[str, Any]:
+        povs = [str(chapter.get("point_of_view", "")).strip() for chapter in chapter_plan if chapter.get("point_of_view")]
+        unique_povs = sorted(set(povs))
+        if len(unique_povs) <= 1:
+            return {"status": "pass", "reason": "single_point_of_view_across_story", "values": unique_povs}
+        return {"status": "warn", "reason": "multiple_point_of_view_values_across_story", "values": unique_povs}
+
+    def _evaluate_foreshadowing_coverage(self, artifacts: StoryArtifacts) -> dict[str, Any]:
+        chapter_summaries = artifacts.story_summary.get("chapter_summaries", [])
+        if len(chapter_summaries) < 2:
+            return {"status": "pass", "reason": "not_enough_chapters_for_foreshadowing_check"}
+        midpoint = max(1, len(chapter_summaries) // 2)
+        early_text = " ".join(str(item.get("summary", "")) for item in chapter_summaries[:midpoint])
+        late_text = " ".join(str(item.get("summary", "")) for item in chapter_summaries[midpoint:])
+        early_keywords = self._extract_keywords(early_text)
+        late_keywords = self._extract_keywords(late_text)
+        if self._has_keyword_overlap(early_keywords, late_keywords, minimum_ratio=0.3):
+            return {"status": "pass", "reason": "early_and_late_chapter_keywords_overlap"}
+        return {"status": "warn", "reason": "limited_keyword_overlap_between_early_and_late_chapters"}
+
+    def _evaluate_project_chapter_balance(self, chapter_plan: list[dict[str, Any]]) -> dict[str, Any]:
+        balance_issues = self._find_chapter_length_balance_warnings(chapter_plan)
+        if not balance_issues:
+            return {"status": "pass", "reason": "chapter_targets_are_balanced"}
+        return {"status": "warn", "reason": "chapter_targets_need_rebalancing", "issues": balance_issues}
 
     def _find_missing_fields(
         self,

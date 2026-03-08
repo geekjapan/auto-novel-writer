@@ -22,6 +22,7 @@ PIPELINE_STEP_ORDER = [
     "quality_report",
     "revised_chapter_drafts",
     "story_summary",
+    "project_quality_report",
 ]
 
 REVISION_MAX_ATTEMPTS = 2
@@ -244,6 +245,9 @@ class StoryPipeline:
         if step_name == "story_summary":
             self._run_story_summary_step(story_input, selected_logline, artifacts, checkpoints)
             return selected_logline
+        if step_name == "project_quality_report":
+            self._run_project_quality_report_step(artifacts, checkpoints, selected_logline)
+            return selected_logline
         raise ValueError(f"Unsupported step: {step_name}")
 
     def _load_resume_state(self, resume_from: Path) -> tuple[StoryArtifacts, dict, list[dict]]:
@@ -264,6 +268,7 @@ class StoryPipeline:
             "revised_chapter_drafts",
             "revised_chapter_1_draft",
             "story_summary",
+            "project_quality_report",
             "rerun_history",
             "revise_history",
         ]:
@@ -306,6 +311,9 @@ class StoryPipeline:
             return
         if rerun_from == "story_summary":
             self._reset_from_story_summary(artifacts)
+            return
+        if rerun_from == "project_quality_report":
+            self._reset_from_project_quality_report(artifacts)
 
     def _reset_from_loglines(self, artifacts: StoryArtifacts) -> None:
         artifacts.loglines = []
@@ -346,6 +354,10 @@ class StoryPipeline:
 
     def _reset_from_story_summary(self, artifacts: StoryArtifacts) -> None:
         artifacts.story_summary = {}
+        self._reset_from_project_quality_report(artifacts)
+
+    def _reset_from_project_quality_report(self, artifacts: StoryArtifacts) -> None:
+        artifacts.project_quality_report = {}
 
     def _mark_checkpoint(
         self,
@@ -427,6 +439,16 @@ class StoryPipeline:
         )
         save_artifact(self.output_dir, "story_summary", artifacts.story_summary, "json")
         self._mark_checkpoint("story_summary", checkpoints, artifacts, selected_logline)
+
+    def _run_project_quality_report_step(
+        self,
+        artifacts: StoryArtifacts,
+        checkpoints: list[dict],
+        selected_logline: dict,
+    ) -> None:
+        artifacts.project_quality_report = self.continuity_checker.build_project_quality_report(artifacts)
+        save_artifact(self.output_dir, "project_quality_report", artifacts.project_quality_report, "json")
+        self._mark_checkpoint("project_quality_report", checkpoints, artifacts, selected_logline)
 
     def _maybe_rerun_from_decision(
         self,

@@ -29,6 +29,15 @@ class SequencedContinuityChecker:
             "total_issue_count": sum(issue_counts.values()),
         }
 
+    def build_project_quality_report(self, artifacts) -> dict:
+        return {
+            "overall_recommendation": "accept",
+            "source_report": "project_quality_report",
+            "checks": {},
+            "issue_count": 0,
+            "issues": [],
+        }
+
 
 class CountingLLMClient:
     def __init__(self) -> None:

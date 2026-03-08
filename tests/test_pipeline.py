@@ -29,6 +29,7 @@ class StoryPipelineTest(unittest.TestCase):
                 "quality_report.json",
                 "revised_chapter_1_draft.json",
                 "story_summary.json",
+                "project_quality_report.json",
                 "manifest.json",
             ]
             for name in expected_files:
@@ -40,6 +41,9 @@ class StoryPipelineTest(unittest.TestCase):
             )
             quality_report = json.loads((output_dir / "quality_report.json").read_text(encoding="utf-8"))
             story_summary = json.loads((output_dir / "story_summary.json").read_text(encoding="utf-8"))
+            project_quality_report = json.loads(
+                (output_dir / "project_quality_report.json").read_text(encoding="utf-8")
+            )
             self.assertEqual(manifest["selected_logline"]["id"], "logline-1")
             self.assertEqual(artifacts.chapter_1_draft["chapter_number"], 1)
             self.assertIn("length_warnings", continuity_report)
@@ -59,6 +63,9 @@ class StoryPipelineTest(unittest.TestCase):
             self.assertEqual(manifest["artifacts"]["story_summary"], story_summary)
             self.assertEqual(story_summary["chapter_count"], len(artifacts.chapter_plan))
             self.assertEqual(len(story_summary["chapter_summaries"]), len(artifacts.chapter_plan))
+            self.assertEqual(artifacts.project_quality_report, project_quality_report)
+            self.assertEqual(manifest["artifacts"]["project_quality_report"], project_quality_report)
+            self.assertIn("checks", project_quality_report)
             self.assertEqual(manifest["artifacts"]["continuity_history"], manifest["continuity_history"])
             self.assertEqual(artifacts.revised_chapter_1_draft["chapter_number"], 1)
             self.assertEqual(manifest["revise_history"][0]["chapter_index"], 0)
