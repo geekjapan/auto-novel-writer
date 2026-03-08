@@ -12,7 +12,8 @@
       "three_act_plot",
       "chapter_plan",
       "chapter_1_draft",
-      "continuity_check"
+      "continuity_check",
+      "revise_chapter_1"
     ],
     "counts": {
       "loglines": 3,
@@ -31,10 +32,10 @@
       "attempt": 1,
       "severity": "high",
       "action": "rerun_from_chapter_plan",
-      "weighted_score": 11,
+      "weighted_score": 9,
       "issue_counts": {
         "missing_fields": 0,
-        "character_name_mismatches": 1,
+        "character_name_mismatches": 0,
         "plot_to_plan_gaps": 2,
         "plan_to_draft_gaps": 0,
         "length_warnings": 1
@@ -47,11 +48,24 @@
       "resulting_severity": "high",
       "issue_counts": {
         "missing_fields": 0,
-        "character_name_mismatches": 1,
+        "character_name_mismatches": 0,
         "plot_to_plan_gaps": 2,
         "plan_to_draft_gaps": 0,
         "length_warnings": 1
       }
+    }
+  ],
+  "revise_history": [
+    {
+      "attempt": 1,
+      "source": "chapter_1_draft",
+      "target": "revised_chapter_1_draft",
+      "continuity_severity": "high",
+      "applied_rules": [
+        "style_adjustment",
+        "redundancy_reduction",
+        "summary_alignment"
+      ]
     }
   ],
   "artifacts": {
@@ -150,29 +164,29 @@
     },
     "continuity_report": {
       "missing_fields": [],
-      "character_name_mismatches": [
-        {
-          "artifact": "chapter_1_draft",
-          "field": "text",
-          "value": "章 導入",
-          "reason": "name_in_draft_not_in_characters"
-        }
-      ],
+      "character_name_mismatches": [],
       "plot_to_plan_gaps": [
         {
           "plot_point": "act_2.crisis",
           "reason": "plot_beat_not_reflected_in_chapter_plan",
           "keywords": [
-            "秘密を守るか",
-            "誰かを救うために公にするかで板挟みになる"
+            "秘密",
+            "守る",
+            "救うため",
+            "板挟み",
+            "板挟"
           ]
         },
         {
           "plot_point": "act_3.resolution",
           "reason": "plot_beat_not_reflected_in_chapter_plan",
           "keywords": [
-            "代償を払いながらも",
-            "新しい関係と次の一歩を手に入れる"
+            "代償",
+            "払いな",
+            "新しい関係",
+            "関係",
+            "一歩",
+            "入れる"
           ]
         }
       ],
@@ -187,24 +201,42 @@
       ],
       "issue_counts": {
         "missing_fields": 0,
-        "character_name_mismatches": 1,
+        "character_name_mismatches": 0,
         "plot_to_plan_gaps": 2,
         "plan_to_draft_gaps": 0,
         "length_warnings": 1
       },
       "severity": "high",
       "recommended_action": "rerun_from_chapter_plan",
-      "weighted_score": 11
+      "weighted_score": 9
+    },
+    "revised_chapter_1_draft": {
+      "chapter_number": 1,
+      "title": "第1章 導入",
+      "summary": "篠崎 遥は秘密に関する未解決の問題を抱えながら日常を送っている。",
+      "text": "篠崎 遥は秘密に関する未解決の問題を抱えながら日常を送っている。 篠崎 遥はまだ夜の静けさに慣れずにいた。秘密の気配は、窓を叩く風よりも近くで息をしている。目の前の選択は小さく見えて、これから失うものすべてを量っていた。『鏡の中の約束』の始まりとして、静謐な空気と不穏さだけを残した。",
+      "revision_notes": [
+        "chapter_plan の purpose に summary を寄せた",
+        "重複文を削減した",
+        "静謐な文体に合わせて冗長表現を短くした"
+      ],
+      "source_issue_counts": {
+        "missing_fields": 0,
+        "character_name_mismatches": 0,
+        "plot_to_plan_gaps": 2,
+        "plan_to_draft_gaps": 0,
+        "length_warnings": 1
+      }
     },
     "rerun_history": [
       {
         "attempt": 1,
         "severity": "high",
         "action": "rerun_from_chapter_plan",
-        "weighted_score": 11,
+        "weighted_score": 9,
         "issue_counts": {
           "missing_fields": 0,
-          "character_name_mismatches": 1,
+          "character_name_mismatches": 0,
           "plot_to_plan_gaps": 2,
           "plan_to_draft_gaps": 0,
           "length_warnings": 1
@@ -217,11 +249,24 @@
         "resulting_severity": "high",
         "issue_counts": {
           "missing_fields": 0,
-          "character_name_mismatches": 1,
+          "character_name_mismatches": 0,
           "plot_to_plan_gaps": 2,
           "plan_to_draft_gaps": 0,
           "length_warnings": 1
         }
+      }
+    ],
+    "revise_history": [
+      {
+        "attempt": 1,
+        "source": "chapter_1_draft",
+        "target": "revised_chapter_1_draft",
+        "continuity_severity": "high",
+        "applied_rules": [
+          "style_adjustment",
+          "redundancy_reduction",
+          "summary_alignment"
+        ]
       }
     ]
   }

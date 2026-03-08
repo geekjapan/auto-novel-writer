@@ -25,6 +25,7 @@ class CliTest(unittest.TestCase):
 
             self.assertEqual(exit_code, 0)
             self.assertTrue((Path(tmp_dir) / "05_chapter_1_draft.json").exists())
+            self.assertTrue((Path(tmp_dir) / "revised_chapter_1_draft.json").exists())
 
 
 if __name__ == "__main__":

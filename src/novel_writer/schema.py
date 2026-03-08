@@ -23,7 +23,9 @@ class StoryArtifacts:
     chapter_plan: list[dict] = field(default_factory=list)
     chapter_1_draft: dict = field(default_factory=dict)
     continuity_report: dict = field(default_factory=dict)
+    revised_chapter_1_draft: dict = field(default_factory=dict)
     rerun_history: list[dict] = field(default_factory=list)
+    revise_history: list[dict] = field(default_factory=list)
 
     def summary(self) -> dict:
         return {
@@ -35,6 +37,7 @@ class StoryArtifacts:
                 "chapter_plan",
                 "chapter_1_draft",
                 "continuity_check",
+                "revise_chapter_1",
             ],
             "counts": {
                 "loglines": len(self.loglines),

@@ -14,14 +14,21 @@ class MockLLMClientTest(unittest.TestCase):
         plot = client.generate_three_act_plot(story_input, loglines[0], characters)
         chapter_plan = client.generate_chapter_plan(story_input, loglines[0], characters, plot)
         draft = client.generate_chapter_draft(story_input, loglines[0], characters, chapter_plan)
+        revised = client.revise_chapter_draft(
+            story_input,
+            chapter_plan,
+            draft,
+            {"issue_counts": {"length_warnings": 1}, "severity": "medium"},
+        )
 
         self.assertEqual(len(loglines), 3)
         self.assertEqual(len(characters), 3)
         self.assertIn("act_1", plot)
         self.assertEqual(chapter_plan[0]["chapter_number"], 1)
         self.assertEqual(draft["chapter_number"], 1)
+        self.assertEqual(revised["chapter_number"], 1)
+        self.assertIn("revision_notes", revised)
 
 
 if __name__ == "__main__":
     unittest.main()
-

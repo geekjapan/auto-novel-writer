@@ -45,3 +45,12 @@ class BaseLLMClient(ABC):
     ) -> dict[str, Any]:
         raise NotImplementedError
 
+    @abstractmethod
+    def revise_chapter_draft(
+        self,
+        story_input: StoryInput,
+        chapter_plan: list[dict[str, Any]],
+        chapter_1_draft: dict[str, Any],
+        continuity_report: dict[str, Any],
+    ) -> dict[str, Any]:
+        raise NotImplementedError

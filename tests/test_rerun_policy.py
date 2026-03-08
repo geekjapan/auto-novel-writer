@@ -22,6 +22,7 @@ class CountingLLMClient:
     def __init__(self) -> None:
         self.chapter_plan_calls = 0
         self.chapter_draft_calls = 0
+        self.revise_calls = 0
 
     def generate_loglines(self, story_input):
         return [{"id": "logline-1", "title": "案", "premise": "前提", "hook": "フック"}]
@@ -55,6 +56,15 @@ class CountingLLMClient:
             "title": chapter_plan[0]["title"],
             "summary": chapter_plan[0]["purpose"],
             "text": f"篠崎 遥の草稿 {self.chapter_draft_calls}",
+        }
+
+    def revise_chapter_draft(self, story_input, chapter_plan, chapter_1_draft, continuity_report):
+        self.revise_calls += 1
+        return {
+            "chapter_number": chapter_1_draft["chapter_number"],
+            "title": chapter_1_draft["title"],
+            "summary": chapter_plan[0]["purpose"],
+            "text": f"{chapter_1_draft['text']} 改稿済み",
         }
 
 
@@ -135,9 +145,11 @@ class ContinuityRerunPolicyTest(unittest.TestCase):
 
         self.assertEqual(client.chapter_plan_calls, 1)
         self.assertEqual(client.chapter_draft_calls, 2)
+        self.assertEqual(client.revise_calls, 1)
         self.assertEqual(artifacts.continuity_report["severity"], "low")
         self.assertEqual(artifacts.rerun_history[0]["severity"], "medium")
         self.assertEqual(artifacts.rerun_history[1]["action_taken"], "reran_chapter_1_draft")
+        self.assertEqual(artifacts.revised_chapter_1_draft["summary"], "setup")
 
     def test_high_reruns_from_chapter_plan(self) -> None:
         client = CountingLLMClient()
@@ -180,6 +192,7 @@ class ContinuityRerunPolicyTest(unittest.TestCase):
 
         self.assertEqual(client.chapter_plan_calls, 2)
         self.assertEqual(client.chapter_draft_calls, 2)
+        self.assertEqual(client.revise_calls, 1)
         self.assertEqual(artifacts.rerun_history[0]["severity"], "high")
         self.assertEqual(artifacts.rerun_history[1]["action_taken"], "reran_from_chapter_plan")
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from novel_writer.llm.base import BaseLLMClient
@@ -131,3 +132,44 @@ class MockLLMClient(BaseLLMClient):
             ),
         }
 
+    def revise_chapter_draft(
+        self,
+        story_input: StoryInput,
+        chapter_plan: list[dict[str, Any]],
+        chapter_1_draft: dict[str, Any],
+        continuity_report: dict[str, Any],
+    ) -> dict[str, Any]:
+        first_plan = chapter_plan[0] if chapter_plan else {}
+        original_text = str(chapter_1_draft.get("text", ""))
+        cleaned_text = self._dedupe_sentences(original_text)
+        summary = str(first_plan.get("purpose") or chapter_1_draft.get("summary", ""))
+        revised_text = cleaned_text
+        if summary and summary not in revised_text:
+            revised_text = f"{summary} {revised_text}".strip()
+        revised_text = revised_text.replace("その実、", "").replace("不穏な予感を前景に置いた導入を書く。", "不穏さだけを残した。")
+        revised_text = re.sub(r"\s+", " ", revised_text).strip()
+
+        return {
+            "chapter_number": chapter_1_draft.get("chapter_number"),
+            "title": chapter_1_draft.get("title"),
+            "summary": summary,
+            "text": revised_text,
+            "revision_notes": [
+                "chapter_plan の purpose に summary を寄せた",
+                "重複文を削減した",
+                f"{story_input.tone}な文体に合わせて冗長表現を短くした",
+            ],
+            "source_issue_counts": continuity_report.get("issue_counts", {}),
+        }
+
+    def _dedupe_sentences(self, text: str) -> str:
+        parts = re.split(r"(?<=[。！？])", text)
+        unique_parts: list[str] = []
+        seen = set()
+        for part in parts:
+            normalized = part.strip()
+            if not normalized or normalized in seen:
+                continue
+            seen.add(normalized)
+            unique_parts.append(normalized)
+        return "".join(unique_parts)

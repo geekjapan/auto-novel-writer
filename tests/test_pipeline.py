@@ -26,6 +26,7 @@ class StoryPipelineTest(unittest.TestCase):
                 "04_chapter_plan.json",
                 "05_chapter_1_draft.json",
                 "continuity_report.json",
+                "revised_chapter_1_draft.json",
                 "manifest.json",
             ]
             for name in expected_files:
@@ -39,8 +40,11 @@ class StoryPipelineTest(unittest.TestCase):
             self.assertEqual(artifacts.chapter_1_draft["chapter_number"], 1)
             self.assertIn("length_warnings", continuity_report)
             self.assertIn("rerun_history", manifest)
+            self.assertIn("revise_history", manifest)
             self.assertTrue(manifest["rerun_history"])
+            self.assertTrue(manifest["revise_history"])
             self.assertIn("severity", continuity_report)
+            self.assertEqual(artifacts.revised_chapter_1_draft["chapter_number"], 1)
 
 
 

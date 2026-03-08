@@ -63,11 +63,14 @@ class StoryPipeline:
         artifacts.continuity_report = self._build_report_with_decision(artifacts)
         self._maybe_rerun_from_decision(story_input, selected_logline, artifacts)
         save_artifact(self.output_dir, "continuity_report", artifacts.continuity_report, "json")
+        self._revise_chapter_1(story_input, artifacts)
+        save_artifact(self.output_dir, "revised_chapter_1_draft", artifacts.revised_chapter_1_draft, self.file_format)
 
         manifest = {
             "summary": artifacts.summary(),
             "selected_logline": selected_logline,
             "rerun_history": artifacts.rerun_history,
+            "revise_history": artifacts.revise_history,
             "artifacts": asdict(artifacts),
         }
         save_artifact(self.output_dir, "manifest", manifest, self.file_format)
@@ -143,3 +146,24 @@ class StoryPipeline:
                     "issue_counts": artifacts.continuity_report.get("issue_counts", {}),
                 }
             )
+
+    def _revise_chapter_1(self, story_input: StoryInput, artifacts: StoryArtifacts) -> None:
+        artifacts.revised_chapter_1_draft = self.llm_client.revise_chapter_draft(
+            story_input,
+            artifacts.chapter_plan,
+            artifacts.chapter_1_draft,
+            artifacts.continuity_report,
+        )
+        artifacts.revise_history.append(
+            {
+                "attempt": 1,
+                "source": "chapter_1_draft",
+                "target": "revised_chapter_1_draft",
+                "continuity_severity": artifacts.continuity_report.get("severity"),
+                "applied_rules": [
+                    "style_adjustment",
+                    "redundancy_reduction",
+                    "summary_alignment",
+                ],
+            }
+        )
