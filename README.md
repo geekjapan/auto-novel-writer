@@ -119,6 +119,8 @@ novel-writer ^
 8. `revised_chapter_1_draft`
 9. `manifest`
 
+`manifest` には、再開実行の土台として `checkpoints`, `current_step`, `completed_steps` も保存されます。
+
 ## Continuity Check
 
 continuity check はルールベースで成果物間の構造的不整合候補を洗い出します。面白さ評価ではなく、最低限の整合性確認が目的です。

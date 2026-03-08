@@ -10,6 +10,18 @@ from novel_writer.schema import StoryArtifacts, StoryInput
 from novel_writer.storage import save_artifact
 
 
+PIPELINE_STEP_ORDER = [
+    "story_input",
+    "loglines",
+    "characters",
+    "three_act_plot",
+    "chapter_plan",
+    "chapter_drafts",
+    "continuity_report",
+    "revised_chapter_drafts",
+]
+
+
 class StoryPipeline:
     def __init__(
         self,
@@ -27,22 +39,71 @@ class StoryPipeline:
 
     def run(self, story_input: StoryInput) -> StoryArtifacts:
         artifacts = StoryArtifacts(story_input=story_input)
-        save_artifact(self.output_dir, "story_input", story_input.to_dict(), self.file_format)
+        checkpoints: list[dict] = []
+        selected_logline: dict = {}
 
-        artifacts.loglines = self.llm_client.generate_loglines(story_input)
+        self._run_story_input_step(artifacts, checkpoints)
+
+        selected_logline = self._run_loglines_step(artifacts, checkpoints)
+        self._run_characters_step(story_input, selected_logline, artifacts, checkpoints)
+        self._run_three_act_plot_step(story_input, selected_logline, artifacts, checkpoints)
+        self._run_chapter_plan_step(story_input, selected_logline, artifacts, checkpoints)
+        self._run_chapter_drafts_step(story_input, selected_logline, artifacts, checkpoints)
+
+        artifacts.continuity_report = self._build_report_with_decision(artifacts)
+        self._maybe_rerun_from_decision(story_input, selected_logline, artifacts)
+        save_artifact(self.output_dir, "continuity_report", artifacts.continuity_report, "json")
+        self._mark_checkpoint("continuity_report", checkpoints, artifacts, selected_logline)
+        for chapter_index, _chapter_draft in enumerate(artifacts.chapter_drafts):
+            self._revise_chapter(story_input, artifacts, chapter_index=chapter_index)
+        save_artifact(self.output_dir, "revised_chapter_1_draft", artifacts.revised_chapter_1_draft, self.file_format)
+        self._mark_checkpoint("revised_chapter_drafts", checkpoints, artifacts, selected_logline)
+        return artifacts
+
+    def _run_story_input_step(self, artifacts: StoryArtifacts, checkpoints: list[dict]) -> None:
+        save_artifact(self.output_dir, "story_input", artifacts.story_input.to_dict(), self.file_format)
+        self._mark_checkpoint("story_input", checkpoints, artifacts, {})
+
+    def _run_loglines_step(self, artifacts: StoryArtifacts, checkpoints: list[dict]) -> dict:
+        artifacts.loglines = self.llm_client.generate_loglines(artifacts.story_input)
         save_artifact(self.output_dir, "01_loglines", artifacts.loglines, self.file_format)
-
         selected_logline = artifacts.loglines[0]
+        self._mark_checkpoint("loglines", checkpoints, artifacts, selected_logline)
+        return selected_logline
+
+    def _run_characters_step(
+        self,
+        story_input: StoryInput,
+        selected_logline: dict,
+        artifacts: StoryArtifacts,
+        checkpoints: list[dict],
+    ) -> None:
         artifacts.characters = self.llm_client.generate_characters(story_input, selected_logline)
         save_artifact(self.output_dir, "02_characters", artifacts.characters, self.file_format)
+        self._mark_checkpoint("characters", checkpoints, artifacts, selected_logline)
 
+    def _run_three_act_plot_step(
+        self,
+        story_input: StoryInput,
+        selected_logline: dict,
+        artifacts: StoryArtifacts,
+        checkpoints: list[dict],
+    ) -> None:
         artifacts.three_act_plot = self.llm_client.generate_three_act_plot(
             story_input,
             selected_logline,
             artifacts.characters,
         )
         save_artifact(self.output_dir, "03_three_act_plot", artifacts.three_act_plot, self.file_format)
+        self._mark_checkpoint("three_act_plot", checkpoints, artifacts, selected_logline)
 
+    def _run_chapter_plan_step(
+        self,
+        story_input: StoryInput,
+        selected_logline: dict,
+        artifacts: StoryArtifacts,
+        checkpoints: list[dict],
+    ) -> None:
         artifacts.chapter_plan = self.llm_client.generate_chapter_plan(
             story_input,
             selected_logline,
@@ -50,7 +111,15 @@ class StoryPipeline:
             artifacts.three_act_plot,
         )
         save_artifact(self.output_dir, "04_chapter_plan", artifacts.chapter_plan, self.file_format)
+        self._mark_checkpoint("chapter_plan", checkpoints, artifacts, selected_logline)
 
+    def _run_chapter_drafts_step(
+        self,
+        story_input: StoryInput,
+        selected_logline: dict,
+        artifacts: StoryArtifacts,
+        checkpoints: list[dict],
+    ) -> None:
         for chapter_index, _chapter in enumerate(artifacts.chapter_plan):
             chapter_draft = self.llm_client.generate_chapter_draft(
                 story_input,
@@ -61,23 +130,42 @@ class StoryPipeline:
             )
             artifacts.set_chapter_draft(chapter_index, chapter_draft)
         save_artifact(self.output_dir, "05_chapter_1_draft", artifacts.get_chapter_draft(0), self.file_format)
+        self._mark_checkpoint("chapter_drafts", checkpoints, artifacts, selected_logline)
 
-        artifacts.continuity_report = self._build_report_with_decision(artifacts)
-        self._maybe_rerun_from_decision(story_input, selected_logline, artifacts)
-        save_artifact(self.output_dir, "continuity_report", artifacts.continuity_report, "json")
-        for chapter_index, _chapter_draft in enumerate(artifacts.chapter_drafts):
-            self._revise_chapter(story_input, artifacts, chapter_index=chapter_index)
-        save_artifact(self.output_dir, "revised_chapter_1_draft", artifacts.revised_chapter_1_draft, self.file_format)
+    def _mark_checkpoint(
+        self,
+        step_name: str,
+        checkpoints: list[dict],
+        artifacts: StoryArtifacts,
+        selected_logline: dict,
+    ) -> None:
+        completed_steps = [entry["step"] for entry in checkpoints]
+        checkpoints.append(
+            {
+                "step": step_name,
+                "status": "completed",
+                "completed_steps": completed_steps + [step_name],
+            }
+        )
+        self._save_manifest(artifacts, selected_logline, checkpoints)
 
+    def _save_manifest(
+        self,
+        artifacts: StoryArtifacts,
+        selected_logline: dict,
+        checkpoints: list[dict],
+    ) -> None:
         manifest = {
             "summary": artifacts.summary(),
             "selected_logline": selected_logline,
             "rerun_history": artifacts.rerun_history,
             "revise_history": artifacts.revise_history,
+            "checkpoints": checkpoints,
+            "current_step": checkpoints[-1]["step"] if checkpoints else None,
+            "completed_steps": checkpoints[-1]["completed_steps"] if checkpoints else [],
             "artifacts": asdict(artifacts),
         }
         save_artifact(self.output_dir, "manifest", manifest, self.file_format)
-        return artifacts
 
     def _build_report_with_decision(self, artifacts: StoryArtifacts) -> dict:
         report = self.continuity_checker.build_report(artifacts)

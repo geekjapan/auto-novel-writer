@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 
 from novel_writer.llm_client import MockLLMClient
-from novel_writer.pipeline import StoryPipeline
+from novel_writer.pipeline import PIPELINE_STEP_ORDER, StoryPipeline
 from novel_writer.schema import StoryInput
 
 
@@ -94,6 +94,17 @@ class StoryPipelineTest(unittest.TestCase):
             self.assertEqual(
                 manifest["summary"]["counts"]["chapters"],
                 len(manifest["artifacts"]["revised_chapter_drafts"]),
+            )
+            self.assertEqual(manifest["current_step"], PIPELINE_STEP_ORDER[-1])
+            self.assertEqual(manifest["completed_steps"], PIPELINE_STEP_ORDER)
+            self.assertEqual(
+                [checkpoint["step"] for checkpoint in manifest["checkpoints"]],
+                PIPELINE_STEP_ORDER,
+            )
+            self.assertTrue(all(checkpoint["status"] == "completed" for checkpoint in manifest["checkpoints"]))
+            self.assertEqual(
+                manifest["checkpoints"][-1]["completed_steps"],
+                PIPELINE_STEP_ORDER,
             )
 
 
