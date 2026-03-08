@@ -528,44 +528,88 @@ def print_run_summary(artifacts, output_dir: Path, project_manifest: dict[str, A
         print(line)
 
 
-def build_project_status_lines(project_manifest: dict[str, Any], reason_detail_mode: str = "summary") -> list[str]:
-    lines: list[str] = []
+def build_project_status_summary(
+    project_manifest: dict[str, Any],
+    reason_detail_mode: str = "summary",
+) -> dict[str, Any]:
     if not project_manifest:
-        return lines
+        return {}
 
     current_run = project_manifest.get("current_run", {})
     best_run = project_manifest.get("best_run", {})
-    lines.append(f"Project: {project_manifest.get('project_slug') or project_manifest.get('project_id', 'unknown')}")
+    summary: dict[str, Any] = {
+        "project_label": project_manifest.get("project_slug") or project_manifest.get("project_id", "unknown"),
+        "run_candidate_count": len(project_manifest.get("run_candidates", [])),
+    }
 
     if current_run:
         chapter_statuses = current_run.get("chapter_statuses", [])
         long_run_status = current_run.get("long_run_status", {})
         comparison_metrics = current_run.get("comparison_metrics", {})
-        lines.append(f"Current run: {current_run.get('name', 'unknown')}")
-        lines.append(f"  output_dir: {current_run.get('output_dir', 'unknown')}")
-        lines.append(f"  current_step: {current_run.get('current_step', 'unknown')}")
-        lines.append(f"  completed_steps: {comparison_metrics.get('completed_step_count', 'n/a')}")
-        lines.extend(_build_current_comparison_summary_lines(current_run, reason_detail_mode))
-        lines.extend(_build_chapter_status_summary_lines(chapter_statuses))
-        lines.extend(_build_long_run_status_lines(long_run_status))
+        summary["current_run"] = {
+            "name": current_run.get("name", "unknown"),
+            "output_dir": current_run.get("output_dir", "unknown"),
+            "current_step": current_run.get("current_step", "unknown"),
+            "completed_steps": comparison_metrics.get("completed_step_count", "n/a"),
+            "comparison_lines": _build_current_comparison_summary_lines(current_run, reason_detail_mode),
+            "chapter_status_lines": _build_chapter_status_summary_lines(chapter_statuses),
+            "long_run_status_lines": _build_long_run_status_lines(long_run_status),
+        }
 
     if best_run:
-        lines.append(f"Best run: {best_run.get('run_name', 'unknown')}")
-        lines.append(f"  output_dir: {best_run.get('output_dir', 'unknown')}")
-        lines.append(f"  score: {best_run.get('score', 'unknown')}")
-        lines.extend(_build_selection_summary_lines(best_run, reason_detail_mode))
-        lines.extend(_build_status_diff_summary_lines(current_run, best_run))
         comparison_metrics = best_run.get("comparison_metrics", {})
-        if comparison_metrics:
-            lines.append(
+        summary["best_run"] = {
+            "name": best_run.get("run_name", "unknown"),
+            "output_dir": best_run.get("output_dir", "unknown"),
+            "score": best_run.get("score", "unknown"),
+            "selection_lines": _build_selection_summary_lines(best_run, reason_detail_mode),
+            "diff_lines": _build_status_diff_summary_lines(current_run, best_run),
+            "policy_diff_lines": _build_policy_diff_lines(
+                current_run.get("policy_snapshot", {}),
+                best_run.get("policy_snapshot", {}),
+            ),
+            "comparison_metrics_line": (
                 "  best_comparison_metrics: "
                 f"total_issue_score={comparison_metrics.get('total_issue_score', 'n/a')}, "
                 f"completed_step_count={comparison_metrics.get('completed_step_count', 'n/a')}"
-            )
-        lines.extend(_build_policy_diff_lines(current_run.get("policy_snapshot", {}), best_run.get("policy_snapshot", {})))
+                if comparison_metrics
+                else None
+            ),
+        }
 
-    run_candidates = project_manifest.get("run_candidates", [])
-    lines.append(f"Run candidates: {len(run_candidates)}")
+    return summary
+
+
+def build_project_status_lines(project_manifest: dict[str, Any], reason_detail_mode: str = "summary") -> list[str]:
+    summary = build_project_status_summary(project_manifest, reason_detail_mode=reason_detail_mode)
+    lines: list[str] = []
+    if not summary:
+        return lines
+
+    lines.append(f"Project: {summary['project_label']}")
+
+    current_run = summary.get("current_run")
+    if current_run:
+        lines.append(f"Current run: {current_run['name']}")
+        lines.append(f"  output_dir: {current_run['output_dir']}")
+        lines.append(f"  current_step: {current_run['current_step']}")
+        lines.append(f"  completed_steps: {current_run['completed_steps']}")
+        lines.extend(current_run["comparison_lines"])
+        lines.extend(current_run["chapter_status_lines"])
+        lines.extend(current_run["long_run_status_lines"])
+
+    best_run = summary.get("best_run")
+    if best_run:
+        lines.append(f"Best run: {best_run['name']}")
+        lines.append(f"  output_dir: {best_run['output_dir']}")
+        lines.append(f"  score: {best_run['score']}")
+        lines.extend(best_run["selection_lines"])
+        lines.extend(best_run["diff_lines"])
+        if best_run["comparison_metrics_line"]:
+            lines.append(best_run["comparison_metrics_line"])
+        lines.extend(best_run["policy_diff_lines"])
+
+    lines.append(f"Run candidates: {summary['run_candidate_count']}")
     return lines
 
 

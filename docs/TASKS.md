@@ -5,7 +5,7 @@
 
 ## In Progress
 
-- [ ] M27: `show-project-status` の整形関数を manifest 読込と分離し、summary builder を単体テスト可能にする
+
 
 ## Ready
 
@@ -97,6 +97,8 @@
 - [x] M26: `project_manifest.json` の current / best / run_candidates comparison context contract を `run_comparison_summary.json` と同じ粒度に広げる
 - [x] M26: `show-project-status` の summary 行を `project_manifest.json` の machine-readable context だけから再構成できるように整理する
 - [x] M26: status 表示の summary field 名と `project_manifest.json` / `run_comparison_summary.json` の field 名の対応表を docs / tests で固定する
+- [x] M27: `show-project-status` の整形関数を manifest 読込と分離し、summary builder を単体テスト可能にする
+- [x] Docs: M26-M27 実装後に ROADMAP / TASKS の説明を同期する
 
 ## Task Update Rules
 

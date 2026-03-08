@@ -4,7 +4,7 @@ import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
 
-from novel_writer.cli import build_project_status_lines, main
+from novel_writer.cli import build_project_status_lines, build_project_status_summary, main
 from novel_writer.storage import load_artifact
 
 
@@ -843,6 +843,70 @@ class CliTest(unittest.TestCase):
         }
 
         self.assertTrue(expected_lines.issubset(set(lines)))
+
+    def test_build_project_status_summary_returns_render_ready_sections(self) -> None:
+        project_manifest = {
+            "project_id": "Case 04",
+            "project_slug": "case-04",
+            "current_run": {
+                "name": "latest_run",
+                "output_dir": "data/projects/case-04/runs/latest_run",
+                "current_step": "publish_ready_bundle",
+                "chapter_statuses": [],
+                "long_run_status": {"should_stop": False, "reason": "none"},
+                "comparison_basis": ["long_run_should_stop", "continuity_issue_total"],
+                "comparison_reason": [],
+                "comparison_metrics": {
+                    "total_issue_score": 11,
+                    "completed_step_count": 12,
+                    "long_run_should_stop": False,
+                },
+                "comparison_reason_details": [
+                    {"code": "long_run_should_stop", "value": False},
+                    {"code": "total_issue_score", "value": 11},
+                ],
+                "policy_snapshot": {"long_run": {"max_high_severity_chapters": 6, "max_total_rerun_attempts": 20}},
+            },
+            "best_run": {
+                "run_name": "candidate-a",
+                "output_dir": "data/projects/case-04/runs/candidate-a",
+                "score": 5,
+                "comparison_basis": ["long_run_should_stop", "continuity_issue_total"],
+                "selection_source": "manual",
+                "selection_reason": [],
+                "comparison_metrics": {
+                    "total_issue_score": 5,
+                    "completed_step_count": 7,
+                    "long_run_should_stop": True,
+                },
+                "selection_reason_details": [
+                    {"code": "manual_selection", "value": "candidate-a"},
+                    {"code": "long_run_should_stop", "value": True},
+                ],
+                "policy_snapshot": {"long_run": {"max_high_severity_chapters": 2, "max_total_rerun_attempts": 20}},
+            },
+            "run_candidates": [{"run_name": "candidate-a"}, {"run_name": "latest_run"}],
+        }
+
+        summary = build_project_status_summary(project_manifest, reason_detail_mode="codes")
+
+        self.assertEqual(summary["project_label"], "case-04")
+        self.assertEqual(summary["run_candidate_count"], 2)
+        self.assertEqual(summary["current_run"]["completed_steps"], 12)
+        self.assertIn(
+            "  current_comparison_reason_codes: long_run_should_stop, total_issue_score",
+            summary["current_run"]["comparison_lines"],
+        )
+        self.assertEqual(summary["best_run"]["name"], "candidate-a")
+        self.assertIn("  best_selection_source: manual", summary["best_run"]["selection_lines"])
+        self.assertIn(
+            "  diff_summary: issue_score current=11 best=5; completed_steps current=12 best=7; stop current=False best=True",
+            summary["best_run"]["diff_lines"],
+        )
+        self.assertEqual(
+            summary["best_run"]["comparison_metrics_line"],
+            "  best_comparison_metrics: total_issue_score=5, completed_step_count=7",
+        )
 
 
 if __name__ == "__main__":
