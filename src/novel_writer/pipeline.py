@@ -23,6 +23,7 @@ PIPELINE_STEP_ORDER = [
     "revised_chapter_drafts",
     "story_summary",
     "project_quality_report",
+    "publish_ready_bundle",
 ]
 
 REVISION_MAX_ATTEMPTS = 2
@@ -42,6 +43,7 @@ class StoryPipeline:
         self.file_format = file_format
         self.continuity_checker = continuity_checker or ContinuityChecker()
         self.rerun_policy = rerun_policy or ContinuityRerunPolicy()
+        self.long_run_status = self._default_long_run_status()
 
     def run(
         self,
@@ -56,13 +58,14 @@ class StoryPipeline:
             raise ValueError(f"Unsupported rerun step: {rerun_from}")
 
         if resume_from is not None:
-            artifacts, selected_logline, checkpoints = self._load_resume_state(resume_from)
+            artifacts, selected_logline, checkpoints, self.long_run_status = self._load_resume_state(resume_from)
             if story_input is not None:
                 artifacts.story_input = story_input
         else:
             artifacts = StoryArtifacts(story_input=story_input)
             selected_logline = {}
             checkpoints = []
+            self.long_run_status = self._default_long_run_status()
 
         if rerun_from is not None:
             checkpoints = self._truncate_checkpoints(checkpoints, rerun_from)
@@ -70,6 +73,8 @@ class StoryPipeline:
             start_index = PIPELINE_STEP_ORDER.index(rerun_from)
         elif checkpoints:
             completed_steps = checkpoints[-1]["completed_steps"]
+            if self.long_run_status.get("should_stop"):
+                return artifacts
             if completed_steps == PIPELINE_STEP_ORDER:
                 return artifacts
             start_index = len(completed_steps)
@@ -78,6 +83,8 @@ class StoryPipeline:
 
         for step_name in PIPELINE_STEP_ORDER[start_index:]:
             selected_logline = self._run_step(step_name, artifacts.story_input, selected_logline, artifacts, checkpoints)
+            if step_name == "continuity_report" and self.long_run_status.get("should_stop"):
+                return artifacts
 
         return artifacts
 
@@ -176,6 +183,10 @@ class StoryPipeline:
             if chapter_index == 0:
                 compatibility_report = chapter_report
         artifacts.continuity_report = compatibility_report
+        self.long_run_status = self.rerun_policy.decide_long_run(
+            artifacts.continuity_history,
+            artifacts.rerun_history,
+        )
         save_artifact(self.output_dir, "continuity_report", artifacts.continuity_report, "json")
         self._mark_checkpoint("continuity_report", checkpoints, artifacts, selected_logline)
 
@@ -250,9 +261,12 @@ class StoryPipeline:
         if step_name == "project_quality_report":
             self._run_project_quality_report_step(artifacts, checkpoints, selected_logline)
             return selected_logline
+        if step_name == "publish_ready_bundle":
+            self._run_publish_ready_bundle_step(artifacts, checkpoints, selected_logline)
+            return selected_logline
         raise ValueError(f"Unsupported step: {step_name}")
 
-    def _load_resume_state(self, resume_from: Path) -> tuple[StoryArtifacts, dict, list[dict]]:
+    def _load_resume_state(self, resume_from: Path) -> tuple[StoryArtifacts, dict, list[dict], dict]:
         manifest = load_artifact(resume_from, "manifest")
         artifacts_data = manifest.get("artifacts", {})
         story_input_data = artifacts_data.get("story_input") or load_artifact(resume_from, "story_input")
@@ -271,12 +285,18 @@ class StoryPipeline:
             "revised_chapter_1_draft",
             "story_summary",
             "project_quality_report",
+            "publish_ready_bundle",
             "rerun_history",
             "revise_history",
         ]:
             if field_name in artifacts_data:
                 setattr(artifacts, field_name, artifacts_data[field_name])
-        return artifacts, manifest.get("selected_logline", {}), list(manifest.get("checkpoints", []))
+        return (
+            artifacts,
+            manifest.get("selected_logline", {}),
+            list(manifest.get("checkpoints", [])),
+            dict(manifest.get("long_run_status", self._default_long_run_status())),
+        )
 
     def _truncate_checkpoints(self, checkpoints: list[dict], rerun_from: str) -> list[dict]:
         rerun_index = PIPELINE_STEP_ORDER.index(rerun_from)
@@ -316,6 +336,9 @@ class StoryPipeline:
             return
         if rerun_from == "project_quality_report":
             self._reset_from_project_quality_report(artifacts)
+            return
+        if rerun_from == "publish_ready_bundle":
+            self._reset_from_publish_ready_bundle(artifacts)
 
     def _reset_from_loglines(self, artifacts: StoryArtifacts) -> None:
         artifacts.loglines = []
@@ -342,6 +365,7 @@ class StoryPipeline:
         artifacts.continuity_report = {}
         artifacts.continuity_history = []
         artifacts.rerun_history = []
+        self.long_run_status = self._default_long_run_status()
         self._reset_from_quality_report(artifacts)
 
     def _reset_from_quality_report(self, artifacts: StoryArtifacts) -> None:
@@ -360,6 +384,10 @@ class StoryPipeline:
 
     def _reset_from_project_quality_report(self, artifacts: StoryArtifacts) -> None:
         artifacts.project_quality_report = {}
+        self._reset_from_publish_ready_bundle(artifacts)
+
+    def _reset_from_publish_ready_bundle(self, artifacts: StoryArtifacts) -> None:
+        artifacts.publish_ready_bundle = {}
 
     def _mark_checkpoint(
         self,
@@ -391,12 +419,16 @@ class StoryPipeline:
             "rerun_history": artifacts.rerun_history,
             "revise_history": artifacts.revise_history,
             "chapter_histories": self._build_chapter_histories(artifacts),
+            "long_run_status": self.long_run_status,
             "checkpoints": checkpoints,
             "current_step": checkpoints[-1]["step"] if checkpoints else None,
             "completed_steps": checkpoints[-1]["completed_steps"] if checkpoints else [],
             "artifacts": asdict(artifacts),
         }
         save_artifact(self.output_dir, "manifest", manifest, self.file_format)
+
+    def _default_long_run_status(self) -> dict:
+        return self.rerun_policy.decide_long_run([], [])
 
     def _build_chapter_histories(self, artifacts: StoryArtifacts) -> list[dict]:
         chapter_histories: list[dict] = []
@@ -462,6 +494,24 @@ class StoryPipeline:
         artifacts.project_quality_report = self.continuity_checker.build_project_quality_report(artifacts)
         save_artifact(self.output_dir, "project_quality_report", artifacts.project_quality_report, "json")
         self._mark_checkpoint("project_quality_report", checkpoints, artifacts, selected_logline)
+
+    def _run_publish_ready_bundle_step(
+        self,
+        artifacts: StoryArtifacts,
+        checkpoints: list[dict],
+        selected_logline: dict,
+    ) -> None:
+        artifacts.publish_ready_bundle = {
+            "title": artifacts.story_summary.get("title") or selected_logline.get("title"),
+            "synopsis": artifacts.story_summary.get("synopsis", ""),
+            "chapter_count": len(artifacts.revised_chapter_drafts),
+            "chapters": artifacts.revised_chapter_drafts,
+            "story_summary": artifacts.story_summary,
+            "overall_quality_report": artifacts.project_quality_report,
+            "selected_logline": selected_logline,
+        }
+        save_artifact(self.output_dir, "publish_ready_bundle", artifacts.publish_ready_bundle, "json")
+        self._mark_checkpoint("publish_ready_bundle", checkpoints, artifacts, selected_logline)
 
     def _maybe_rerun_from_decision(
         self,

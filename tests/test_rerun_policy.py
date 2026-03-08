@@ -157,6 +157,30 @@ class ContinuityRerunPolicyTest(unittest.TestCase):
         self.assertEqual(medium.severity, "medium")
         self.assertEqual(high.severity, "high")
 
+    def test_policy_can_stop_long_run_when_high_severity_chapters_accumulate(self) -> None:
+        policy = ContinuityRerunPolicy(
+            {
+                **ContinuityRerunPolicy().config,
+                "long_run": {
+                    "max_high_severity_chapters": 2,
+                    "max_total_rerun_attempts": 99,
+                },
+            }
+        )
+
+        decision = policy.decide_long_run(
+            [
+                {"severity": "high"},
+                {"severity": "low"},
+                {"severity": "high"},
+            ],
+            [{"attempt": 1}, {"attempt": 2}],
+        )
+
+        self.assertTrue(decision["should_stop"])
+        self.assertEqual(decision["reason"], "high_severity_chapter_limit_reached")
+        self.assertEqual(decision["high_severity_chapters"], 2)
+
     def test_medium_reruns_only_chapter_draft(self) -> None:
         client = CountingLLMClient()
         checker = SequencedContinuityChecker(
@@ -377,6 +401,90 @@ class ContinuityRerunPolicyTest(unittest.TestCase):
         self.assertEqual(len(chapter_0_attempts), 1)
         self.assertEqual(len(chapter_1_attempts), 2)
         self.assertEqual(artifacts.revised_chapter_drafts[1]["source_issue_counts"]["chapter_length_balance_warnings"], 1)
+
+    def test_pipeline_stops_before_revision_when_long_run_limit_is_reached(self) -> None:
+        client = CountingLLMClient()
+        checker = SequencedContinuityChecker(
+            [
+                {
+                    "missing_fields": [{"reason": "missing"}],
+                    "character_name_mismatches": [],
+                    "plot_to_plan_gaps": [],
+                    "plan_to_draft_gaps": [],
+                    "length_warnings": [],
+                    "issue_counts": {
+                        "missing_fields": 1,
+                        "character_name_mismatches": 0,
+                        "plot_to_plan_gaps": 0,
+                        "plan_to_draft_gaps": 0,
+                        "length_warnings": 0,
+                    },
+                },
+                {
+                    "missing_fields": [{"reason": "missing"}],
+                    "character_name_mismatches": [],
+                    "plot_to_plan_gaps": [],
+                    "plan_to_draft_gaps": [],
+                    "length_warnings": [],
+                    "issue_counts": {
+                        "missing_fields": 1,
+                        "character_name_mismatches": 0,
+                        "plot_to_plan_gaps": 0,
+                        "plan_to_draft_gaps": 0,
+                        "length_warnings": 0,
+                    },
+                },
+                {
+                    "missing_fields": [{"reason": "missing"}],
+                    "character_name_mismatches": [],
+                    "plot_to_plan_gaps": [],
+                    "plan_to_draft_gaps": [],
+                    "length_warnings": [],
+                    "issue_counts": {
+                        "missing_fields": 1,
+                        "character_name_mismatches": 0,
+                        "plot_to_plan_gaps": 0,
+                        "plan_to_draft_gaps": 0,
+                        "length_warnings": 0,
+                    },
+                },
+                {
+                    "missing_fields": [{"reason": "missing"}],
+                    "character_name_mismatches": [],
+                    "plot_to_plan_gaps": [],
+                    "plan_to_draft_gaps": [],
+                    "length_warnings": [],
+                    "issue_counts": {
+                        "missing_fields": 1,
+                        "character_name_mismatches": 0,
+                        "plot_to_plan_gaps": 0,
+                        "plan_to_draft_gaps": 0,
+                        "length_warnings": 0,
+                    },
+                },
+            ]
+        )
+        policy = ContinuityRerunPolicy(
+            {
+                **ContinuityRerunPolicy().config,
+                "long_run": {
+                    "max_high_severity_chapters": 2,
+                    "max_total_rerun_attempts": 99,
+                },
+            }
+        )
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            pipeline = StoryPipeline(client, Path(tmp_dir), continuity_checker=checker, rerun_policy=policy)
+            artifacts = pipeline.run(StoryInput(theme="記憶", genre="SF", tone="静謐", target_length=5000))
+            manifest = Path(tmp_dir) / "manifest.json"
+
+            self.assertTrue(manifest.exists())
+            self.assertEqual(client.revise_calls, 0)
+            self.assertFalse(artifacts.revised_chapter_drafts)
+            self.assertFalse(artifacts.story_summary)
+            self.assertFalse(artifacts.project_quality_report)
+            self.assertIn('"should_stop": true', manifest.read_text(encoding="utf-8").lower())
 
 
 if __name__ == "__main__":

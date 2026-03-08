@@ -35,6 +35,7 @@ class StoryPipelineTest(unittest.TestCase):
                 "revised_chapter_3_draft.json",
                 "story_summary.json",
                 "project_quality_report.json",
+                "publish_ready_bundle.json",
                 "manifest.json",
             ]
             for name in expected_files:
@@ -48,6 +49,9 @@ class StoryPipelineTest(unittest.TestCase):
             story_summary = json.loads((output_dir / "story_summary.json").read_text(encoding="utf-8"))
             project_quality_report = json.loads(
                 (output_dir / "project_quality_report.json").read_text(encoding="utf-8")
+            )
+            publish_ready_bundle = json.loads(
+                (output_dir / "publish_ready_bundle.json").read_text(encoding="utf-8")
             )
             self.assertEqual(manifest["selected_logline"]["id"], "logline-1")
             self.assertEqual(artifacts.chapter_1_draft["chapter_number"], 1)
@@ -71,6 +75,11 @@ class StoryPipelineTest(unittest.TestCase):
             self.assertEqual(artifacts.project_quality_report, project_quality_report)
             self.assertEqual(manifest["artifacts"]["project_quality_report"], project_quality_report)
             self.assertIn("checks", project_quality_report)
+            self.assertEqual(artifacts.publish_ready_bundle, publish_ready_bundle)
+            self.assertEqual(manifest["artifacts"]["publish_ready_bundle"], publish_ready_bundle)
+            self.assertEqual(publish_ready_bundle["story_summary"], story_summary)
+            self.assertEqual(publish_ready_bundle["overall_quality_report"], project_quality_report)
+            self.assertEqual(len(publish_ready_bundle["chapters"]), len(artifacts.chapter_plan))
             self.assertEqual(manifest["artifacts"]["continuity_history"], manifest["continuity_history"])
             self.assertEqual(artifacts.revised_chapter_1_draft["chapter_number"], 1)
             self.assertEqual(manifest["revise_history"][0]["chapter_index"], 0)
@@ -169,6 +178,7 @@ class StoryPipelineTest(unittest.TestCase):
                 manifest["checkpoints"][-1]["completed_steps"],
                 PIPELINE_STEP_ORDER,
             )
+            self.assertFalse(manifest["long_run_status"]["should_stop"])
 
 
 

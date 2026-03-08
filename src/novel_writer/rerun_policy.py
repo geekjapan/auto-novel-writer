@@ -20,6 +20,10 @@ DEFAULT_SEVERITY_POLICY = {
         "missing_fields": 1,
         "plot_to_plan_gaps": 2,
     },
+    "long_run": {
+        "max_high_severity_chapters": 10,
+        "max_total_rerun_attempts": 20,
+    },
 }
 
 
@@ -54,6 +58,31 @@ class ContinuityRerunPolicy:
             issue_counts=dict(issue_counts),
         )
 
+    def decide_long_run(self, continuity_history: list[dict[str, Any]], rerun_history: list[dict[str, Any]]) -> dict[str, Any]:
+        long_run_config = self.config.get("long_run", {})
+        max_high_severity_chapters = long_run_config.get("max_high_severity_chapters", 10)
+        max_total_rerun_attempts = long_run_config.get("max_total_rerun_attempts", 20)
+        high_severity_chapters = sum(1 for report in continuity_history if report.get("severity") == "high")
+        total_rerun_attempts = sum(1 for entry in rerun_history if entry.get("attempt", 0) > 1)
+        should_stop = False
+        reason = None
+
+        if high_severity_chapters >= max_high_severity_chapters:
+            should_stop = True
+            reason = "high_severity_chapter_limit_reached"
+        elif total_rerun_attempts >= max_total_rerun_attempts:
+            should_stop = True
+            reason = "total_rerun_limit_reached"
+
+        return {
+            "should_stop": should_stop,
+            "reason": reason,
+            "high_severity_chapters": high_severity_chapters,
+            "max_high_severity_chapters": max_high_severity_chapters,
+            "total_rerun_attempts": total_rerun_attempts,
+            "max_total_rerun_attempts": max_total_rerun_attempts,
+        }
+
     def _weighted_score(self, issue_counts: dict[str, int]) -> int:
         weights = self.config["weights"]
         return sum(issue_counts.get(key, 0) * weights.get(key, 0) for key in issue_counts)
@@ -76,4 +105,3 @@ class ContinuityRerunPolicy:
         if severity == "medium":
             return "rerun_chapter_1_draft"
         return "continue"
-
