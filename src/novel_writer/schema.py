@@ -118,6 +118,28 @@ def project_manifest_contract() -> dict:
             "run_candidates",
             "best_run",
         ],
+        "current_run": {
+            "required_fields": [
+                "name",
+                "output_dir",
+                "comparison_reason_details",
+            ],
+        },
+        "best_run": {
+            "required_fields": [
+                "run_name",
+                "output_dir",
+                "selection_reason_details",
+            ],
+        },
+        "run_candidate": {
+            "required_fields": [
+                "run_name",
+                "output_dir",
+                "comparison_reason_details",
+            ],
+        },
+        "reason_detail_codes": comparison_reason_detail_codes(),
     }
 
 
@@ -167,15 +189,7 @@ def run_comparison_summary_contract() -> dict:
                 "comparison_reason_details",
             ],
         },
-        "reason_detail_codes": [
-            "manual_selection",
-            "long_run_should_stop",
-            "total_issue_score",
-            "high_severity_chapter_count",
-            "rerun_attempt_total",
-            "revision_attempt_total",
-            "completed_step_count",
-        ],
+        "reason_detail_codes": comparison_reason_detail_codes(),
         "compact_summary": {
             "selection_source": "string",
             "issue_score": ["current", "best"],
@@ -319,6 +333,18 @@ def _validate_run_comparison_context(
         raise ValueError("Invalid run_comparison_summary: best_run.selection_source must be a string.")
 
 
+def comparison_reason_detail_codes() -> list[str]:
+    return [
+        "manual_selection",
+        "long_run_should_stop",
+        "total_issue_score",
+        "high_severity_chapter_count",
+        "rerun_attempt_total",
+        "revision_attempt_total",
+        "completed_step_count",
+    ]
+
+
 def validate_project_manifest(payload: dict) -> dict:
     contract = project_manifest_contract()
     missing_fields = [field for field in contract["required_fields"] if field not in payload]
@@ -343,7 +369,74 @@ def validate_project_manifest(payload: dict) -> dict:
             f"schema_version={schema_version!r} is not supported; expected {contract['schema_version']!r}."
         )
 
+    _validate_project_manifest_reason_context(
+        payload.get("current_run"),
+        "current_run",
+        contract["current_run"]["required_fields"],
+        "comparison_reason_details",
+        contract["reason_detail_codes"],
+    )
+    _validate_project_manifest_reason_context(
+        payload.get("best_run"),
+        "best_run",
+        contract["best_run"]["required_fields"],
+        "selection_reason_details",
+        contract["reason_detail_codes"],
+    )
+
+    run_candidates = payload.get("run_candidates")
+    if not isinstance(run_candidates, list):
+        raise ValueError("Invalid project_manifest: run_candidates must be a list.")
+    for index, candidate in enumerate(run_candidates):
+        _validate_project_manifest_reason_context(
+            candidate,
+            f"run_candidates[{index}]",
+            contract["run_candidate"]["required_fields"],
+            "comparison_reason_details",
+            contract["reason_detail_codes"],
+        )
+
     return payload
+
+
+def _validate_project_manifest_reason_context(
+    payload: dict | None,
+    field_name: str,
+    required_fields: list[str],
+    detail_field: str,
+    allowed_codes: list[str],
+) -> None:
+    if not isinstance(payload, dict):
+        raise ValueError(f"Invalid project_manifest: {field_name} must be an object.")
+
+    missing_fields = [key for key in required_fields if key not in payload]
+    if missing_fields:
+        missing = ", ".join(missing_fields)
+        raise ValueError(f"Invalid project_manifest: {field_name} is missing fields: {missing}.")
+
+    details = payload.get(detail_field)
+    if not isinstance(details, list):
+        raise ValueError(f"Invalid project_manifest: {field_name}.{detail_field} must be a list.")
+
+    allowed = set(allowed_codes)
+    for index, detail in enumerate(details):
+        if not isinstance(detail, dict):
+            raise ValueError(f"Invalid project_manifest: {field_name}.{detail_field}[{index}] must be an object.")
+        missing_detail_fields = [key for key in ["code", "value"] if key not in detail]
+        if missing_detail_fields:
+            missing = ", ".join(missing_detail_fields)
+            raise ValueError(
+                f"Invalid project_manifest: {field_name}.{detail_field}[{index}] is missing fields: {missing}."
+            )
+        if not isinstance(detail.get("code"), str):
+            raise ValueError(f"Invalid project_manifest: {field_name}.{detail_field}[{index}].code must be a string.")
+        if detail.get("code") not in allowed:
+            expected = ", ".join(sorted(allowed))
+            raise ValueError(
+                "Invalid project_manifest: "
+                f"{field_name}.{detail_field}[{index}].code={detail.get('code')!r} is not supported; "
+                f"expected one of: {expected}."
+            )
 
 
 @dataclass(slots=True)

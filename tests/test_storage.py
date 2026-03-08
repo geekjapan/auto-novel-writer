@@ -130,9 +130,24 @@ class SaveArtifactTest(unittest.TestCase):
             "project_id": "My Story 01",
             "project_slug": "my-story-01",
             "projects_dir": "data/projects",
-            "current_run": {"name": "latest_run"},
-            "run_candidates": [{"run_name": "latest_run", "output_dir": "data/projects/my-story-01/runs/latest_run"}],
-            "best_run": {"run_name": "latest_run", "output_dir": "data/projects/my-story-01/runs/latest_run", "score": 0},
+            "current_run": {
+                "name": "latest_run",
+                "output_dir": "data/projects/my-story-01/runs/latest_run",
+                "comparison_reason_details": [],
+            },
+            "run_candidates": [
+                {
+                    "run_name": "latest_run",
+                    "output_dir": "data/projects/my-story-01/runs/latest_run",
+                    "comparison_reason_details": [],
+                }
+            ],
+            "best_run": {
+                "run_name": "latest_run",
+                "output_dir": "data/projects/my-story-01/runs/latest_run",
+                "score": 0,
+                "selection_reason_details": [],
+            },
         }
 
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -150,16 +165,20 @@ class SaveArtifactTest(unittest.TestCase):
             save_artifact(
                 project_dir,
                 "project_manifest",
-                {
-                    "schema_name": "project_manifest",
-                    "schema_version": "1.0",
-                    "project_id": "Case 01",
-                    "project_slug": "case-01",
-                    "projects_dir": str(Path(tmp_dir)),
-                    "best_run": {},
-                },
-                "json",
-            )
+                    {
+                        "schema_name": "project_manifest",
+                        "schema_version": "1.0",
+                        "project_id": "Case 01",
+                        "project_slug": "case-01",
+                        "projects_dir": str(Path(tmp_dir)),
+                        "best_run": {
+                            "run_name": "latest_run",
+                            "output_dir": str(Path(tmp_dir) / "latest_run"),
+                            "selection_reason_details": [],
+                        },
+                    },
+                    "json",
+                )
 
             with self.assertRaisesRegex(ValueError, "missing required fields: current_run, run_candidates"):
                 load_project_manifest(project_dir)
@@ -170,20 +189,67 @@ class SaveArtifactTest(unittest.TestCase):
             save_artifact(
                 project_dir,
                 "project_manifest",
+                    {
+                        "schema_name": "project_manifest",
+                        "schema_version": "9.9",
+                        "project_id": "Case 01",
+                        "project_slug": "case-01",
+                        "projects_dir": str(Path(tmp_dir)),
+                        "current_run": {
+                            "name": "latest_run",
+                            "output_dir": str(Path(tmp_dir) / "latest_run"),
+                            "comparison_reason_details": [],
+                        },
+                        "run_candidates": [],
+                        "best_run": {
+                            "run_name": "latest_run",
+                            "output_dir": str(Path(tmp_dir) / "latest_run"),
+                            "selection_reason_details": [],
+                        },
+                    },
+                    "json",
+                )
+
+            with self.assertRaisesRegex(ValueError, "schema_version='9.9' is not supported; expected '1.0'"):
+                load_project_manifest(project_dir)
+
+    def test_load_project_manifest_rejects_unknown_reason_detail_code(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            project_dir = Path(tmp_dir) / "case-01"
+            save_artifact(
+                project_dir,
+                "project_manifest",
                 {
                     "schema_name": "project_manifest",
-                    "schema_version": "9.9",
+                    "schema_version": "1.0",
                     "project_id": "Case 01",
                     "project_slug": "case-01",
                     "projects_dir": str(Path(tmp_dir)),
-                    "current_run": {"name": "latest_run"},
-                    "run_candidates": [],
-                    "best_run": {},
+                    "current_run": {
+                        "name": "latest_run",
+                        "output_dir": str(project_dir / "runs" / "latest_run"),
+                        "comparison_reason_details": [{"code": "unknown_reason", "value": 1}],
+                    },
+                    "run_candidates": [
+                        {
+                            "run_name": "latest_run",
+                            "output_dir": str(project_dir / "runs" / "latest_run"),
+                            "comparison_reason_details": [],
+                        }
+                    ],
+                    "best_run": {
+                        "run_name": "latest_run",
+                        "output_dir": str(project_dir / "runs" / "latest_run"),
+                        "selection_reason_details": [],
+                    },
                 },
                 "json",
             )
 
-            with self.assertRaisesRegex(ValueError, "schema_version='9.9' is not supported; expected '1.0'"):
+            with self.assertRaisesRegex(
+                ValueError,
+                r"current_run\.comparison_reason_details\[0\]\.code='unknown_reason' is not supported",
+            ):
                 load_project_manifest(project_dir)
 
     def test_save_publish_ready_bundle_validates_required_fields(self) -> None:

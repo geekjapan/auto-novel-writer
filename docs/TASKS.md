@@ -5,12 +5,13 @@
 
 ## In Progress
 
-- [ ] Docs: M23-M24 実装後に README / ROADMAP / TASKS の説明を同期する
+- [ ] M26: `project_manifest.json` の current / best / run_candidates comparison context contract を `run_comparison_summary.json` と同じ粒度に広げる
 
 ## Ready
 
-- [ ] M25: `project_manifest.json` 側の `*_reason_details.code` も同じ列挙型 contract で固定する
-- [ ] M25: `show-project-status` の reason code 表示順を schema の列挙順に明示的に揃える
+- [ ] M26: `show-project-status` の summary 行を `project_manifest.json` の machine-readable context だけから再構成できるように整理する
+- [ ] Docs: M25 実装後に README / ROADMAP / TASKS の説明を同期する
+
 
 
 ## Done
@@ -91,6 +92,10 @@
 - [x] Docs: M23 実装後に README / ROADMAP / TASKS の説明を同期する
 - [x] M24: `show-project-status` の reason codes と `run_comparison_summary.json` の `*_reason_details.code` の対応を docs / tests で固定する
 - [x] M24: `run_comparison_summary.json` の `*_reason_details.code` を列挙型として contract 化する
+- [x] Docs: M23-M24 実装後に README / ROADMAP / TASKS の説明を同期する
+- [x] M25: `project_manifest.json` 側の `*_reason_details.code` も同じ列挙型 contract で固定する
+- [x] M25: `show-project-status` の reason code 表示順を schema の列挙順に明示的に揃える
+- [x] Docs: M25 実装後に README / ROADMAP / TASKS の説明を同期する
 
 ## Task Update Rules
 

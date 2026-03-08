@@ -8,7 +8,7 @@ from typing import Any
 from novel_writer.llm_client import build_llm_client
 from novel_writer.pipeline import PIPELINE_STEP_ORDER, StoryPipeline
 from novel_writer.rerun_policy import ContinuityRerunPolicy
-from novel_writer.schema import StoryInput
+from novel_writer.schema import StoryInput, comparison_reason_detail_codes
 from novel_writer.storage import (
     build_project_layout,
     load_artifact,
@@ -461,7 +461,9 @@ def _reason_detail_to_text(detail: dict[str, Any]) -> str:
 
 
 def _reason_detail_codes(details: list[dict[str, Any]]) -> list[str]:
-    return [str(detail.get("code")) for detail in details if detail.get("code") is not None]
+    order = {code: index for index, code in enumerate(comparison_reason_detail_codes())}
+    codes = [str(detail.get("code")) for detail in details if detail.get("code") is not None]
+    return sorted(codes, key=lambda code: order.get(code, len(order)))
 
 
 def run_pipeline(

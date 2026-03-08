@@ -4,7 +4,7 @@ import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
 
-from novel_writer.cli import main
+from novel_writer.cli import build_project_status_lines, main
 from novel_writer.storage import load_artifact
 
 
@@ -681,6 +681,47 @@ class CliTest(unittest.TestCase):
                 f"best_selection_reason_codes: {', '.join(best_codes)}",
                 output,
             )
+
+    def test_build_project_status_lines_orders_reason_codes_by_schema_contract(self) -> None:
+        project_manifest = {
+            "project_id": "Case 01",
+            "project_slug": "case-01",
+            "current_run": {
+                "name": "latest_run",
+                "output_dir": "data/projects/case-01/runs/latest_run",
+                "current_step": "publish_ready_bundle",
+                "completed_steps": ["story_input", "publish_ready_bundle"],
+                "chapter_statuses": [],
+                "long_run_status": {},
+                "comparison_basis": [],
+                "comparison_reason": [],
+                "comparison_metrics": {},
+                "comparison_reason_details": [
+                    {"code": "total_issue_score", "value": 3},
+                    {"code": "long_run_should_stop", "value": False},
+                ],
+            },
+            "best_run": {
+                "run_name": "candidate-a",
+                "output_dir": "data/projects/case-01/runs/candidate-a",
+                "score": 3,
+                "comparison_basis": [],
+                "selection_source": "manual",
+                "selection_reason": [],
+                "comparison_metrics": {},
+                "selection_reason_details": [
+                    {"code": "completed_step_count", "value": 12},
+                    {"code": "manual_selection", "value": "candidate-a"},
+                ],
+                "policy_snapshot": {},
+            },
+            "run_candidates": [],
+        }
+
+        lines = build_project_status_lines(project_manifest, reason_detail_mode="codes")
+
+        self.assertIn("  current_comparison_reason_codes: long_run_should_stop, total_issue_score", lines)
+        self.assertIn("  best_selection_reason_codes: manual_selection, completed_step_count", lines)
 
 
 if __name__ == "__main__":
