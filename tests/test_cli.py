@@ -369,6 +369,11 @@ class CliTest(unittest.TestCase):
             self.assertIn("Current run: latest_run", output)
             self.assertIn("Best run: latest_run", output)
             self.assertIn("Run candidates: 1", output)
+            self.assertIn("chapter_statuses: 3 tracked", output)
+            self.assertIn("chapters_with_issues:", output)
+            self.assertIn("long_run_status: should_stop=False, reason=none", output)
+            self.assertIn("long_run_budget: remaining_rerun_attempt_budget=", output)
+            self.assertIn("comparison_metrics: total_issue_score=", output)
 
 
 if __name__ == "__main__":

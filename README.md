@@ -214,7 +214,8 @@ novel-writer rerun-chapter --project-id "my-story-01" --chapter-number 2
 
 `rerun-chapter` は任意章の draft / continuity / revise / summary 系 artifact を再計算します。  
 ただし互換 artifact の `continuity_report.json` と `quality_report.json` は、引き続き chapter 1 基準です。
-`show-project-status` は `project_manifest.json` を読み取り専用で表示し、run を再実行しません。
+`show-project-status` は `project_manifest.json` を読み取り専用で表示し、run を再実行しません。  
+現在は current run、best run、chapter status の要約、long-run status の要点を確認できます。
 
 ## 主な出力物
 

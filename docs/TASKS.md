@@ -5,11 +5,10 @@
 
 ## In Progress
 
-- [ ] M14: status 出力に `current_run` / `best_run` / `chapter_statuses` / `long_run_status` の要点を揃え、tests を追加する
+- [ ] M14: 章別の issue 数、rerun 回数、revise 回数を status 出力から確認できるようにする
 
 ## Ready
 
-- [ ] M14: 章別の issue 数、rerun 回数、revise 回数を status 出力から確認できるようにする
 - [ ] M15: `project_manifest.json` の validator を追加し、欠落 field / version 不整合時に actionable なエラーを返す
 - [ ] M15: `publish_ready_bundle.json` の validator を追加し、`schema_version=1.0` contract を保存時・読込時に検証する
 - [ ] M15: manifest / bundle の schema version 方針を docs と tests に固定する
@@ -67,6 +66,7 @@
 - [x] M13: `publish_ready_bundle.json` の schema を固定し、downstream 利用前提の説明と tests を追加する
 - [x] Docs: README / ROADMAP / TASKS / manifest で使う用語を完全に統一する
 - [x] M14: `project_manifest.json` を読み取り専用で表示する `show-project-status` CLI を追加する
+- [x] M14: status 出力に `current_run` / `best_run` / `chapter_statuses` / `long_run_status` の要点を揃え、tests を追加する
 
 ## Task Update Rules
 

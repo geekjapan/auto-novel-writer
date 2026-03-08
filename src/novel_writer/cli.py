@@ -355,19 +355,57 @@ def build_project_status_lines(project_manifest: dict[str, Any]) -> list[str]:
 
     if current_run:
         completed_steps = current_run.get("completed_steps", [])
+        chapter_statuses = current_run.get("chapter_statuses", [])
+        long_run_status = current_run.get("long_run_status", {})
         lines.append(f"Current run: {current_run.get('name', 'unknown')}")
         lines.append(f"  output_dir: {current_run.get('output_dir', 'unknown')}")
         lines.append(f"  current_step: {current_run.get('current_step', 'unknown')}")
         lines.append(f"  completed_steps: {len(completed_steps)}")
+        lines.extend(_build_chapter_status_summary_lines(chapter_statuses))
+        lines.extend(_build_long_run_status_lines(long_run_status))
 
     if best_run:
         lines.append(f"Best run: {best_run.get('run_name', 'unknown')}")
         lines.append(f"  output_dir: {best_run.get('output_dir', 'unknown')}")
         lines.append(f"  score: {best_run.get('score', 'unknown')}")
+        comparison_metrics = best_run.get("comparison_metrics", {})
+        if comparison_metrics:
+            lines.append(
+                "  comparison_metrics: "
+                f"total_issue_score={comparison_metrics.get('total_issue_score', 'n/a')}, "
+                f"completed_step_count={comparison_metrics.get('completed_step_count', 'n/a')}"
+            )
 
     run_candidates = project_manifest.get("run_candidates", [])
     lines.append(f"Run candidates: {len(run_candidates)}")
     return lines
+
+
+def _build_chapter_status_summary_lines(chapter_statuses: list[dict[str, Any]]) -> list[str]:
+    if not chapter_statuses:
+        return ["  chapter_statuses: none"]
+
+    issue_chapter_count = sum(1 for status in chapter_statuses if int(status.get("continuity_issue_total", 0) or 0) > 0)
+    high_severity_count = sum(1 for status in chapter_statuses if status.get("continuity_severity") == "high")
+    return [
+        f"  chapter_statuses: {len(chapter_statuses)} tracked",
+        f"  chapters_with_issues: {issue_chapter_count}",
+        f"  chapters_high_severity: {high_severity_count}",
+    ]
+
+
+def _build_long_run_status_lines(long_run_status: dict[str, Any]) -> list[str]:
+    if not long_run_status:
+        return ["  long_run_status: none"]
+
+    return [
+        "  long_run_status: "
+        f"should_stop={long_run_status.get('should_stop')}, "
+        f"reason={long_run_status.get('reason') or 'none'}",
+        "  long_run_budget: "
+        f"remaining_rerun_attempt_budget={long_run_status.get('remaining_rerun_attempt_budget', 'n/a')}, "
+        f"remaining_high_severity_chapter_budget={long_run_status.get('remaining_high_severity_chapter_budget', 'n/a')}",
+    ]
 
 
 def print_project_status(project_manifest: dict[str, Any]) -> None:
