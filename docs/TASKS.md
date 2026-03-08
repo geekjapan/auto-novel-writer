@@ -5,12 +5,12 @@
 
 ## In Progress
 
-- [ ] M26: `project_manifest.json` の current / best / run_candidates comparison context contract を `run_comparison_summary.json` と同じ粒度に広げる
+- [ ] M26: `show-project-status` の summary 行を `project_manifest.json` の machine-readable context だけから再構成できるように整理する
 
 ## Ready
 
-- [ ] M26: `show-project-status` の summary 行を `project_manifest.json` の machine-readable context だけから再構成できるように整理する
-- [ ] Docs: M25 実装後に README / ROADMAP / TASKS の説明を同期する
+- [ ] M26: status 表示の summary field 名と `project_manifest.json` / `run_comparison_summary.json` の field 名の対応表を docs / tests で固定する
+- [ ] M27: `show-project-status` の整形関数を manifest 読込と分離し、summary builder を単体テスト可能にする
 
 
 
@@ -96,6 +96,7 @@
 - [x] M25: `project_manifest.json` 側の `*_reason_details.code` も同じ列挙型 contract で固定する
 - [x] M25: `show-project-status` の reason code 表示順を schema の列挙順に明示的に揃える
 - [x] Docs: M25 実装後に README / ROADMAP / TASKS の説明を同期する
+- [x] M26: `project_manifest.json` の current / best / run_candidates comparison context contract を `run_comparison_summary.json` と同じ粒度に広げる
 
 ## Task Update Rules
 

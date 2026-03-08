@@ -133,12 +133,18 @@ class SaveArtifactTest(unittest.TestCase):
             "current_run": {
                 "name": "latest_run",
                 "output_dir": "data/projects/my-story-01/runs/latest_run",
+                "comparison_metrics": {},
+                "comparison_basis": [],
+                "comparison_reason": [],
                 "comparison_reason_details": [],
             },
             "run_candidates": [
                 {
                     "run_name": "latest_run",
                     "output_dir": "data/projects/my-story-01/runs/latest_run",
+                    "comparison_metrics": {},
+                    "comparison_basis": [],
+                    "comparison_reason": [],
                     "comparison_reason_details": [],
                 }
             ],
@@ -146,6 +152,10 @@ class SaveArtifactTest(unittest.TestCase):
                 "run_name": "latest_run",
                 "output_dir": "data/projects/my-story-01/runs/latest_run",
                 "score": 0,
+                "comparison_metrics": {},
+                "comparison_basis": [],
+                "selection_source": "automatic",
+                "selection_reason": [],
                 "selection_reason_details": [],
             },
         }
@@ -174,6 +184,10 @@ class SaveArtifactTest(unittest.TestCase):
                         "best_run": {
                             "run_name": "latest_run",
                             "output_dir": str(Path(tmp_dir) / "latest_run"),
+                            "comparison_metrics": {},
+                            "comparison_basis": [],
+                            "selection_source": "automatic",
+                            "selection_reason": [],
                             "selection_reason_details": [],
                         },
                     },
@@ -198,12 +212,19 @@ class SaveArtifactTest(unittest.TestCase):
                         "current_run": {
                             "name": "latest_run",
                             "output_dir": str(Path(tmp_dir) / "latest_run"),
+                            "comparison_metrics": {},
+                            "comparison_basis": [],
+                            "comparison_reason": [],
                             "comparison_reason_details": [],
                         },
                         "run_candidates": [],
                         "best_run": {
                             "run_name": "latest_run",
                             "output_dir": str(Path(tmp_dir) / "latest_run"),
+                            "comparison_metrics": {},
+                            "comparison_basis": [],
+                            "selection_source": "automatic",
+                            "selection_reason": [],
                             "selection_reason_details": [],
                         },
                     },
@@ -228,18 +249,28 @@ class SaveArtifactTest(unittest.TestCase):
                     "current_run": {
                         "name": "latest_run",
                         "output_dir": str(project_dir / "runs" / "latest_run"),
+                        "comparison_metrics": {},
+                        "comparison_basis": [],
+                        "comparison_reason": [],
                         "comparison_reason_details": [{"code": "unknown_reason", "value": 1}],
                     },
                     "run_candidates": [
                         {
                             "run_name": "latest_run",
                             "output_dir": str(project_dir / "runs" / "latest_run"),
+                            "comparison_metrics": {},
+                            "comparison_basis": [],
+                            "comparison_reason": [],
                             "comparison_reason_details": [],
                         }
                     ],
                     "best_run": {
                         "run_name": "latest_run",
                         "output_dir": str(project_dir / "runs" / "latest_run"),
+                        "comparison_metrics": {},
+                        "comparison_basis": [],
+                        "selection_source": "automatic",
+                        "selection_reason": [],
                         "selection_reason_details": [],
                     },
                 },

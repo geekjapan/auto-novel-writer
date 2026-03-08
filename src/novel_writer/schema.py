@@ -122,6 +122,9 @@ def project_manifest_contract() -> dict:
             "required_fields": [
                 "name",
                 "output_dir",
+                "comparison_metrics",
+                "comparison_basis",
+                "comparison_reason",
                 "comparison_reason_details",
             ],
         },
@@ -129,6 +132,10 @@ def project_manifest_contract() -> dict:
             "required_fields": [
                 "run_name",
                 "output_dir",
+                "comparison_metrics",
+                "comparison_basis",
+                "selection_source",
+                "selection_reason",
                 "selection_reason_details",
             ],
         },
@@ -136,6 +143,9 @@ def project_manifest_contract() -> dict:
             "required_fields": [
                 "run_name",
                 "output_dir",
+                "comparison_metrics",
+                "comparison_basis",
+                "comparison_reason",
                 "comparison_reason_details",
             ],
         },
@@ -413,6 +423,17 @@ def _validate_project_manifest_reason_context(
     if missing_fields:
         missing = ", ".join(missing_fields)
         raise ValueError(f"Invalid project_manifest: {field_name} is missing fields: {missing}.")
+
+    if not isinstance(payload.get("comparison_metrics"), dict):
+        raise ValueError(f"Invalid project_manifest: {field_name}.comparison_metrics must be an object.")
+    if not isinstance(payload.get("comparison_basis"), list):
+        raise ValueError(f"Invalid project_manifest: {field_name}.comparison_basis must be a list.")
+
+    reason_field = "selection_reason" if detail_field == "selection_reason_details" else "comparison_reason"
+    if not isinstance(payload.get(reason_field), list):
+        raise ValueError(f"Invalid project_manifest: {field_name}.{reason_field} must be a list.")
+    if detail_field == "selection_reason_details" and not isinstance(payload.get("selection_source"), str):
+        raise ValueError(f"Invalid project_manifest: {field_name}.selection_source must be a string.")
 
     details = payload.get(detail_field)
     if not isinstance(details, list):
