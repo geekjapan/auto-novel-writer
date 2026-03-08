@@ -4,7 +4,13 @@ import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
 
-from novel_writer.cli import build_project_status_lines, build_project_status_summary, main
+from novel_writer.cli import (
+    build_project_status_lines,
+    build_project_status_summary,
+    build_saved_run_comparison_lines,
+    build_saved_run_comparison_summary,
+    main,
+)
 from novel_writer.storage import load_artifact
 
 
@@ -907,6 +913,109 @@ class CliTest(unittest.TestCase):
             summary["best_run"]["comparison_metrics_line"],
             "  best_comparison_metrics: total_issue_score=5, completed_step_count=7",
         )
+
+    def test_build_run_comparison_summary_returns_render_ready_sections(self) -> None:
+        summary_artifact = {
+            "project_id": "Case 05",
+            "project_slug": "case-05",
+            "candidate_count": 2,
+            "current_run": {
+                "run_name": "latest_run",
+                "comparison_basis": ["long_run_should_stop", "continuity_issue_total"],
+                "comparison_metrics": {
+                    "total_issue_score": 11,
+                    "completed_step_count": 12,
+                    "long_run_should_stop": False,
+                },
+                "comparison_reason_details": [
+                    {"code": "long_run_should_stop", "value": False},
+                    {"code": "total_issue_score", "value": 11},
+                ],
+            },
+            "best_run": {
+                "run_name": "candidate-a",
+                "selection_source": "manual",
+                "comparison_basis": ["long_run_should_stop", "continuity_issue_total"],
+                "comparison_metrics": {
+                    "total_issue_score": 5,
+                    "completed_step_count": 7,
+                },
+                "selection_reason_details": [
+                    {"code": "manual_selection", "value": "candidate-a"},
+                    {"code": "long_run_should_stop", "value": True},
+                ],
+            },
+            "compact_summary": {
+                "selection_source": "manual",
+                "issue_score": {"current": 11, "best": 5},
+                "completed_step_count": {"current": 12, "best": 7},
+                "long_run_should_stop": {"current": False, "best": True},
+            },
+        }
+
+        summary = build_saved_run_comparison_summary(summary_artifact, reason_detail_mode="codes")
+        lines = build_saved_run_comparison_lines(summary_artifact, reason_detail_mode="codes")
+
+        self.assertEqual(summary["project_label"], "case-05")
+        self.assertEqual(summary["candidate_count"], 2)
+        self.assertIn(
+            "  current_comparison_reason_codes: long_run_should_stop, total_issue_score",
+            summary["current_run"]["comparison_lines"],
+        )
+        self.assertIn("  best_selection_source: manual", summary["best_run"]["selection_lines"])
+        self.assertIn("Compact summary: selection_source=manual", lines)
+        self.assertIn("  compact.issue_score: current=11, best=5", lines)
+
+    def test_cli_show_run_comparison_reads_artifact_without_rerunning(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            main(
+                [
+                    "create-project",
+                    "--theme",
+                    "記憶",
+                    "--genre",
+                    "SF",
+                    "--tone",
+                    "静謐",
+                    "--target-length",
+                    "5000",
+                    "--project-id",
+                    "Compare 01",
+                    "--projects-dir",
+                    tmp_dir,
+                ]
+            )
+
+            project_dir = Path(tmp_dir) / "compare-01"
+            comparison_before = load_artifact(project_dir, "run_comparison_summary")
+
+            buffer = io.StringIO()
+            with redirect_stdout(buffer):
+                exit_code = main(
+                    [
+                        "show-run-comparison",
+                        "--project-id",
+                        "Compare 01",
+                        "--projects-dir",
+                        tmp_dir,
+                        "--reason-detail-mode",
+                        "codes",
+                    ]
+                )
+
+            comparison_after = load_artifact(project_dir, "run_comparison_summary")
+            output = buffer.getvalue()
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(comparison_before, comparison_after)
+            self.assertIn("Project: compare-01", output)
+            self.assertIn("Current run: latest_run", output)
+            self.assertIn("Best run: latest_run", output)
+            self.assertIn("current_comparison_reason_codes:", output)
+            self.assertIn("best_selection_source:", output)
+            self.assertIn("Compact summary: selection_source=", output)
+            self.assertIn("compact.issue_score:", output)
+            self.assertIn("Run candidates: 1", output)
 
 
 if __name__ == "__main__":

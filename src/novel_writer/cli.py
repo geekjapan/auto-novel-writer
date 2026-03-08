@@ -13,6 +13,7 @@ from novel_writer.storage import (
     build_project_layout,
     load_artifact,
     load_project_manifest,
+    load_run_comparison_summary,
     save_project_manifest,
     save_run_comparison_summary,
 )
@@ -88,6 +89,19 @@ def build_parser() -> argparse.ArgumentParser:
         default="summary",
         choices=["summary", "codes"],
         help="How much structured reason detail to show in status output",
+    )
+
+    show_run_comparison = subparsers.add_parser(
+        "show-run-comparison",
+        help="Show the saved run comparison summary without rerunning the pipeline",
+    )
+    show_run_comparison.add_argument("--project-id", required=True, help="Project/story identifier")
+    show_run_comparison.add_argument("--projects-dir", default=DEFAULT_PROJECTS_DIR, help="Base directory for project-scoped runs")
+    show_run_comparison.add_argument(
+        "--reason-detail-mode",
+        default="summary",
+        choices=["summary", "codes"],
+        help="How much structured reason detail to show in comparison output",
     )
 
     select_best_run = subparsers.add_parser(
@@ -613,6 +627,78 @@ def build_project_status_lines(project_manifest: dict[str, Any], reason_detail_m
     return lines
 
 
+def build_saved_run_comparison_summary(
+    summary_artifact: dict[str, Any],
+    reason_detail_mode: str = "summary",
+) -> dict[str, Any]:
+    if not summary_artifact:
+        return {}
+
+    current_run = summary_artifact.get("current_run", {})
+    best_run = summary_artifact.get("best_run", {})
+    compact_summary = summary_artifact.get("compact_summary", {})
+    return {
+        "project_label": summary_artifact.get("project_slug") or summary_artifact.get("project_id", "unknown"),
+        "candidate_count": summary_artifact.get("candidate_count", 0),
+        "current_run": {
+            "name": current_run.get("run_name", "unknown"),
+            "comparison_lines": _build_current_comparison_summary_lines(current_run, reason_detail_mode),
+        }
+        if current_run
+        else None,
+        "best_run": {
+            "name": best_run.get("run_name", "unknown"),
+            "selection_lines": _build_selection_summary_lines(best_run, reason_detail_mode),
+            "comparison_metrics_line": (
+                "  best_comparison_metrics: "
+                f"total_issue_score={best_run.get('comparison_metrics', {}).get('total_issue_score', 'n/a')}, "
+                f"completed_step_count={best_run.get('comparison_metrics', {}).get('completed_step_count', 'n/a')}"
+            ),
+        }
+        if best_run
+        else None,
+        "compact_summary_lines": _build_compact_summary_lines(compact_summary),
+    }
+
+
+def build_saved_run_comparison_lines(summary_artifact: dict[str, Any], reason_detail_mode: str = "summary") -> list[str]:
+    summary = build_saved_run_comparison_summary(summary_artifact, reason_detail_mode=reason_detail_mode)
+    if not summary:
+        return []
+
+    lines = [f"Project: {summary['project_label']}"]
+    current_run = summary.get("current_run")
+    if current_run:
+        lines.append(f"Current run: {current_run['name']}")
+        lines.extend(current_run["comparison_lines"])
+    best_run = summary.get("best_run")
+    if best_run:
+        lines.append(f"Best run: {best_run['name']}")
+        lines.extend(best_run["selection_lines"])
+        lines.append(best_run["comparison_metrics_line"])
+    lines.extend(summary["compact_summary_lines"])
+    lines.append(f"Run candidates: {summary['candidate_count']}")
+    return lines
+
+
+def _build_compact_summary_lines(compact_summary: dict[str, Any]) -> list[str]:
+    if not compact_summary:
+        return ["Compact summary: none"]
+
+    issue_score = compact_summary.get("issue_score", {})
+    completed_step_count = compact_summary.get("completed_step_count", {})
+    long_run_should_stop = compact_summary.get("long_run_should_stop", {})
+    return [
+        f"Compact summary: selection_source={compact_summary.get('selection_source', 'unknown')}",
+        "  compact.issue_score: "
+        f"current={issue_score.get('current', 'n/a')}, best={issue_score.get('best', 'n/a')}",
+        "  compact.completed_step_count: "
+        f"current={completed_step_count.get('current', 'n/a')}, best={completed_step_count.get('best', 'n/a')}",
+        "  compact.long_run_should_stop: "
+        f"current={long_run_should_stop.get('current', 'n/a')}, best={long_run_should_stop.get('best', 'n/a')}",
+    ]
+
+
 def _build_chapter_status_summary_lines(chapter_statuses: list[dict[str, Any]]) -> list[str]:
     if not chapter_statuses:
         return ["  chapter_statuses: none"]
@@ -734,6 +820,11 @@ def print_project_status(project_manifest: dict[str, Any], reason_detail_mode: s
         print(line)
 
 
+def print_run_comparison(summary_artifact: dict[str, Any], reason_detail_mode: str = "summary") -> None:
+    for line in build_saved_run_comparison_lines(summary_artifact, reason_detail_mode=reason_detail_mode):
+        print(line)
+
+
 def promote_best_run(project_dir: Path, run_name: str, projects_dir: Path, file_format: str = "json") -> dict[str, Any]:
     project_manifest = load_project_manifest(project_dir)
     candidate = next(
@@ -797,6 +888,12 @@ def main(argv: list[str] | None = None) -> int:
         project_layout = build_project_layout(Path(args.projects_dir), args.project_id)
         project_manifest = load_project_manifest(project_layout["project_dir"])
         print_project_status(project_manifest, reason_detail_mode=args.reason_detail_mode)
+        return 0
+
+    if args.command == "show-run-comparison":
+        project_layout = build_project_layout(Path(args.projects_dir), args.project_id)
+        summary_artifact = load_run_comparison_summary(project_layout["project_dir"])
+        print_run_comparison(summary_artifact, reason_detail_mode=args.reason_detail_mode)
         return 0
 
     if args.command == "select-best-run":

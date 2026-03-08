@@ -144,6 +144,22 @@ chapter 配列ベースの内部正本、chapter 1 互換 artifact、publish-rea
 
 `show-project-status` は selection source / reason、issue / step / policy diff を要約表示でき、`run_comparison_summary.json` にも compact summary を保存できる。
 
+### M28. comparison artifact の読み取り導線整備
+
+目的:
+`run_comparison_summary.json` を人間が再実行なしで確認し、comparison artifact と status 表示の責務差を明確にしたまま運用できるようにする。
+
+完了条件:
+
+- `run_comparison_summary.json` を読むだけの read-only CLI がある
+- current / best / compact summary / selection source を comparison artifact から直接確認できる
+- docs / tests で `show-project-status` と `show-run-comparison` の責務差を固定する
+
+進捗:
+
+- `show-run-comparison` CLI で `run_comparison_summary.json` を読み取り専用表示できる
+- comparison artifact から current / best / compact summary を直接確認できる
+
 ## 現在の本命
 
 ### M21. 比較表示と artifact の責務整理

@@ -5,12 +5,11 @@
 
 ## In Progress
 
-
+- [ ] M28: `show-run-comparison` の summary field 名と `run_comparison_summary.json` の field 名の対応を docs / tests で固定する
 
 ## Ready
 
-
-
+- [ ] M28: `show-project-status` と `show-run-comparison` の責務差を README / ROADMAP / TASKS で整理する
 
 ## Done
 
@@ -99,6 +98,7 @@
 - [x] M26: status 表示の summary field 名と `project_manifest.json` / `run_comparison_summary.json` の field 名の対応表を docs / tests で固定する
 - [x] M27: `show-project-status` の整形関数を manifest 読込と分離し、summary builder を単体テスト可能にする
 - [x] Docs: M26-M27 実装後に ROADMAP / TASKS の説明を同期する
+- [x] M28: `run_comparison_summary.json` を読み取り専用で表示する `show-run-comparison` CLI を追加する
 
 ## Task Update Rules
 
