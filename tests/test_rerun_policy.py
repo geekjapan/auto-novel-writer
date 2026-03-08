@@ -51,10 +51,11 @@ class CountingLLMClient:
 
     def generate_chapter_draft(self, story_input, logline, characters, chapter_plan, chapter_index=0):
         self.chapter_draft_calls += 1
+        chapter = chapter_plan[chapter_index]
         return {
-            "chapter_number": 1,
-            "title": chapter_plan[0]["title"],
-            "summary": chapter_plan[0]["purpose"],
+            "chapter_number": chapter["chapter_number"],
+            "title": chapter["title"],
+            "summary": chapter["purpose"],
             "text": f"篠崎 遥の草稿 {self.chapter_draft_calls}",
         }
 

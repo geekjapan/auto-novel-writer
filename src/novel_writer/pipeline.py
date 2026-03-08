@@ -51,20 +51,22 @@ class StoryPipeline:
         )
         save_artifact(self.output_dir, "04_chapter_plan", artifacts.chapter_plan, self.file_format)
 
-        chapter_1_draft = self.llm_client.generate_chapter_draft(
-            story_input,
-            selected_logline,
-            artifacts.characters,
-            artifacts.chapter_plan,
-            chapter_index=0,
-        )
-        artifacts.set_chapter_draft(0, chapter_1_draft)
+        for chapter_index, _chapter in enumerate(artifacts.chapter_plan):
+            chapter_draft = self.llm_client.generate_chapter_draft(
+                story_input,
+                selected_logline,
+                artifacts.characters,
+                artifacts.chapter_plan,
+                chapter_index=chapter_index,
+            )
+            artifacts.set_chapter_draft(chapter_index, chapter_draft)
         save_artifact(self.output_dir, "05_chapter_1_draft", artifacts.get_chapter_draft(0), self.file_format)
 
         artifacts.continuity_report = self._build_report_with_decision(artifacts)
         self._maybe_rerun_from_decision(story_input, selected_logline, artifacts)
         save_artifact(self.output_dir, "continuity_report", artifacts.continuity_report, "json")
-        self._revise_chapter(story_input, artifacts, chapter_index=0)
+        for chapter_index, _chapter_draft in enumerate(artifacts.chapter_drafts):
+            self._revise_chapter(story_input, artifacts, chapter_index=chapter_index)
         save_artifact(self.output_dir, "revised_chapter_1_draft", artifacts.revised_chapter_1_draft, self.file_format)
 
         manifest = {
@@ -165,8 +167,8 @@ class StoryPipeline:
             {
                 "attempt": 1,
                 "chapter_index": chapter_index,
-                "source": "chapter_1_draft",
-                "target": "revised_chapter_1_draft",
+                "source": "chapter_1_draft" if chapter_index == 0 else f"chapter_drafts[{chapter_index}]",
+                "target": "revised_chapter_1_draft" if chapter_index == 0 else f"revised_chapter_drafts[{chapter_index}]",
                 "continuity_severity": artifacts.continuity_report.get("severity"),
                 "applied_rules": [
                     "style_adjustment",

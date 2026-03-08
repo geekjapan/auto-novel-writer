@@ -55,6 +55,26 @@ class StoryPipelineTest(unittest.TestCase):
                 manifest["artifacts"]["revised_chapter_drafts"][0],
                 manifest["artifacts"]["revised_chapter_1_draft"],
             )
+            self.assertEqual(len(artifacts.chapter_drafts), len(artifacts.chapter_plan))
+            self.assertEqual(
+                [draft["chapter_number"] for draft in artifacts.chapter_drafts],
+                [chapter["chapter_number"] for chapter in artifacts.chapter_plan],
+            )
+            compatibility_draft = json.loads(
+                (output_dir / "05_chapter_1_draft.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual(compatibility_draft, artifacts.chapter_drafts[0])
+            self.assertEqual(len(artifacts.revised_chapter_drafts), len(artifacts.chapter_drafts))
+            self.assertEqual(
+                [draft["chapter_number"] for draft in artifacts.revised_chapter_drafts],
+                [chapter["chapter_number"] for chapter in artifacts.chapter_plan],
+            )
+            self.assertEqual(len(manifest["revise_history"]), len(artifacts.chapter_plan))
+            self.assertEqual(manifest["revise_history"][0]["target"], "revised_chapter_1_draft")
+            self.assertEqual(
+                manifest["revise_history"][-1]["target"],
+                f"revised_chapter_drafts[{len(artifacts.chapter_plan) - 1}]",
+            )
 
 
 

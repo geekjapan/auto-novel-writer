@@ -100,16 +100,16 @@ class OpenAIClient(BaseLLMClient):
         chapter_index: int = 0,
     ) -> dict[str, Any]:
         data = self._generate_json(
-            "You generate a first chapter draft in Japanese.",
+            "You generate a chapter draft in Japanese.",
             (
-                "Return JSON with key 'chapter_1_draft'. "
+                "Return JSON with key 'chapter_draft' or 'chapter_1_draft'. "
                 f"story={story_input.to_dict()}, logline={json.dumps(logline, ensure_ascii=False)}, "
                 f"characters={json.dumps(characters, ensure_ascii=False)}, "
                 f"chapter_plan={json.dumps(chapter_plan, ensure_ascii=False)}, "
                 f"chapter_index={chapter_index}"
             ),
         )
-        return data["chapter_1_draft"]
+        return data.get("chapter_draft") or data["chapter_1_draft"]
 
     def revise_chapter_draft(
         self,
