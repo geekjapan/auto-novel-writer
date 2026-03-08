@@ -159,6 +159,7 @@ chapter 配列ベースの内部正本、chapter 1 互換 artifact、publish-rea
 
 - `show-run-comparison` CLI で `run_comparison_summary.json` を読み取り専用表示できる
 - comparison artifact から current / best / compact summary を直接確認できる
+- README / tests で `show-run-comparison` の summary field と artifact field の対応を固定する
 
 ## 現在の本命
 

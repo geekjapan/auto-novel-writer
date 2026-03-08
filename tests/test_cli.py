@@ -966,6 +966,67 @@ class CliTest(unittest.TestCase):
         self.assertIn("Compact summary: selection_source=manual", lines)
         self.assertIn("  compact.issue_score: current=11, best=5", lines)
 
+    def test_build_run_comparison_lines_keep_documented_field_mapping(self) -> None:
+        summary_artifact = {
+            "project_id": "Case 06",
+            "project_slug": "case-06",
+            "candidate_count": 2,
+            "current_run": {
+                "run_name": "latest_run",
+                "comparison_basis": ["long_run_should_stop", "continuity_issue_total", "quality_issue_total"],
+                "comparison_metrics": {
+                    "total_issue_score": 11,
+                    "completed_step_count": 12,
+                    "long_run_should_stop": False,
+                },
+                "comparison_reason_details": [
+                    {"code": "long_run_should_stop", "value": False},
+                    {"code": "total_issue_score", "value": 11},
+                ],
+            },
+            "best_run": {
+                "run_name": "candidate-a",
+                "selection_source": "manual",
+                "comparison_basis": ["long_run_should_stop", "continuity_issue_total", "quality_issue_total"],
+                "comparison_metrics": {
+                    "total_issue_score": 5,
+                    "completed_step_count": 7,
+                },
+                "selection_reason_details": [
+                    {"code": "manual_selection", "value": "candidate-a"},
+                    {"code": "long_run_should_stop", "value": True},
+                ],
+            },
+            "compact_summary": {
+                "selection_source": "manual",
+                "issue_score": {"current": 11, "best": 5},
+                "completed_step_count": {"current": 12, "best": 7},
+                "long_run_should_stop": {"current": False, "best": True},
+            },
+        }
+
+        lines = build_saved_run_comparison_lines(summary_artifact, reason_detail_mode="codes")
+        expected_lines = {
+            "Current run: latest_run",
+            "  current_comparison_basis_summary: long_run_should_stop, continuity_issue_total, quality_issue_total",
+            "  current_comparison_reason_summary: long_run_should_stop=False; total_issue_score=11",
+            "  current_comparison_reason_codes: long_run_should_stop, total_issue_score",
+            "  current_comparison_metrics: total_issue_score=11, completed_step_count=12",
+            "Best run: candidate-a",
+            "  best_selection_source: manual",
+            "  best_comparison_basis_summary: long_run_should_stop, continuity_issue_total, quality_issue_total",
+            "  best_selection_reason_summary: manual_selection=candidate-a; long_run_should_stop=True",
+            "  best_selection_reason_codes: manual_selection, long_run_should_stop",
+            "  best_comparison_metrics: total_issue_score=5, completed_step_count=7",
+            "Compact summary: selection_source=manual",
+            "  compact.issue_score: current=11, best=5",
+            "  compact.completed_step_count: current=12, best=7",
+            "  compact.long_run_should_stop: current=False, best=True",
+            "Run candidates: 2",
+        }
+
+        self.assertTrue(expected_lines.issubset(set(lines)))
+
     def test_cli_show_run_comparison_reads_artifact_without_rerunning(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             main(

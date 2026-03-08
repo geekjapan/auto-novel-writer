@@ -330,6 +330,25 @@ status summary field と artifact field の対応:
 - `policy_diff.max_high_severity_chapters` などの個別差分行も `project_manifest.json.*.policy_snapshot.long_run` から出す
 - `run_comparison_summary.json` 側では同じ comparison field 名を `current_run` / `best_run` に保ち、status 表示はその project manifest 版を読む
 
+run comparison summary field と artifact field の対応:
+
+- `Current run` は `run_comparison_summary.json.current_run.run_name` を表示する
+- `current_comparison_basis_summary` は `run_comparison_summary.json.current_run.comparison_basis[:3]` を表示する
+- `current_comparison_reason_summary` は `run_comparison_summary.json.current_run.comparison_reason_details[:2]` を `code=value` へ整形して表示する
+- `current_comparison_reason_codes` は `run_comparison_summary.json.current_run.comparison_reason_details[:3].code` を schema 順へ整列して表示する
+- `current_comparison_metrics` は `run_comparison_summary.json.current_run.comparison_metrics.total_issue_score` と `completed_step_count` を表示する
+- `Best run` は `run_comparison_summary.json.best_run.run_name` を表示する
+- `best_selection_source` は `run_comparison_summary.json.best_run.selection_source` を表示する
+- `best_comparison_basis_summary` は `run_comparison_summary.json.best_run.comparison_basis[:3]` を表示する
+- `best_selection_reason_summary` は `run_comparison_summary.json.best_run.selection_reason_details[:2]` を `code=value` へ整形して表示する
+- `best_selection_reason_codes` は `run_comparison_summary.json.best_run.selection_reason_details[:3].code` を schema 順へ整列して表示する
+- `best_comparison_metrics` は `run_comparison_summary.json.best_run.comparison_metrics.total_issue_score` と `completed_step_count` を表示する
+- `Compact summary: selection_source=...` は `run_comparison_summary.json.compact_summary.selection_source` を表示する
+- `compact.issue_score` は `run_comparison_summary.json.compact_summary.issue_score.current|best` を表示する
+- `compact.completed_step_count` は `run_comparison_summary.json.compact_summary.completed_step_count.current|best` を表示する
+- `compact.long_run_should_stop` は `run_comparison_summary.json.compact_summary.long_run_should_stop.current|best` を表示する
+- `Run candidates` は `run_comparison_summary.json.candidate_count` を表示する
+
 schema version の現方針:
 
 - `project_manifest.json` は `schema_name=project_manifest`, `schema_version=1.0`
