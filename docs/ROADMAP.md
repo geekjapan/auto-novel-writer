@@ -151,23 +151,27 @@ chapter 配列ベースの内部正本、chapter 1 互換 artifact、publish-rea
 
 `run_comparison_summary.json` の schema と manual selection metadata は validator / docs / tests で固定済み。
 
-## 現在の本命
-
 ### M20. 比較運用の観測性強化
 
+`show-project-status` は selection source / reason、issue / step / policy diff を要約表示でき、`run_comparison_summary.json` にも compact summary を保存できる。
+
+## 現在の本命
+
+### M21. 比較表示と artifact の責務整理
+
 目的:
-比較 artifact、status 表示、manual selection の関係を人間にも機械にも追いやすくする。
+status 表示と comparison artifact の責務を整理し、下流利用向けの shape をさらに安定させる。
 
 完了条件:
 
-- `show-project-status` で manual / automatic selection source を確認できる
-- current run と best run の差分が policy 以外にも読みやすく整理される
-- comparison artifact を下流で扱うための要約 contract が安定する
+- status 表示専用の summary と machine-readable artifact の責務境界が明確になる
+- compact summary の field contract が docs / tests で固定される
+- manual selection と automatic selection の比較根拠を一貫して辿れる
 
 ## Sequencing Rationale
 
-- まず M20 で比較運用の観測性を上げる
-- 次に comparison artifact と status 表示の責務分離を進める
+- まず M21 で comparison artifact と status 表示の責務を整理する
+- 次に compact summary の shape を下流利用向けに固める
 - その後に export / downstream 連携を広げる
 
 ## Roadmap Notes
