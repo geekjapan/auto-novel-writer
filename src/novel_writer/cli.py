@@ -9,7 +9,7 @@ from novel_writer.llm_client import build_llm_client
 from novel_writer.pipeline import PIPELINE_STEP_ORDER, StoryPipeline
 from novel_writer.rerun_policy import ContinuityRerunPolicy
 from novel_writer.schema import StoryInput
-from novel_writer.storage import build_project_layout, load_artifact, load_project_manifest, save_project_manifest
+from novel_writer.storage import build_project_layout, load_artifact, load_project_manifest, save_artifact, save_project_manifest
 
 
 DEFAULT_OUTPUT_DIR = "data/latest_run"
@@ -112,6 +112,13 @@ def save_project_state(
     chapter_statuses = _build_project_chapter_statuses(run_manifest)
     long_run_status = dict(run_manifest.get("long_run_status", {}))
     policy_snapshot = dict(run_manifest.get("policy_snapshot", {}))
+    comparison_summary = _build_run_comparison_summary(
+        project_layout=project_layout,
+        current_run_name=output_dir.name,
+        current_output_dir=output_dir,
+        run_candidates=run_candidates,
+        best_run=best_run,
+    )
     save_project_manifest(
         projects_dir,
         project_id,
@@ -134,6 +141,7 @@ def save_project_state(
         },
         file_format,
     )
+    save_artifact(project_layout["project_dir"], "run_comparison_summary", comparison_summary, file_format)
 
 
 def build_run_comparison_lines(project_manifest: dict[str, Any]) -> list[str]:
@@ -320,6 +328,28 @@ def _select_best_run(run_candidates: list[dict[str, Any]]) -> dict[str, Any]:
             f"revision_attempt_total={metrics.get('revision_attempt_total')}",
             f"completed_step_count={metrics.get('completed_step_count')}",
         ],
+    }
+
+
+def _build_run_comparison_summary(
+    project_layout: dict[str, Any],
+    current_run_name: str,
+    current_output_dir: Path,
+    run_candidates: list[dict[str, Any]],
+    best_run: dict[str, Any],
+) -> dict[str, Any]:
+    return {
+        "schema_name": "run_comparison_summary",
+        "schema_version": "1.0",
+        "project_id": project_layout["project_id"],
+        "project_slug": project_layout["project_slug"],
+        "current_run": {
+            "run_name": current_run_name,
+            "output_dir": str(current_output_dir),
+        },
+        "best_run": best_run,
+        "candidate_count": len(run_candidates),
+        "run_candidates": run_candidates,
     }
 
 

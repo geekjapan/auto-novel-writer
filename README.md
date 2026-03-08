@@ -95,6 +95,7 @@
 - `story_summary.json`
 - `project_quality_report.json`
 - `publish_ready_bundle.json`
+- `run_comparison_summary.json`
 
 これらは公開、比較、選抜、後続工程での利用を想定した artifact です。
 
@@ -239,6 +240,7 @@ novel-writer rerun-chapter --project-id "my-story-01" --chapter-number 2
 - `story_summary.json`
 - `project_quality_report.json`
 - `publish_ready_bundle.json`
+- `run_comparison_summary.json`
 - `manifest`
 
 `manifest` には以下も保存します。

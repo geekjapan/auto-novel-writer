@@ -258,6 +258,7 @@ class CliTest(unittest.TestCase):
 
             project_dir = Path(tmp_dir) / "case-02"
             project_manifest = load_artifact(project_dir, "project_manifest")
+            comparison_summary = load_artifact(project_dir, "run_comparison_summary")
 
             self.assertEqual(first_exit_code, 0)
             self.assertEqual(second_exit_code, 0)
@@ -277,6 +278,11 @@ class CliTest(unittest.TestCase):
                 {candidate["output_dir"] for candidate in project_manifest["run_candidates"]},
                 {str(first_run_dir), str(second_run_dir)},
             )
+            self.assertEqual(comparison_summary["schema_name"], "run_comparison_summary")
+            self.assertEqual(comparison_summary["schema_version"], "1.0")
+            self.assertEqual(comparison_summary["candidate_count"], 2)
+            self.assertEqual(comparison_summary["best_run"]["output_dir"], project_manifest["best_run"]["output_dir"])
+            self.assertEqual(comparison_summary["current_run"]["output_dir"], str(second_run_dir))
 
     def test_cli_prints_current_vs_best_run_summary_for_project_runs(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
