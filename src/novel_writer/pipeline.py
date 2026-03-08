@@ -66,6 +66,7 @@ class StoryPipeline:
             selected_logline = {}
             checkpoints = []
             self.long_run_status = self._default_long_run_status()
+        artifacts.normalize_chapter_artifacts()
 
         if rerun_from is not None:
             checkpoints = self._truncate_checkpoints(checkpoints, rerun_from)
@@ -291,6 +292,7 @@ class StoryPipeline:
         ]:
             if field_name in artifacts_data:
                 setattr(artifacts, field_name, artifacts_data[field_name])
+        artifacts.normalize_chapter_artifacts()
         return (
             artifacts,
             manifest.get("selected_logline", {}),
@@ -412,8 +414,10 @@ class StoryPipeline:
         selected_logline: dict,
         checkpoints: list[dict],
     ) -> None:
+        artifacts.normalize_chapter_artifacts()
         manifest = {
             "summary": artifacts.summary(),
+            "artifact_contract": artifacts.artifact_contract(),
             "selected_logline": selected_logline,
             "continuity_history": artifacts.continuity_history,
             "rerun_history": artifacts.rerun_history,

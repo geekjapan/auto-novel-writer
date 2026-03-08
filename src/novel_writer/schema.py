@@ -3,6 +3,33 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 
 
+def chapter_artifact_contract() -> dict:
+    return {
+        "canonical_story_state": {
+            "chapter_drafts": {
+                "primary_collection": "chapter_drafts",
+                "artifact_pattern": "chapter_{n}_draft",
+                "compatibility_field": "chapter_1_draft",
+                "compatibility_artifact": "05_chapter_1_draft",
+                "compatibility_chapter_index": 0,
+            },
+            "revised_chapter_drafts": {
+                "primary_collection": "revised_chapter_drafts",
+                "artifact_pattern": "revised_chapter_{n}_draft",
+                "compatibility_field": "revised_chapter_1_draft",
+                "compatibility_artifact": "revised_chapter_1_draft",
+                "compatibility_chapter_index": 0,
+            },
+            "continuity_history": {
+                "primary_collection": "continuity_history",
+                "compatibility_field": "continuity_report",
+                "compatibility_artifact": "continuity_report",
+                "compatibility_chapter_index": 0,
+            },
+        }
+    }
+
+
 @dataclass(slots=True)
 class StoryInput:
     theme: str
@@ -38,20 +65,46 @@ class StoryArtifacts:
         return {
             "story_input": self.story_input.to_dict(),
             "phases": [
-                "logline",
+                "story_input",
+                "loglines",
                 "characters",
                 "three_act_plot",
                 "chapter_plan",
-                "chapter_1_draft",
-                "continuity_check",
-                "revise_chapter_1",
+                "chapter_drafts",
+                "continuity_report",
+                "quality_report",
+                "revised_chapter_drafts",
+                "story_summary",
+                "project_quality_report",
+                "publish_ready_bundle",
             ],
             "counts": {
                 "loglines": len(self.loglines),
                 "characters": len(self.characters),
                 "chapters": len(self.chapter_plan),
+                "chapter_drafts": len(self.chapter_drafts),
+                "revised_chapter_drafts": len(self.revised_chapter_drafts),
             },
         }
+
+    def normalize_chapter_artifacts(self) -> None:
+        if self.chapter_drafts:
+            self.chapter_1_draft = self.chapter_drafts[0]
+        elif self.chapter_1_draft:
+            self.set_chapter_draft(0, dict(self.chapter_1_draft))
+
+        if self.revised_chapter_drafts:
+            self.revised_chapter_1_draft = self.revised_chapter_drafts[0]
+        elif self.revised_chapter_1_draft:
+            self.set_revised_chapter_draft(0, dict(self.revised_chapter_1_draft))
+
+        if self.continuity_history:
+            self.continuity_report = self.continuity_history[0]
+        elif self.continuity_report:
+            self.continuity_history = [dict(self.continuity_report)]
+
+    def artifact_contract(self) -> dict:
+        return chapter_artifact_contract()
 
     def set_chapter_draft(self, chapter_index: int, payload: dict) -> None:
         self._ensure_slot(self.chapter_drafts, chapter_index)

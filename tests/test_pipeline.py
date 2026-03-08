@@ -54,6 +54,18 @@ class StoryPipelineTest(unittest.TestCase):
                 (output_dir / "publish_ready_bundle.json").read_text(encoding="utf-8")
             )
             self.assertEqual(manifest["selected_logline"]["id"], "logline-1")
+            self.assertEqual(
+                manifest["artifact_contract"]["canonical_story_state"]["chapter_drafts"]["primary_collection"],
+                "chapter_drafts",
+            )
+            self.assertEqual(
+                manifest["artifact_contract"]["canonical_story_state"]["chapter_drafts"]["compatibility_field"],
+                "chapter_1_draft",
+            )
+            self.assertEqual(
+                manifest["artifact_contract"]["canonical_story_state"]["continuity_history"]["compatibility_field"],
+                "continuity_report",
+            )
             self.assertEqual(artifacts.chapter_1_draft["chapter_number"], 1)
             self.assertIn("length_warnings", continuity_report)
             self.assertIn("overall_recommendation", quality_report)
@@ -179,6 +191,58 @@ class StoryPipelineTest(unittest.TestCase):
                 PIPELINE_STEP_ORDER,
             )
             self.assertFalse(manifest["long_run_status"]["should_stop"])
+
+    def test_resume_normalizes_compatibility_only_manifest_to_chapter_arrays(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            output_dir = Path(tmp_dir)
+            pipeline = StoryPipeline(MockLLMClient(), output_dir, "json")
+            pipeline.run(StoryInput(theme="秘密", genre="ミステリ", tone="静謐", target_length=6000))
+
+            manifest_path = output_dir / "manifest.json"
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            manifest["artifacts"].pop("chapter_drafts", None)
+            manifest["artifacts"].pop("revised_chapter_drafts", None)
+            manifest["artifacts"]["continuity_history"] = []
+            manifest["artifacts"]["quality_report"] = {}
+            manifest["artifacts"]["story_summary"] = {}
+            manifest["artifacts"]["project_quality_report"] = {}
+            manifest["artifacts"]["publish_ready_bundle"] = {}
+            manifest["continuity_history"] = []
+            manifest["rerun_history"] = []
+            manifest["revise_history"] = []
+            manifest["chapter_histories"] = []
+            manifest["current_step"] = "chapter_drafts"
+            manifest["completed_steps"] = PIPELINE_STEP_ORDER[:6]
+            manifest["checkpoints"] = [
+                {
+                    "step": step_name,
+                    "status": "completed",
+                    "completed_steps": PIPELINE_STEP_ORDER[: index + 1],
+                }
+                for index, step_name in enumerate(PIPELINE_STEP_ORDER[:6])
+            ]
+            manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+
+            resumed = StoryPipeline(MockLLMClient(), output_dir, "json").run(resume_from=output_dir)
+            resumed_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+
+            self.assertTrue(resumed.chapter_drafts)
+            self.assertEqual(resumed.chapter_drafts[0], resumed.chapter_1_draft)
+            self.assertTrue(resumed.revised_chapter_drafts)
+            self.assertEqual(resumed.revised_chapter_drafts[0], resumed.revised_chapter_1_draft)
+            self.assertEqual(
+                resumed_manifest["artifacts"]["chapter_drafts"][0],
+                resumed_manifest["artifacts"]["chapter_1_draft"],
+            )
+            self.assertEqual(
+                resumed_manifest["artifacts"]["revised_chapter_drafts"][0],
+                resumed_manifest["artifacts"]["revised_chapter_1_draft"],
+            )
+            self.assertEqual(
+                resumed_manifest["artifacts"]["continuity_history"][0],
+                resumed_manifest["artifacts"]["continuity_report"],
+            )
+            self.assertEqual(resumed_manifest["current_step"], PIPELINE_STEP_ORDER[-1])
 
 
 

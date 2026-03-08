@@ -73,7 +73,7 @@ bounded revise loop、停止条件、diff metadata 保存は実装済み。
 
 `story_summary.json`、`project_quality_report.json`、`publish_ready_bundle.json` の生成は実装済み。
 
-## 現在の本命
+## 完了済みの追加段階
 
 ### M10. 仕様語彙と artifact contract の固定
 
@@ -86,6 +86,8 @@ README / ROADMAP / TASKS / manifest / テストの間で、何が正本で何が
 - chapter 配列ベースの内部状態が正本だと明記される
 - chapter 1 互換 artifact の位置づけが文書とテストで一致する
 - publish-ready bundle と project/run manifest の責務が説明できる
+
+## 現在の本命
 
 ### M11. 章単位制御の外部仕様一般化
 

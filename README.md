@@ -214,6 +214,7 @@ novel-writer rerun-chapter --project-id "my-story-01" --chapter-number 1
 
 `manifest` には以下も保存します。
 
+- `artifact_contract`
 - `checkpoints`
 - `current_step`
 - `completed_steps`
@@ -222,6 +223,8 @@ novel-writer rerun-chapter --project-id "my-story-01" --chapter-number 1
 - `revise_history`
 - `chapter_histories`
 - `long_run_status`
+
+`artifact_contract` は、chapter 配列ベースの正本と chapter 1 互換 artifact の対応を明示するための metadata です。
 
 ## 現時点でできること
 
@@ -246,6 +249,7 @@ novel-writer rerun-chapter --project-id "my-story-01" --chapter-number 1
 - 正本は chapter 配列ベースの内部状態
 - chapter 1 互換 artifact は当面維持
 - manifest に履歴を残す
+- manifest に artifact contract も残す
 - `mock` / `openai` を切替可能
 - artifact は JSON / YAML で保存する
 - secrets と生成成果物は repo に push しない運用を前提にする

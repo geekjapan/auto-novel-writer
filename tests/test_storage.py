@@ -26,6 +26,14 @@ class SaveArtifactTest(unittest.TestCase):
     def test_save_artifact_preserves_multi_chapter_manifest_payload(self) -> None:
         payload = {
             "summary": {"counts": {"chapters": 3}},
+            "artifact_contract": {
+                "canonical_story_state": {
+                    "chapter_drafts": {
+                        "primary_collection": "chapter_drafts",
+                        "compatibility_artifact": "05_chapter_1_draft",
+                    }
+                }
+            },
             "artifacts": {
                 "chapter_plan": [
                     {"chapter_number": 1, "title": "第1章 導入"},
@@ -52,6 +60,10 @@ class SaveArtifactTest(unittest.TestCase):
             saved = json.loads(target.read_text(encoding="utf-8"))
 
             self.assertEqual(saved["summary"]["counts"]["chapters"], 3)
+            self.assertEqual(
+                saved["artifact_contract"]["canonical_story_state"]["chapter_drafts"]["compatibility_artifact"],
+                "05_chapter_1_draft",
+            )
             self.assertEqual(len(saved["artifacts"]["chapter_drafts"]), 3)
             self.assertEqual(len(saved["artifacts"]["revised_chapter_drafts"]), 3)
             self.assertEqual(saved["artifacts"]["chapter_drafts"][0], saved["artifacts"]["chapter_1_draft"])
