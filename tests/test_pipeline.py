@@ -75,6 +75,26 @@ class StoryPipelineTest(unittest.TestCase):
                 manifest["revise_history"][-1]["target"],
                 f"revised_chapter_drafts[{len(artifacts.chapter_plan) - 1}]",
             )
+            self.assertEqual(
+                [entry["chapter_index"] for entry in manifest["revise_history"]],
+                list(range(len(artifacts.chapter_plan))),
+            )
+            self.assertEqual(
+                [draft["chapter_number"] for draft in manifest["artifacts"]["chapter_drafts"]],
+                [chapter["chapter_number"] for chapter in manifest["artifacts"]["chapter_plan"]],
+            )
+            self.assertEqual(
+                [draft["chapter_number"] for draft in manifest["artifacts"]["revised_chapter_drafts"]],
+                [chapter["chapter_number"] for chapter in manifest["artifacts"]["chapter_plan"]],
+            )
+            self.assertEqual(
+                manifest["summary"]["counts"]["chapters"],
+                len(manifest["artifacts"]["chapter_drafts"]),
+            )
+            self.assertEqual(
+                manifest["summary"]["counts"]["chapters"],
+                len(manifest["artifacts"]["revised_chapter_drafts"]),
+            )
 
 
 
