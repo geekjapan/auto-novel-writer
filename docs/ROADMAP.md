@@ -10,14 +10,21 @@ CLI から小説プロジェクトを作成し、章単位・作品単位で
 
 ## Current State
 
-- CLI から `theme`、`genre`、`tone`、`target_length` を受け取り、`project_id` つきの run 管理もできる
+- CLI から `theme`、`genre`、`tone`、`target_length` を受け取り、`project_id` つきの project/run 管理ができる
 - `story_input → loglines → characters → three_act_plot → chapter_plan → chapter_drafts` の生成フローがある
 - chapter plan 全件に対して draft / revised draft を生成し、全章 artifact を保存できる
 - continuity check と quality report により、構造不整合、POV 一貫性、章長バランス、キャラクター継続性を評価できる
 - rerun policy、bounded revise loop、resume / rerun、history / diff metadata 保存がある
-- `project_manifest.json` と `manifest` により、project/run の状態復元ができる
+- `project_manifest.json` と `manifest` により、project/run の状態復元と run 比較ができる
 - `story_summary.json`、`project_quality_report.json`、`publish_ready_bundle.json` を生成できる
-- `rerun-chapter` は任意章で動くが、互換 artifact には chapter 1 基準の外部仕様がまだ残っている
+- `rerun-chapter` は任意章で動く
+- `best_run` には comparison metrics、selection reason、long-run status が保存される
+- `publish_ready_bundle.json` は `schema_version=1.0` の固定 contract を持つ
+
+## 現在地の整理
+
+実装済みなのは、**全章生成・再開・再実行・改稿・作品単位成果物出力までの基盤**です。  
+次に必要なのは新しい生成段を増やすことではなく、**運用時に状態を見やすくし、contract を検証し、長編運用の制御を外から扱えるようにすること**です。
 
 ## 仕様上の柱
 
@@ -73,77 +80,95 @@ bounded revise loop、停止条件、diff metadata 保存は実装済み。
 
 `story_summary.json`、`project_quality_report.json`、`publish_ready_bundle.json` の生成は実装済み。
 
-## 完了済みの追加段階
-
 ### M10. 仕様語彙と artifact contract の固定
 
-目的:
-README / ROADMAP / TASKS / manifest / テストの間で、何が正本で何が互換層かをぶらさずに固定する。
-
-完了条件:
-
-- 「制作パイプライン」であることが docs 全体で一貫する
-- chapter 配列ベースの内部状態が正本だと明記される
-- chapter 1 互換 artifact の位置づけが文書とテストで一致する
-- publish-ready bundle と project/run manifest の責務が説明できる
-
-## 現在の本命
+chapter 配列ベースの内部正本、chapter 1 互換 artifact、publish-ready bundle contract の用語と責務は docs / manifest / tests で固定済み。
 
 ### M11. 章単位制御の外部仕様一般化
 
-目的:
-内部で全章対応している rerun / revise / history を、CLI と外部仕様でも任意章へ広げる。
-
-完了条件:
-
-- `rerun-chapter` が任意章に対応する
-- 対象章だけを安全に再実行できる
-- 章単位操作が manifest と project manifest で追える
-
-## 進行中の残課題
-
-- chapter 1 互換 artifact と章別 artifact の責務分離は続けて整理が必要
+`rerun-chapter` は任意章に対応し、対象章の rerun / revise / summary 系 artifact を更新できる。
 
 ### M12. 作品単位評価と選抜の強化
 
+`run_candidates` と `best_run` に comparison metrics と selection reason を保存し、CLI でも current run と best run の差分を確認できる。
+
+### M13. 長編安定化の初期整備
+
+`long_run_status` に停止理由、予算、resume guidance を保存し、`publish_ready_bundle.json` の contract も固定済み。
+
+## 現在の本命
+
+### M14. 運用観測性の強化
+
 目的:
-複数 run の比較と best candidate 選抜を、運用可能な精度へ強化する。
+生成を回す前に、project と run の状態を**読み取り専用で確認できる**ようにする。
 
 完了条件:
 
-- best run の根拠を説明できる
-- comparison 用 metadata が整理される
-- project-level quality report が比較運用に耐える
+- `project_manifest.json` を読むだけの status 系 CLI がある
+- `current_run` / `best_run` / `chapter_statuses` / `long_run_status` を再実行なしで確認できる
+- 章別の issue 数、rerun 回数、revise 回数を人間が追いやすい
 
-進捗メモ:
-project manifest には comparison metrics と selection reason を保存できるようになり、CLI でも current run と best run の比較結果を見られるようになった。次は長編向け stop condition / retry policy の整理に進む。
+## 次のマイルストーン
 
-### M13. 長編安定化
+### M15. artifact schema 検証
 
 目的:
-中編・長編でも途中停止 / 再開しながら安定生成できるようにする。
+manifest と publish bundle の contract を docs 上の説明だけでなく、保存時・読込時の検証として扱えるようにする。
 
 完了条件:
 
-- stop condition と retry policy が長編向けに整理される
-- rerun コストを制御できる
-- 長編時でも chapter / project の状態追跡が崩れない
+- `project_manifest.json` と `publish_ready_bundle.json` の validator がある
+- schema/version 不整合を actionable なエラーとして出せる
+- compatibility layer と canonical state の境界が validator 上でも明確になる
 
-進捗メモ:
-`long_run_status` には停止理由、上限値、残り予算、resume guidance を保存できるようになり、`publish_ready_bundle.json` も `schema_version=1.0` の固定 schema を持つようになった。残る作業は docs / manifest の用語統一である。
+### M16. 長編運用ポリシーの外部化
+
+目的:
+長編向け stop condition / retry policy / rerun budget をコード内固定値から運用設定へ寄せる。
+
+完了条件:
+
+- rerun policy の主要閾値を CLI または設定ファイルから与えられる
+- 実行時に使った policy snapshot を manifest に保存できる
+- 予算切れや停止条件を project 単位で比較できる
+
+### M17. run 比較と採用フローの強化
+
+目的:
+複数 run の比較と `best_run` 採用を、CLI 出力だけでなく downstream 利用できる成果物として扱う。
+
+完了条件:
+
+- 機械可読な run comparison summary を保存できる
+- 人間レビュー後に `best_run` を明示的に採用または固定できる
+- 自動選抜と人間選抜の境界が docs / manifest で明確になる
+
+### M18. 公開成果物 bundle の強化
+
+目的:
+`publish_ready_bundle.json` を比較・公開・変換の起点として扱えるようにする。
+
+完了条件:
+
+- `sections` の内容契約が固定される
+- bundle の downstream 利用前提が docs / tests で説明される
+- 将来の Markdown / EPUB 変換に繋がる最小 contract が整う
 
 ## Sequencing Rationale
 
-- まず M10 で仕様語彙と artifact contract を固定し、docs と実装のぶれを止める
-- 次に M11 で chapter 単位制御を外部仕様でも完成させる
-- その後 M12 で run 比較と選抜を強める
-- 最後に M13 で長編安定化へ進む
+- まず M14 で「今どの run がどういう状態か」を安全に読めるようにする
+- 次に M15 で artifact contract を validator と versioning で守る
+- その後 M16 で長編運用ポリシーを外から調整できるようにする
+- さらに M17 で run 比較と採用フローを成果物として扱う
+- 最後に M18 で publish-ready bundle を downstream 前提で固める
 
 ## Roadmap Notes
 
 - README は「現状できること」
 - ROADMAP は「どこへ進むか」
 - TASKS は「次に何を実装するか」
-- docs では `run_candidates` / `best_run` / `chapter_statuses` / `chapter_histories` / `artifact_contract` / `long_run_status` の語を正規表現として固定する
+- 実装順序の正本は `docs/TASKS.md`
+- docs では `run_candidates` / `best_run` / `chapter_statuses` / `chapter_histories` / `artifact_contract` / `long_run_status` の語を固定する
 
 この3つは役割を分けて保守する。

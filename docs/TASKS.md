@@ -5,7 +5,21 @@
 
 ## In Progress
 
+- [ ] M14: status 出力に `current_run` / `best_run` / `chapter_statuses` / `long_run_status` の要点を揃え、tests を追加する
+
 ## Ready
+
+- [ ] M14: 章別の issue 数、rerun 回数、revise 回数を status 出力から確認できるようにする
+- [ ] M15: `project_manifest.json` の validator を追加し、欠落 field / version 不整合時に actionable なエラーを返す
+- [ ] M15: `publish_ready_bundle.json` の validator を追加し、`schema_version=1.0` contract を保存時・読込時に検証する
+- [ ] M15: manifest / bundle の schema version 方針を docs と tests に固定する
+- [ ] M16: rerun policy の主要閾値を CLI 引数または設定ファイルから与えられるようにする
+- [ ] M16: 実行時 policy snapshot を `manifest` / `project_manifest.json` に保存し、比較可能にする
+- [ ] M16: 長編向け budget 設定の差を検証する tests を追加する
+- [ ] M17: 機械可読な run comparison summary artifact を追加する
+- [ ] M17: 人間レビュー後に `best_run` を固定または昇格できる CLI を追加する
+- [ ] M18: `publish_ready_bundle.sections` の最小 contract を定義し、docs / tests で固定する
+- [ ] Docs: M14-M15 実装後に README / ROADMAP / TASKS の説明を同期する
 
 ## Done
 
@@ -52,6 +66,7 @@
 - [x] M13: 長編向け stop condition / retry policy / rerun limit を整理する
 - [x] M13: `publish_ready_bundle.json` の schema を固定し、downstream 利用前提の説明と tests を追加する
 - [x] Docs: README / ROADMAP / TASKS / manifest で使う用語を完全に統一する
+- [x] M14: `project_manifest.json` を読み取り専用で表示する `show-project-status` CLI を追加する
 
 ## Task Update Rules
 

@@ -59,6 +59,13 @@ def build_parser() -> argparse.ArgumentParser:
     resume_project.add_argument("--rerun-from", choices=PIPELINE_STEP_ORDER, help="Optional rerun start step for the current run")
     add_runtime_arguments(resume_project)
 
+    show_project_status = subparsers.add_parser(
+        "show-project-status",
+        help="Show the current project manifest summary without rerunning the pipeline",
+    )
+    show_project_status.add_argument("--project-id", required=True, help="Project/story identifier")
+    show_project_status.add_argument("--projects-dir", default=DEFAULT_PROJECTS_DIR, help="Base directory for project-scoped runs")
+
     rerun_chapter = subparsers.add_parser("rerun-chapter", help="Rerun chapter generation for the current project run")
     rerun_chapter.add_argument("--project-id", required=True, help="Project/story identifier")
     rerun_chapter.add_argument("--projects-dir", default=DEFAULT_PROJECTS_DIR, help="Base directory for project-scoped runs")
@@ -337,6 +344,37 @@ def print_run_summary(artifacts, output_dir: Path, project_manifest: dict[str, A
         print(line)
 
 
+def build_project_status_lines(project_manifest: dict[str, Any]) -> list[str]:
+    lines: list[str] = []
+    if not project_manifest:
+        return lines
+
+    current_run = project_manifest.get("current_run", {})
+    best_run = project_manifest.get("best_run", {})
+    lines.append(f"Project: {project_manifest.get('project_slug') or project_manifest.get('project_id', 'unknown')}")
+
+    if current_run:
+        completed_steps = current_run.get("completed_steps", [])
+        lines.append(f"Current run: {current_run.get('name', 'unknown')}")
+        lines.append(f"  output_dir: {current_run.get('output_dir', 'unknown')}")
+        lines.append(f"  current_step: {current_run.get('current_step', 'unknown')}")
+        lines.append(f"  completed_steps: {len(completed_steps)}")
+
+    if best_run:
+        lines.append(f"Best run: {best_run.get('run_name', 'unknown')}")
+        lines.append(f"  output_dir: {best_run.get('output_dir', 'unknown')}")
+        lines.append(f"  score: {best_run.get('score', 'unknown')}")
+
+    run_candidates = project_manifest.get("run_candidates", [])
+    lines.append(f"Run candidates: {len(run_candidates)}")
+    return lines
+
+
+def print_project_status(project_manifest: dict[str, Any]) -> None:
+    for line in build_project_status_lines(project_manifest):
+        print(line)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -359,6 +397,12 @@ def main(argv: list[str] | None = None) -> int:
         save_project_state(project_layout, Path(args.projects_dir), args.project_id, output_dir, args.format)
         project_manifest = load_artifact(project_layout["project_dir"], "project_manifest")
         print_run_summary(artifacts, output_dir, project_manifest)
+        return 0
+
+    if args.command == "show-project-status":
+        project_layout = build_project_layout(Path(args.projects_dir), args.project_id)
+        project_manifest = load_artifact(project_layout["project_dir"], "project_manifest")
+        print_project_status(project_manifest)
         return 0
 
     if args.command == "rerun-chapter":

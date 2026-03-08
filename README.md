@@ -208,11 +208,13 @@ novel-writer ^
 ```bash
 novel-writer create-project --project-id "my-story-01" --theme "境界" --genre "SF" --tone "ビター" --target-length 5000
 novel-writer resume-project --project-id "my-story-01"
+novel-writer show-project-status --project-id "my-story-01"
 novel-writer rerun-chapter --project-id "my-story-01" --chapter-number 2
 ```
 
 `rerun-chapter` は任意章の draft / continuity / revise / summary 系 artifact を再計算します。  
 ただし互換 artifact の `continuity_report.json` と `quality_report.json` は、引き続き chapter 1 基準です。
+`show-project-status` は `project_manifest.json` を読み取り専用で表示し、run を再実行しません。
 
 ## 主な出力物
 

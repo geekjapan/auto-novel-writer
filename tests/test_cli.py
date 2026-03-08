@@ -325,6 +325,51 @@ class CliTest(unittest.TestCase):
             self.assertIn("Best run:", output)
             self.assertIn("Comparison metrics:", output)
 
+    def test_cli_show_project_status_reads_manifest_without_rerunning(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            main(
+                [
+                    "create-project",
+                    "--theme",
+                    "境界",
+                    "--genre",
+                    "SF",
+                    "--tone",
+                    "ビター",
+                    "--target-length",
+                    "5000",
+                    "--project-id",
+                    "Status 01",
+                    "--projects-dir",
+                    tmp_dir,
+                ]
+            )
+
+            project_dir = Path(tmp_dir) / "status-01"
+            before_manifest = load_artifact(project_dir, "project_manifest")
+
+            buffer = io.StringIO()
+            with redirect_stdout(buffer):
+                exit_code = main(
+                    [
+                        "show-project-status",
+                        "--project-id",
+                        "Status 01",
+                        "--projects-dir",
+                        tmp_dir,
+                    ]
+                )
+
+            after_manifest = load_artifact(project_dir, "project_manifest")
+            output = buffer.getvalue()
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(before_manifest, after_manifest)
+            self.assertIn("Project: status-01", output)
+            self.assertIn("Current run: latest_run", output)
+            self.assertIn("Best run: latest_run", output)
+            self.assertIn("Run candidates: 1", output)
+
 
 if __name__ == "__main__":
     unittest.main()
