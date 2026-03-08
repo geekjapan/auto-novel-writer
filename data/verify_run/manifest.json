@@ -31,10 +31,10 @@
       "attempt": 1,
       "severity": "high",
       "action": "rerun_from_chapter_plan",
-      "weighted_score": 15,
+      "weighted_score": 11,
       "issue_counts": {
         "missing_fields": 0,
-        "character_name_mismatches": 3,
+        "character_name_mismatches": 1,
         "plot_to_plan_gaps": 2,
         "plan_to_draft_gaps": 0,
         "length_warnings": 1
@@ -47,7 +47,7 @@
       "resulting_severity": "high",
       "issue_counts": {
         "missing_fields": 0,
-        "character_name_mismatches": 3,
+        "character_name_mismatches": 1,
         "plot_to_plan_gaps": 2,
         "plan_to_draft_gaps": 0,
         "length_warnings": 1
@@ -156,28 +156,24 @@
           "field": "text",
           "value": "章 導入",
           "reason": "name_in_draft_not_in_characters"
-        },
-        {
-          "artifact": "chapter_1_draft",
-          "field": "text",
-          "value": "篠崎 遥はまだ夜の静けさに慣れずにいた",
-          "reason": "name_in_draft_not_in_characters"
-        },
-        {
-          "artifact": "chapter_1_draft",
-          "field": "text",
-          "value": "篠崎 遥は秘密に関する未解決の問題を抱えながら日常を送っている",
-          "reason": "name_in_draft_not_in_characters"
         }
       ],
       "plot_to_plan_gaps": [
         {
           "plot_point": "act_2.crisis",
-          "reason": "plot_beat_not_reflected_in_chapter_plan"
+          "reason": "plot_beat_not_reflected_in_chapter_plan",
+          "keywords": [
+            "秘密を守るか",
+            "誰かを救うために公にするかで板挟みになる"
+          ]
         },
         {
           "plot_point": "act_3.resolution",
-          "reason": "plot_beat_not_reflected_in_chapter_plan"
+          "reason": "plot_beat_not_reflected_in_chapter_plan",
+          "keywords": [
+            "代償を払いながらも",
+            "新しい関係と次の一歩を手に入れる"
+          ]
         }
       ],
       "plan_to_draft_gaps": [],
@@ -191,24 +187,24 @@
       ],
       "issue_counts": {
         "missing_fields": 0,
-        "character_name_mismatches": 3,
+        "character_name_mismatches": 1,
         "plot_to_plan_gaps": 2,
         "plan_to_draft_gaps": 0,
         "length_warnings": 1
       },
       "severity": "high",
       "recommended_action": "rerun_from_chapter_plan",
-      "weighted_score": 15
+      "weighted_score": 11
     },
     "rerun_history": [
       {
         "attempt": 1,
         "severity": "high",
         "action": "rerun_from_chapter_plan",
-        "weighted_score": 15,
+        "weighted_score": 11,
         "issue_counts": {
           "missing_fields": 0,
-          "character_name_mismatches": 3,
+          "character_name_mismatches": 1,
           "plot_to_plan_gaps": 2,
           "plan_to_draft_gaps": 0,
           "length_warnings": 1
@@ -221,7 +217,7 @@
         "resulting_severity": "high",
         "issue_counts": {
           "missing_fields": 0,
-          "character_name_mismatches": 3,
+          "character_name_mismatches": 1,
           "plot_to_plan_gaps": 2,
           "plan_to_draft_gaps": 0,
           "length_warnings": 1

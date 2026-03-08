@@ -5,6 +5,40 @@ from typing import Any
 
 from novel_writer.schema import StoryArtifacts
 
+STOPWORDS = {
+    "こと",
+    "もの",
+    "ため",
+    "よう",
+    "それ",
+    "これ",
+    "そして",
+    "しかし",
+    "主人公",
+    "短編",
+}
+
+NON_NAME_TOKENS = {
+    "導入",
+    "転機",
+    "対立",
+    "危機",
+    "結末",
+    "余韻",
+    "主人公",
+    "手紙",
+    "電話",
+    "親友",
+    "旧友",
+    "自宅",
+    "机",
+    "封筒",
+    "部屋",
+    "真相",
+}
+
+PARTICLE_SPLIT_PATTERN = r"[、。・,\s\n\r\t]|(?:では|には|へは|から|まで|より)|[はがをにへのともでやか]"
+
 
 class ContinuityChecker:
     def build_report(self, artifacts: StoryArtifacts) -> dict[str, Any]:
@@ -125,8 +159,8 @@ class ContinuityChecker:
                 }
             )
 
-        draft_names = set(re.findall(r"[一-龠ぁ-んァ-ヶA-Za-z]+(?:\s?[一-龠ぁ-んァ-ヶA-Za-z]+)?", draft_text))
-        unknown_names = sorted(name for name in draft_names if " " in name and name not in names)
+        draft_names = self._extract_probable_names(draft_text)
+        unknown_names = sorted(name for name in draft_names if name not in names)
         for name in unknown_names:
             issues.append(
                 {
@@ -144,9 +178,11 @@ class ContinuityChecker:
         chapter_plan: list[dict[str, Any]],
     ) -> list[dict[str, Any]]:
         issues: list[dict[str, Any]] = []
-        plan_text = " ".join(
-            f"{chapter.get('title', '')} {chapter.get('purpose', '')}"
-            for chapter in chapter_plan
+        plan_keywords = self._extract_keywords(
+            " ".join(
+                f"{chapter.get('title', '')} {chapter.get('purpose', '')}"
+                for chapter in chapter_plan
+            )
         )
         beat_map = [
             ("act_1", "setup"),
@@ -157,11 +193,13 @@ class ContinuityChecker:
         ]
         for act_name, beat_name in beat_map:
             beat_text = str(three_act_plot.get(act_name, {}).get(beat_name, ""))
-            if beat_text and beat_text not in plan_text:
+            beat_keywords = self._extract_keywords(beat_text)
+            if beat_keywords and not self._has_keyword_overlap(beat_keywords, plan_keywords, minimum_ratio=0.4):
                 issues.append(
                     {
                         "plot_point": f"{act_name}.{beat_name}",
                         "reason": "plot_beat_not_reflected_in_chapter_plan",
+                        "keywords": beat_keywords,
                     }
                 )
         return issues
@@ -192,12 +230,21 @@ class ContinuityChecker:
                 }
             )
 
+        purpose = str(first_plan.get("purpose", ""))
         summary = str(chapter_1_draft.get("summary", ""))
-        if first_plan.get("purpose") and summary != first_plan.get("purpose"):
+        purpose_keywords = self._extract_keywords(purpose)
+        summary_keywords = self._extract_keywords(summary)
+        if purpose_keywords and not self._has_keyword_overlap(
+            purpose_keywords,
+            summary_keywords,
+            minimum_ratio=0.5,
+        ):
             issues.append(
                 {
                     "field": "summary",
-                    "reason": "draft_summary_does_not_match_plan_purpose",
+                    "reason": "draft_summary_does_not_reflect_plan_keywords",
+                    "expected_keywords": purpose_keywords,
+                    "observed_keywords": summary_keywords,
                 }
             )
 
@@ -244,3 +291,59 @@ class ContinuityChecker:
             )
         return issues
 
+    def _extract_keywords(self, text: str) -> list[str]:
+        normalized_text = re.sub(PARTICLE_SPLIT_PATTERN, " ", text)
+        raw_chunks = [chunk for chunk in normalized_text.split(" ") if chunk]
+        keywords: list[str] = []
+        for chunk in raw_chunks:
+            for token in self._expand_keyword_chunk(chunk):
+                normalized = token.strip().lower()
+                if normalized in STOPWORDS:
+                    continue
+                if re.fullmatch(r"[ぁ-ん]{2,}", normalized):
+                    continue
+                keywords.append(normalized)
+        deduped: list[str] = []
+        for keyword in keywords:
+            if keyword not in deduped:
+                deduped.append(keyword)
+        return deduped
+
+    def _expand_keyword_chunk(self, chunk: str) -> list[str]:
+        tokens: list[str] = []
+        if len(chunk) >= 2:
+            tokens.append(chunk)
+        tokens.extend(re.findall(r"[一-龠]{2,}", chunk))
+        tokens.extend(re.findall(r"[ァ-ヶー]{2,}", chunk))
+        tokens.extend(re.findall(r"[A-Za-z0-9]{2,}", chunk))
+        return tokens
+
+    def _has_keyword_overlap(
+        self,
+        source_keywords: list[str],
+        target_keywords: list[str],
+        minimum_ratio: float,
+    ) -> bool:
+        if not source_keywords:
+            return True
+        matches = 0
+        for keyword in source_keywords:
+            if any(keyword in target or target in keyword for target in target_keywords):
+                matches += 1
+        return (matches / len(source_keywords)) >= minimum_ratio
+
+    def _extract_probable_names(self, text: str) -> set[str]:
+        matches = set()
+        for pattern in [
+            r"[一-龠]{2,3}\s[一-龠]{1,3}",
+            r"[ァ-ヶー]{2,}\s[ァ-ヶー]{2,}",
+            r"[A-Z][a-zA-Z]{1,20}\s[A-Z][a-zA-Z]{1,20}",
+        ]:
+            matches.update(re.findall(pattern, text))
+        filtered = set()
+        for match in matches:
+            parts = match.split(" ")
+            if any(part in NON_NAME_TOKENS for part in parts):
+                continue
+            filtered.add(match)
+        return filtered
