@@ -66,6 +66,16 @@ class ContinuityChecker:
                 artifacts.characters,
             ),
             "length_warnings": self._find_length_warnings(artifacts.chapter_plan, artifacts.chapter_1_draft),
+            "pov_consistency_issues": self._find_pov_consistency_issues(
+                artifacts.chapter_plan,
+                artifacts.characters,
+            ),
+            "chapter_length_balance_warnings": self._find_chapter_length_balance_warnings(artifacts.chapter_plan),
+            "character_continuity_issues": self._find_character_continuity_issues(
+                artifacts.characters,
+                artifacts.chapter_plan,
+                artifacts.chapter_1_draft,
+            ),
         }
         report["issue_counts"] = {
             key: len(value)
@@ -289,6 +299,118 @@ class ContinuityChecker:
                     "reason": "draft_is_significantly_shorter_than_plan_target",
                 }
             )
+        return issues
+
+    def _find_pov_consistency_issues(
+        self,
+        chapter_plan: list[dict[str, Any]],
+        characters: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        issues: list[dict[str, Any]] = []
+        if not chapter_plan:
+            return issues
+
+        character_names = {character.get("name", "") for character in characters if character.get("name")}
+        pov_entries = [
+            (index, str(chapter.get("point_of_view", "")).strip())
+            for index, chapter in enumerate(chapter_plan)
+        ]
+        invalid_entries = [
+            {
+                "chapter_index": index,
+                "chapter_number": chapter_plan[index].get("chapter_number"),
+                "value": point_of_view,
+                "reason": "point_of_view_not_in_characters",
+            }
+            for index, point_of_view in pov_entries
+            if point_of_view and point_of_view not in character_names
+        ]
+        issues.extend(invalid_entries)
+
+        unique_povs = []
+        for _index, point_of_view in pov_entries:
+            if point_of_view and point_of_view not in unique_povs:
+                unique_povs.append(point_of_view)
+        if len(unique_povs) > 1:
+            issues.append(
+                {
+                    "reason": "multiple_point_of_view_values_across_chapter_plan",
+                    "values": unique_povs,
+                }
+            )
+        return issues
+
+    def _find_chapter_length_balance_warnings(
+        self,
+        chapter_plan: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        issues: list[dict[str, Any]] = []
+        target_words = [
+            int(chapter.get("target_words", 0) or 0)
+            for chapter in chapter_plan
+            if int(chapter.get("target_words", 0) or 0) > 0
+        ]
+        if len(target_words) < 2:
+            return issues
+
+        average = sum(target_words) / len(target_words)
+        min_target = min(target_words)
+        max_target = max(target_words)
+        if min_target and (max_target / min_target) >= 1.8:
+            issues.append(
+                {
+                    "reason": "chapter_target_words_are_unbalanced",
+                    "min_target_words": min_target,
+                    "max_target_words": max_target,
+                }
+            )
+
+        for index, chapter in enumerate(chapter_plan):
+            target = int(chapter.get("target_words", 0) or 0)
+            if target <= 0:
+                continue
+            if target < average * 0.6 or target > average * 1.4:
+                issues.append(
+                    {
+                        "chapter_index": index,
+                        "chapter_number": chapter.get("chapter_number"),
+                        "target_words": target,
+                        "average_target_words": round(average, 2),
+                        "reason": "chapter_target_words_deviate_from_plan_average",
+                    }
+                )
+        return issues
+
+    def _find_character_continuity_issues(
+        self,
+        characters: list[dict[str, Any]],
+        chapter_plan: list[dict[str, Any]],
+        chapter_1_draft: dict[str, Any],
+    ) -> list[dict[str, Any]]:
+        issues: list[dict[str, Any]] = []
+        combined_text = " ".join(
+            [
+                " ".join(
+                    f"{chapter.get('title', '')} {chapter.get('purpose', '')} {chapter.get('point_of_view', '')}"
+                    for chapter in chapter_plan
+                ),
+                str(chapter_1_draft.get("title", "")),
+                str(chapter_1_draft.get("summary", "")),
+                str(chapter_1_draft.get("text", "")),
+            ]
+        )
+        for character in characters:
+            name = str(character.get("name", "")).strip()
+            if not name:
+                continue
+            if name not in combined_text:
+                issues.append(
+                    {
+                        "character": name,
+                        "role": character.get("role"),
+                        "reason": "character_defined_but_not_referenced_in_plan_or_draft",
+                    }
+                )
         return issues
 
     def _extract_keywords(self, text: str) -> list[str]:

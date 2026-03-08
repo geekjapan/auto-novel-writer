@@ -156,6 +156,9 @@ continuity check はルールベースで成果物間の構造的不整合候補
 - `plot_to_plan_gaps`
 - `plan_to_draft_gaps`
 - `length_warnings`
+- `pov_consistency_issues`
+- `chapter_length_balance_warnings`
+- `character_continuity_issues`
 
 実行方法:
 
