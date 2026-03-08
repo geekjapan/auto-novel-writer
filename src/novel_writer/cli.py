@@ -127,13 +127,8 @@ def _load_existing_project_manifest(project_dir: Path) -> dict[str, Any]:
 
 
 def _build_run_candidate(run_manifest: dict[str, Any], output_dir: Path) -> dict[str, Any]:
-    continuity_report = run_manifest.get("artifacts", {}).get("continuity_report", {})
-    quality_report = run_manifest.get("artifacts", {}).get("quality_report", {})
-    project_quality_report = run_manifest.get("artifacts", {}).get("project_quality_report", {})
-    continuity_issue_total = sum(continuity_report.get("issue_counts", {}).values())
-    quality_issue_total = quality_report.get("total_issue_count", 0)
-    project_issue_total = project_quality_report.get("issue_count", 0)
-    score = continuity_issue_total + quality_issue_total + project_issue_total
+    comparison_metrics = _build_comparison_metrics(run_manifest)
+    score = comparison_metrics["total_issue_score"]
     return {
         "run_name": output_dir.name,
         "output_dir": str(output_dir),
@@ -141,9 +136,42 @@ def _build_run_candidate(run_manifest: dict[str, Any], output_dir: Path) -> dict
         "summary": run_manifest.get("summary", {}),
         "chapter_statuses": _build_project_chapter_statuses(run_manifest),
         "score": score,
+        "continuity_issue_total": comparison_metrics["continuity_issue_total"],
+        "quality_issue_total": comparison_metrics["quality_issue_total"],
+        "project_issue_total": comparison_metrics["project_issue_total"],
+        "comparison_metrics": comparison_metrics,
+    }
+
+
+def _build_comparison_metrics(run_manifest: dict[str, Any]) -> dict[str, Any]:
+    continuity_report = run_manifest.get("artifacts", {}).get("continuity_report", {})
+    quality_report = run_manifest.get("artifacts", {}).get("quality_report", {})
+    project_quality_report = run_manifest.get("artifacts", {}).get("project_quality_report", {})
+    continuity_history = run_manifest.get("continuity_history", [])
+    rerun_history = run_manifest.get("rerun_history", [])
+    revise_history = run_manifest.get("revise_history", [])
+    completed_steps = run_manifest.get("completed_steps", [])
+    long_run_status = run_manifest.get("long_run_status", {})
+
+    continuity_issue_total = sum(continuity_report.get("issue_counts", {}).values())
+    quality_issue_total = int(quality_report.get("total_issue_count", 0) or 0)
+    project_issue_total = int(project_quality_report.get("issue_count", 0) or 0)
+    high_severity_chapter_count = sum(1 for entry in continuity_history if entry.get("severity") == "high")
+    rerun_attempt_total = len(rerun_history)
+    revision_attempt_total = len(revise_history)
+    completed_step_count = len(completed_steps)
+    long_run_should_stop = bool(long_run_status.get("should_stop"))
+
+    return {
         "continuity_issue_total": continuity_issue_total,
         "quality_issue_total": quality_issue_total,
         "project_issue_total": project_issue_total,
+        "total_issue_score": continuity_issue_total + quality_issue_total + project_issue_total,
+        "high_severity_chapter_count": high_severity_chapter_count,
+        "rerun_attempt_total": rerun_attempt_total,
+        "revision_attempt_total": revision_attempt_total,
+        "completed_step_count": completed_step_count,
+        "long_run_should_stop": long_run_should_stop,
     }
 
 
@@ -176,21 +204,49 @@ def _build_project_chapter_statuses(run_manifest: dict[str, Any]) -> list[dict[s
 def _merge_run_candidates(existing_candidates: list[dict[str, Any]], current_candidate: dict[str, Any]) -> list[dict[str, Any]]:
     filtered = [candidate for candidate in existing_candidates if candidate.get("output_dir") != current_candidate["output_dir"]]
     filtered.append(current_candidate)
-    return sorted(filtered, key=lambda candidate: (candidate.get("score", 0), candidate.get("run_name", "")))
+    return sorted(filtered, key=_candidate_sort_key)
+
+
+def _candidate_sort_key(candidate: dict[str, Any]) -> tuple[Any, ...]:
+    metrics = candidate.get("comparison_metrics", {})
+    return (
+        int(bool(metrics.get("long_run_should_stop"))),
+        int(metrics.get("total_issue_score", candidate.get("score", 0))),
+        int(metrics.get("high_severity_chapter_count", 0)),
+        int(metrics.get("rerun_attempt_total", 0)),
+        int(metrics.get("revision_attempt_total", 0)),
+        -int(metrics.get("completed_step_count", len(candidate.get("completed_steps", [])))),
+        candidate.get("run_name", ""),
+    )
 
 
 def _select_best_run(run_candidates: list[dict[str, Any]]) -> dict[str, Any]:
     if not run_candidates:
         return {}
-    best = min(run_candidates, key=lambda candidate: (candidate.get("score", 0), candidate.get("run_name", "")))
+    best = min(run_candidates, key=_candidate_sort_key)
+    metrics = best.get("comparison_metrics", {})
     return {
         "run_name": best.get("run_name"),
         "output_dir": best.get("output_dir"),
         "score": best.get("score"),
+        "comparison_metrics": metrics,
         "comparison_basis": [
+            "long_run_should_stop",
             "continuity_issue_total",
             "quality_issue_total",
             "project_issue_total",
+            "high_severity_chapter_count",
+            "rerun_attempt_total",
+            "revision_attempt_total",
+            "completed_step_count",
+        ],
+        "selection_reason": [
+            f"long_run_should_stop={metrics.get('long_run_should_stop')}",
+            f"total_issue_score={metrics.get('total_issue_score')}",
+            f"high_severity_chapter_count={metrics.get('high_severity_chapter_count')}",
+            f"rerun_attempt_total={metrics.get('rerun_attempt_total')}",
+            f"revision_attempt_total={metrics.get('revision_attempt_total')}",
+            f"completed_step_count={metrics.get('completed_step_count')}",
         ],
     }
 

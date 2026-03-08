@@ -261,6 +261,11 @@ class CliTest(unittest.TestCase):
             self.assertEqual(project_manifest["current_run"]["output_dir"], str(second_run_dir))
             self.assertIn(project_manifest["best_run"]["output_dir"], {str(first_run_dir), str(second_run_dir)})
             self.assertTrue(all("chapter_statuses" in candidate for candidate in project_manifest["run_candidates"]))
+            self.assertTrue(all("comparison_metrics" in candidate for candidate in project_manifest["run_candidates"]))
+            self.assertIn("comparison_metrics", project_manifest["best_run"])
+            self.assertIn("selection_reason", project_manifest["best_run"])
+            self.assertIn("long_run_should_stop", project_manifest["best_run"]["comparison_metrics"])
+            self.assertIn("total_issue_score=", project_manifest["best_run"]["selection_reason"][1])
             self.assertEqual(
                 {candidate["output_dir"] for candidate in project_manifest["run_candidates"]},
                 {str(first_run_dir), str(second_run_dir)},
