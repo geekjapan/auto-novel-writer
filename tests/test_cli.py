@@ -379,6 +379,8 @@ class CliTest(unittest.TestCase):
             self.assertIn("Best run: latest_run", output)
             self.assertIn("selection_source: automatic", output)
             self.assertIn("selection_reason_summary:", output)
+            self.assertIn("diff_summary:", output)
+            self.assertIn("diff_policy:", output)
             self.assertIn("Run candidates: 1", output)
             self.assertIn("chapter_statuses: 3 tracked", output)
             self.assertIn("chapters_with_issues:", output)
@@ -577,6 +579,8 @@ class CliTest(unittest.TestCase):
             output = buffer.getvalue()
             self.assertEqual(exit_code, 0)
             self.assertIn("policy_diff.max_high_severity_chapters: current=6, best=2", output)
+            self.assertIn("diff_summary: issue_score current=", output)
+            self.assertIn("diff_policy: max_high_severity_chapters current=6 best=2", output)
 
 
 if __name__ == "__main__":

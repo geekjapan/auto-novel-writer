@@ -5,11 +5,10 @@
 
 ## In Progress
 
-- [ ] M20: current run と best run の issue / step / policy 差分を status 出力でまとめて見やすくする
+- [ ] M20: `run_comparison_summary.json` に status 表示用の compact summary を追加する
 
 ## Ready
 
-- [ ] M20: `run_comparison_summary.json` に status 表示用の compact summary を追加する
 - [ ] Docs: M16-M19 実装後に README / ROADMAP / TASKS の説明を同期する
 
 ## Done
@@ -75,6 +74,7 @@
 - [x] M19: `show-project-status` から current run と best run の policy 差分を表示する
 - [x] Docs: M16-M19 実装後に README / ROADMAP / TASKS の説明を同期する
 - [x] M20: `show-project-status` に selection source と selection reason の要約を表示する
+- [x] M20: current run と best run の issue / step / policy 差分を status 出力でまとめて見やすくする
 
 ## Task Update Rules
 

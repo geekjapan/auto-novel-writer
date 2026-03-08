@@ -450,6 +450,7 @@ def build_project_status_lines(project_manifest: dict[str, Any]) -> list[str]:
         lines.append(f"  output_dir: {best_run.get('output_dir', 'unknown')}")
         lines.append(f"  score: {best_run.get('score', 'unknown')}")
         lines.extend(_build_selection_summary_lines(best_run))
+        lines.extend(_build_status_diff_summary_lines(current_run, best_run))
         comparison_metrics = best_run.get("comparison_metrics", {})
         if comparison_metrics:
             lines.append(
@@ -532,6 +533,35 @@ def _build_selection_summary_lines(best_run: dict[str, Any]) -> list[str]:
     if selection_reasons:
         lines.append(f"  selection_reason_summary: {'; '.join(selection_reasons[:2])}")
     return lines
+
+
+def _build_status_diff_summary_lines(current_run: dict[str, Any], best_run: dict[str, Any]) -> list[str]:
+    current_metrics = _run_metrics_from_status(current_run)
+    best_metrics = best_run.get("comparison_metrics", {})
+    current_policy = current_run.get("policy_snapshot", {}).get("long_run", {})
+    best_policy = best_run.get("policy_snapshot", {}).get("long_run", {})
+
+    return [
+        "  diff_summary: "
+        f"issue_score current={current_metrics.get('total_issue_score', 'n/a')} best={best_metrics.get('total_issue_score', 'n/a')}; "
+        f"completed_steps current={len(current_run.get('completed_steps', []))} best={best_metrics.get('completed_step_count', 'n/a')}; "
+        f"stop current={current_metrics.get('long_run_should_stop', 'n/a')} best={best_metrics.get('long_run_should_stop', 'n/a')}",
+        "  diff_policy: "
+        f"max_high_severity_chapters current={current_policy.get('max_high_severity_chapters', 'n/a')} "
+        f"best={best_policy.get('max_high_severity_chapters', 'n/a')}; "
+        f"max_total_rerun_attempts current={current_policy.get('max_total_rerun_attempts', 'n/a')} "
+        f"best={best_policy.get('max_total_rerun_attempts', 'n/a')}",
+    ]
+
+
+def _run_metrics_from_status(run_status: dict[str, Any]) -> dict[str, Any]:
+    long_run_status = run_status.get("long_run_status", {})
+    chapter_statuses = run_status.get("chapter_statuses", [])
+    continuity_issue_total = sum(int(status.get("continuity_issue_total", 0) or 0) for status in chapter_statuses)
+    return {
+        "total_issue_score": continuity_issue_total,
+        "long_run_should_stop": bool(long_run_status.get("should_stop")),
+    }
 
 
 def print_project_status(project_manifest: dict[str, Any]) -> None:
