@@ -387,11 +387,26 @@ def _build_chapter_status_summary_lines(chapter_statuses: list[dict[str, Any]]) 
 
     issue_chapter_count = sum(1 for status in chapter_statuses if int(status.get("continuity_issue_total", 0) or 0) > 0)
     high_severity_count = sum(1 for status in chapter_statuses if status.get("continuity_severity") == "high")
-    return [
+    lines = [
         f"  chapter_statuses: {len(chapter_statuses)} tracked",
         f"  chapters_with_issues: {issue_chapter_count}",
         f"  chapters_high_severity: {high_severity_count}",
     ]
+    lines.extend(_build_chapter_status_detail_lines(chapter_statuses))
+    return lines
+
+
+def _build_chapter_status_detail_lines(chapter_statuses: list[dict[str, Any]]) -> list[str]:
+    lines = ["  chapter_details:"]
+    for status in chapter_statuses:
+        lines.append(
+            "    "
+            f"chapter_{status.get('chapter_number', 'unknown')}: "
+            f"continuity_issues={status.get('continuity_issue_total', 0)}, "
+            f"rerun_attempt={status.get('latest_rerun_attempt', 'n/a')}, "
+            f"revision_attempt={status.get('latest_revision_attempt', 'n/a')}"
+        )
+    return lines
 
 
 def _build_long_run_status_lines(long_run_status: dict[str, Any]) -> list[str]:
