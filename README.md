@@ -37,6 +37,8 @@ python -m pip install openai
 set OPENAI_API_KEY=your_api_key
 ```
 
+`.env*` や API キーなどの secrets、`data/` 配下の生成成果物は push しない運用を前提にしています。
+
 ## 実行方法
 
 ### 推奨実行手順
@@ -202,9 +204,21 @@ $env:PYTHONPATH="src"
 python -m unittest discover -s tests -v
 ```
 
+## 開発フロー
+
+Codex に継続実装を任せる前提の運用ドキュメントを `docs/` に置いています。
+
+- [docs/ROADMAP.md](docs/ROADMAP.md): 現在のマイルストーンと到達順
+- [docs/TASKS.md](docs/TASKS.md): 実装キュー。`In Progress / Ready / Done` で管理
+- [docs/CODEX_WORKFLOW.md](docs/CODEX_WORKFLOW.md): Codex が 1 タスクずつ自律的に進める標準手順
+
+基本ルールは、`In Progress` の先頭 1 件だけを実装し、テスト後に `TASKS.md` を更新して小さくコミットすることです。GitHub ではこのタスク文言をそのまま issue / PR に対応づける想定です。
+
 ## 次の改善候補
 
 - OpenAI レスポンスを JSON schema ベースでより厳密に検証する
 - 生成対象を第1章だけでなく全章草稿まで拡張する
 - フェーズごとの再実行や途中再開をサポートする
 - 生成物の評価・リライトフェーズを追加する
+
+

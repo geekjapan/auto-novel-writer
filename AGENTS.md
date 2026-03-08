@@ -19,10 +19,12 @@
 
 ## Execution workflow
 - Read docs/ROADMAP.md, docs/TASKS.md, and docs/CODEX_WORKFLOW.md before coding
-- Select the top priority unfinished task
+- Select the single top priority task from docs/TASKS.md
+- Treat docs/TASKS.md as the source of truth for implementation order
 - Implement it with minimal safe changes
 - Run tests
 - Update docs if behavior changed
+- Update docs/TASKS.md as work status changes
 - Commit in a small unit
 - Then proceed to the next task if the current task is complete
 - If blocked, stop and write docs/BLOCKED.md
