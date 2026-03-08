@@ -460,6 +460,10 @@ def _reason_detail_to_text(detail: dict[str, Any]) -> str:
     return f"{detail.get('code')}={detail.get('value')}"
 
 
+def _reason_detail_summary(details: list[dict[str, Any]], limit: int = 2) -> str:
+    return "; ".join(_reason_detail_to_text(detail) for detail in details[:limit])
+
+
 def _reason_detail_codes(details: list[dict[str, Any]]) -> list[str]:
     order = {code: index for index, code in enumerate(comparison_reason_detail_codes())}
     codes = [str(detail.get("code")) for detail in details if detail.get("code") is not None]
@@ -534,13 +538,13 @@ def build_project_status_lines(project_manifest: dict[str, Any], reason_detail_m
     lines.append(f"Project: {project_manifest.get('project_slug') or project_manifest.get('project_id', 'unknown')}")
 
     if current_run:
-        completed_steps = current_run.get("completed_steps", [])
         chapter_statuses = current_run.get("chapter_statuses", [])
         long_run_status = current_run.get("long_run_status", {})
+        comparison_metrics = current_run.get("comparison_metrics", {})
         lines.append(f"Current run: {current_run.get('name', 'unknown')}")
         lines.append(f"  output_dir: {current_run.get('output_dir', 'unknown')}")
         lines.append(f"  current_step: {current_run.get('current_step', 'unknown')}")
-        lines.append(f"  completed_steps: {len(completed_steps)}")
+        lines.append(f"  completed_steps: {comparison_metrics.get('completed_step_count', 'n/a')}")
         lines.extend(_build_current_comparison_summary_lines(current_run, reason_detail_mode))
         lines.extend(_build_chapter_status_summary_lines(chapter_statuses))
         lines.extend(_build_long_run_status_lines(long_run_status))
@@ -629,13 +633,12 @@ def _build_policy_diff_lines(current_policy: dict[str, Any], best_policy: dict[s
 def _build_selection_summary_lines(best_run: dict[str, Any], reason_detail_mode: str) -> list[str]:
     selection_source = best_run.get("selection_source", "automatic")
     comparison_basis = best_run.get("comparison_basis", [])
-    selection_reasons = best_run.get("selection_reason", [])
     selection_reason_details = best_run.get("selection_reason_details", [])
     lines = [f"  best_selection_source: {selection_source}"]
     if comparison_basis:
         lines.append(f"  best_comparison_basis_summary: {', '.join(comparison_basis[:3])}")
-    if selection_reasons:
-        lines.append(f"  best_selection_reason_summary: {'; '.join(selection_reasons[:2])}")
+    if selection_reason_details:
+        lines.append(f"  best_selection_reason_summary: {_reason_detail_summary(selection_reason_details)}")
     if reason_detail_mode == "codes" and selection_reason_details:
         lines.append(f"  best_selection_reason_codes: {', '.join(_reason_detail_codes(selection_reason_details[:3]))}")
     return lines
@@ -644,13 +647,12 @@ def _build_selection_summary_lines(best_run: dict[str, Any], reason_detail_mode:
 def _build_current_comparison_summary_lines(current_run: dict[str, Any], reason_detail_mode: str) -> list[str]:
     comparison_basis = current_run.get("comparison_basis", [])
     comparison_metrics = current_run.get("comparison_metrics", {})
-    comparison_reasons = current_run.get("comparison_reason", [])
     comparison_reason_details = current_run.get("comparison_reason_details", [])
     lines: list[str] = []
     if comparison_basis:
         lines.append(f"  current_comparison_basis_summary: {', '.join(comparison_basis[:3])}")
-    if comparison_reasons:
-        lines.append(f"  current_comparison_reason_summary: {'; '.join(comparison_reasons[:2])}")
+    if comparison_reason_details:
+        lines.append(f"  current_comparison_reason_summary: {_reason_detail_summary(comparison_reason_details)}")
     if reason_detail_mode == "codes" and comparison_reason_details:
         lines.append(
             f"  current_comparison_reason_codes: {', '.join(_reason_detail_codes(comparison_reason_details[:3]))}"
@@ -665,7 +667,7 @@ def _build_current_comparison_summary_lines(current_run: dict[str, Any], reason_
 
 
 def _build_status_diff_summary_lines(current_run: dict[str, Any], best_run: dict[str, Any]) -> list[str]:
-    current_metrics = _run_metrics_from_status(current_run)
+    current_metrics = current_run.get("comparison_metrics", {})
     best_metrics = best_run.get("comparison_metrics", {})
     current_policy = current_run.get("policy_snapshot", {}).get("long_run", {})
     best_policy = best_run.get("policy_snapshot", {}).get("long_run", {})
@@ -673,7 +675,7 @@ def _build_status_diff_summary_lines(current_run: dict[str, Any], best_run: dict
     return [
         "  diff_summary: "
         f"issue_score current={current_metrics.get('total_issue_score', 'n/a')} best={best_metrics.get('total_issue_score', 'n/a')}; "
-        f"completed_steps current={len(current_run.get('completed_steps', []))} best={best_metrics.get('completed_step_count', 'n/a')}; "
+        f"completed_steps current={current_metrics.get('completed_step_count', 'n/a')} best={best_metrics.get('completed_step_count', 'n/a')}; "
         f"stop current={current_metrics.get('long_run_should_stop', 'n/a')} best={best_metrics.get('long_run_should_stop', 'n/a')}",
         "  diff_policy: "
         f"max_high_severity_chapters current={current_policy.get('max_high_severity_chapters', 'n/a')} "
@@ -681,16 +683,6 @@ def _build_status_diff_summary_lines(current_run: dict[str, Any], best_run: dict
         f"max_total_rerun_attempts current={current_policy.get('max_total_rerun_attempts', 'n/a')} "
         f"best={best_policy.get('max_total_rerun_attempts', 'n/a')}",
     ]
-
-
-def _run_metrics_from_status(run_status: dict[str, Any]) -> dict[str, Any]:
-    long_run_status = run_status.get("long_run_status", {})
-    chapter_statuses = run_status.get("chapter_statuses", [])
-    continuity_issue_total = sum(int(status.get("continuity_issue_total", 0) or 0) for status in chapter_statuses)
-    return {
-        "total_issue_score": continuity_issue_total,
-        "long_run_should_stop": bool(long_run_status.get("should_stop")),
-    }
 
 
 def print_project_status(project_manifest: dict[str, Any], reason_detail_mode: str = "summary") -> None:
