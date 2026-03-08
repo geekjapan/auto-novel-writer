@@ -128,8 +128,9 @@ novel-writer ^
 5. `04_chapter_plan`
 6. `05_chapter_1_draft`
 7. `continuity_report.json`
-8. `revised_chapter_1_draft`
-9. `manifest`
+8. `quality_report.json`
+9. `revised_chapter_1_draft`
+10. `manifest`
 
 `manifest` には、再開実行の土台として `checkpoints`, `current_step`, `completed_steps` も保存されます。
 
@@ -159,6 +160,7 @@ continuity check はルールベースで成果物間の構造的不整合候補
 - `pov_consistency_issues`
 - `chapter_length_balance_warnings`
 - `character_continuity_issues`
+- `quality_report.json` には各問題種別ごとの `regenerate` / `revise` 推奨と全体推奨が保存されます
 
 実行方法:
 

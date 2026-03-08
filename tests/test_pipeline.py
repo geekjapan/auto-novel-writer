@@ -26,6 +26,7 @@ class StoryPipelineTest(unittest.TestCase):
                 "04_chapter_plan.json",
                 "05_chapter_1_draft.json",
                 "continuity_report.json",
+                "quality_report.json",
                 "revised_chapter_1_draft.json",
                 "manifest.json",
             ]
@@ -36,14 +37,18 @@ class StoryPipelineTest(unittest.TestCase):
             continuity_report = json.loads(
                 (output_dir / "continuity_report.json").read_text(encoding="utf-8")
             )
+            quality_report = json.loads((output_dir / "quality_report.json").read_text(encoding="utf-8"))
             self.assertEqual(manifest["selected_logline"]["id"], "logline-1")
             self.assertEqual(artifacts.chapter_1_draft["chapter_number"], 1)
             self.assertIn("length_warnings", continuity_report)
+            self.assertIn("overall_recommendation", quality_report)
             self.assertIn("rerun_history", manifest)
             self.assertIn("revise_history", manifest)
             self.assertTrue(manifest["rerun_history"])
             self.assertTrue(manifest["revise_history"])
             self.assertIn("severity", continuity_report)
+            self.assertEqual(artifacts.quality_report, quality_report)
+            self.assertEqual(manifest["artifacts"]["quality_report"], quality_report)
             self.assertEqual(artifacts.revised_chapter_1_draft["chapter_number"], 1)
             self.assertEqual(manifest["revise_history"][0]["chapter_index"], 0)
             self.assertTrue(artifacts.chapter_drafts)

@@ -18,6 +18,7 @@ PIPELINE_STEP_ORDER = [
     "chapter_plan",
     "chapter_drafts",
     "continuity_report",
+    "quality_report",
     "revised_chapter_drafts",
 ]
 
@@ -159,6 +160,16 @@ class StoryPipeline:
         save_artifact(self.output_dir, "continuity_report", artifacts.continuity_report, "json")
         self._mark_checkpoint("continuity_report", checkpoints, artifacts, selected_logline)
 
+    def _run_quality_report_step(
+        self,
+        artifacts: StoryArtifacts,
+        checkpoints: list[dict],
+        selected_logline: dict,
+    ) -> None:
+        artifacts.quality_report = self.continuity_checker.build_quality_report(artifacts.continuity_report)
+        save_artifact(self.output_dir, "quality_report", artifacts.quality_report, "json")
+        self._mark_checkpoint("quality_report", checkpoints, artifacts, selected_logline)
+
     def _run_revised_chapter_drafts_step(
         self,
         story_input: StoryInput,
@@ -199,6 +210,9 @@ class StoryPipeline:
         if step_name == "continuity_report":
             self._run_continuity_report_step(story_input, selected_logline, artifacts, checkpoints)
             return selected_logline
+        if step_name == "quality_report":
+            self._run_quality_report_step(artifacts, checkpoints, selected_logline)
+            return selected_logline
         if step_name == "revised_chapter_drafts":
             self._run_revised_chapter_drafts_step(story_input, selected_logline, artifacts, checkpoints)
             return selected_logline
@@ -217,6 +231,7 @@ class StoryPipeline:
             "chapter_drafts",
             "chapter_1_draft",
             "continuity_report",
+            "quality_report",
             "revised_chapter_drafts",
             "revised_chapter_1_draft",
             "rerun_history",
@@ -253,6 +268,9 @@ class StoryPipeline:
         if rerun_from == "continuity_report":
             self._reset_from_continuity_report(artifacts)
             return
+        if rerun_from == "quality_report":
+            self._reset_from_quality_report(artifacts)
+            return
         if rerun_from == "revised_chapter_drafts":
             self._reset_from_revised_chapter_drafts(artifacts)
 
@@ -280,6 +298,10 @@ class StoryPipeline:
     def _reset_from_continuity_report(self, artifacts: StoryArtifacts) -> None:
         artifacts.continuity_report = {}
         artifacts.rerun_history = []
+        self._reset_from_quality_report(artifacts)
+
+    def _reset_from_quality_report(self, artifacts: StoryArtifacts) -> None:
+        artifacts.quality_report = {}
         self._reset_from_revised_chapter_drafts(artifacts)
 
     def _reset_from_revised_chapter_drafts(self, artifacts: StoryArtifacts) -> None:

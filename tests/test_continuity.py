@@ -228,6 +228,59 @@ class ContinuityCheckerTest(unittest.TestCase):
             any(issue["character"] == "水守 透子" for issue in report["character_continuity_issues"])
         )
 
+    def test_build_quality_report_recommends_regenerate_vs_revise(self) -> None:
+        continuity_report = {
+            "severity": "high",
+            "issue_counts": {
+                "missing_fields": 1,
+                "character_name_mismatches": 1,
+                "plot_to_plan_gaps": 0,
+                "plan_to_draft_gaps": 2,
+                "length_warnings": 0,
+                "pov_consistency_issues": 1,
+                "chapter_length_balance_warnings": 0,
+                "character_continuity_issues": 1,
+            },
+        }
+
+        quality_report = ContinuityChecker().build_quality_report(continuity_report)
+
+        self.assertEqual(quality_report["overall_recommendation"], "regenerate")
+        self.assertEqual(quality_report["severity"], "high")
+        self.assertEqual(quality_report["source_report"], "continuity_report")
+        self.assertEqual(quality_report["total_issue_count"], 6)
+        self.assertTrue(
+            any(
+                item["category"] == "missing_fields" and item["recommended_action"] == "regenerate"
+                for item in quality_report["recommendations"]
+            )
+        )
+        self.assertTrue(
+            any(
+                item["category"] == "plan_to_draft_gaps" and item["recommended_action"] == "revise"
+                for item in quality_report["recommendations"]
+            )
+        )
+
+    def test_build_quality_report_recommends_revise_when_no_regenerate_issue_exists(self) -> None:
+        continuity_report = {
+            "severity": "medium",
+            "issue_counts": {
+                "missing_fields": 0,
+                "character_name_mismatches": 1,
+                "plot_to_plan_gaps": 0,
+                "plan_to_draft_gaps": 1,
+                "length_warnings": 1,
+                "pov_consistency_issues": 0,
+                "chapter_length_balance_warnings": 0,
+                "character_continuity_issues": 0,
+            },
+        }
+
+        quality_report = ContinuityChecker().build_quality_report(continuity_report)
+
+        self.assertEqual(quality_report["overall_recommendation"], "revise")
+
 
 if __name__ == "__main__":
     unittest.main()

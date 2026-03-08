@@ -39,6 +39,20 @@ NON_NAME_TOKENS = {
 
 PARTICLE_SPLIT_PATTERN = r"[、。・,\s\n\r\t]|(?:では|には|へは|から|まで|より)|[はがをにへのともでやか]"
 
+REGENERATE_CATEGORIES = {
+    "missing_fields",
+    "plot_to_plan_gaps",
+}
+
+REVISE_CATEGORIES = {
+    "character_name_mismatches",
+    "plan_to_draft_gaps",
+    "length_warnings",
+    "pov_consistency_issues",
+    "chapter_length_balance_warnings",
+    "character_continuity_issues",
+}
+
 
 class ContinuityChecker:
     def build_report(self, artifacts: StoryArtifacts) -> dict[str, Any]:
@@ -83,6 +97,42 @@ class ContinuityChecker:
             if isinstance(value, list)
         }
         return report
+
+    def build_quality_report(self, continuity_report: dict[str, Any]) -> dict[str, Any]:
+        issue_counts = continuity_report.get("issue_counts", {})
+        recommendations: list[dict[str, Any]] = []
+        for category, count in issue_counts.items():
+            if count <= 0:
+                continue
+            recommendations.append(
+                {
+                    "category": category,
+                    "issue_count": count,
+                    "recommended_action": self._recommend_action_for_category(category),
+                }
+            )
+
+        overall_recommendation = "accept"
+        if any(item["recommended_action"] == "regenerate" for item in recommendations):
+            overall_recommendation = "regenerate"
+        elif any(item["recommended_action"] == "revise" for item in recommendations):
+            overall_recommendation = "revise"
+
+        return {
+            "overall_recommendation": overall_recommendation,
+            "total_issue_count": sum(issue_counts.values()),
+            "severity": continuity_report.get("severity", "unknown"),
+            "source_report": "continuity_report",
+            "recommendations": recommendations,
+            "issue_counts": dict(issue_counts),
+        }
+
+    def _recommend_action_for_category(self, category: str) -> str:
+        if category in REGENERATE_CATEGORIES:
+            return "regenerate"
+        if category in REVISE_CATEGORIES:
+            return "revise"
+        return "inspect"
 
     def _find_missing_fields(
         self,

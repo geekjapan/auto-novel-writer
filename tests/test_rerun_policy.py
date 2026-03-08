@@ -17,6 +17,16 @@ class SequencedContinuityChecker:
         self.calls += 1
         return report
 
+    def build_quality_report(self, continuity_report) -> dict:
+        return {
+            "overall_recommendation": "revise",
+            "severity": continuity_report.get("severity", "unknown"),
+            "source_report": "continuity_report",
+            "recommendations": [],
+            "issue_counts": continuity_report.get("issue_counts", {}),
+            "total_issue_count": sum(continuity_report.get("issue_counts", {}).values()),
+        }
+
 
 class CountingLLMClient:
     def __init__(self) -> None:
