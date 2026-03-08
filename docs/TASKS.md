@@ -5,11 +5,10 @@
 
 ## In Progress
 
-- [ ] M24: `show-project-status` の reason codes と `run_comparison_summary.json` の `*_reason_details.code` の対応を docs / tests で固定する
+- [ ] M24: `run_comparison_summary.json` の `*_reason_details.code` を列挙型として contract 化する
 
 ## Ready
 
-- [ ] M24: `run_comparison_summary.json` の `*_reason_details.code` を列挙型として contract 化する
 - [ ] Docs: M23 実装後に README / ROADMAP / TASKS の説明を同期する
 
 
@@ -89,6 +88,7 @@
 - [x] M23: `run_candidates` の reason details contract を `run_comparison_summary.json` と同じ粒度で固定する
 - [x] M23: `show-project-status` に reason details の主要 code を簡潔に表示できる mode を追加する
 - [x] Docs: M23 実装後に README / ROADMAP / TASKS の説明を同期する
+- [x] M24: `show-project-status` の reason codes と `run_comparison_summary.json` の `*_reason_details.code` の対応を docs / tests で固定する
 
 ## Task Update Rules
 

@@ -652,6 +652,11 @@ class CliTest(unittest.TestCase):
                 ]
             )
 
+            project_dir = Path(tmp_dir) / "codes-01"
+            comparison_summary = load_artifact(project_dir, "run_comparison_summary")
+            current_codes = [detail["code"] for detail in comparison_summary["current_run"]["comparison_reason_details"][:3]]
+            best_codes = [detail["code"] for detail in comparison_summary["best_run"]["selection_reason_details"][:3]]
+
             buffer = io.StringIO()
             with redirect_stdout(buffer):
                 exit_code = main(
@@ -668,8 +673,14 @@ class CliTest(unittest.TestCase):
 
             output = buffer.getvalue()
             self.assertEqual(exit_code, 0)
-            self.assertIn("current_comparison_reason_codes: long_run_should_stop, total_issue_score", output)
-            self.assertIn("best_selection_reason_codes: manual_selection, long_run_should_stop", output)
+            self.assertIn(
+                f"current_comparison_reason_codes: {', '.join(current_codes)}",
+                output,
+            )
+            self.assertIn(
+                f"best_selection_reason_codes: {', '.join(best_codes)}",
+                output,
+            )
 
 
 if __name__ == "__main__":
