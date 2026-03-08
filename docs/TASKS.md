@@ -5,11 +5,12 @@
 
 ## In Progress
 
-- [ ] M21: manual / automatic selection の比較根拠を current run と best run の双方で出せるようにする
+- [ ] M22: `run_comparison_summary.json` の `current_run` / `best_run` comparison context contract を validator / docs / tests で固定する
 
 ## Ready
 
-- [ ] Docs: M16-M20 実装後に README / ROADMAP / TASKS の説明を同期する
+- [ ] M22: `show-project-status` の current / best comparison summary を machine-readable artifact と同じ語彙で揃える
+- [ ] M22: manual selection と automatic selection の reason schema を downstream 利用向けに整理する
 
 ## Done
 
@@ -79,6 +80,8 @@
 - [x] Docs: M16-M20 実装後に README / ROADMAP / TASKS の説明を同期する
 - [x] M21: `run_comparison_summary.json` の compact summary contract を docs / tests で固定する
 - [x] M21: `show-project-status` の compact diff と `run_comparison_summary.json` の compact summary の対応を docs に明記する
+- [x] M21: manual / automatic selection の比較根拠を current run と best run の双方で出せるようにする
+- [x] Docs: M16-M20 実装後に README / ROADMAP / TASKS の説明を同期する
 
 ## Task Update Rules
 

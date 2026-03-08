@@ -223,7 +223,7 @@ novel-writer rerun-chapter --project-id "my-story-01" --chapter-number 2
 `rerun-chapter` は任意章の draft / continuity / revise / summary 系 artifact を再計算します。  
 ただし互換 artifact の `continuity_report.json` と `quality_report.json` は、引き続き chapter 1 基準です。
 `show-project-status` は `project_manifest.json` を読み取り専用で表示し、run を再実行しません。  
-現在は current run、best run、chapter status の要約、章ごとの issue / rerun / revise 回数、long-run status の要点、issue / step / policy の差分、best run の selection source / reason 要約を確認できます。
+現在は current run、best run、chapter status の要約、章ごとの issue / rerun / revise 回数、long-run status の要点、issue / step / policy の差分、current run の comparison reason 要約、best run の selection source / reason 要約を確認できます。
 `select-best-run` は `run_candidates` から 1 つを手動で `best_run` に昇格します。
 
 ## 主な出力物
@@ -283,6 +283,13 @@ novel-writer rerun-chapter --project-id "my-story-01" --chapter-number 2
 - `selection_source` は status と `compact_summary` の両方で同じ語彙を使う
 
 status 表示は人間向けの要約、`run_comparison_summary.json` は下流処理向けの機械可読 artifact という役割で分けています。
+
+`current_run` / `best_run` の比較根拠:
+
+- `current_run` には `comparison_metrics`, `comparison_basis`, `comparison_reason` を保存する
+- `best_run` には `comparison_metrics`, `comparison_basis`, `selection_source`, `selection_reason` を保存する
+- automatic selection でも manual selection でも、`comparison_metrics` は current / best の双方で追える
+- `show-project-status` では current 側は `comparison_reason_summary`、best 側は `selection_reason_summary` として表示する
 
 schema version の現方針:
 

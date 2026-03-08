@@ -149,6 +149,7 @@ def save_project_state(
                 "chapter_statuses": chapter_statuses,
                 "long_run_status": long_run_status,
                 "policy_snapshot": policy_snapshot,
+                **_build_candidate_comparison_context(run_candidate),
             },
             "run_candidates": run_candidates,
             "best_run": best_run,
@@ -199,6 +200,8 @@ def build_run_comparison_lines(project_manifest: dict[str, Any]) -> list[str]:
         if current_value != best_value:
             lines.append(f"  {label}: current={current_value}, best={best_value}")
 
+    for reason in current_candidate.get("comparison_reason", _build_candidate_reason_lines(current_metrics)):
+        lines.append(f"  current_reason: {reason}")
     for reason in best_run.get("selection_reason", []):
         lines.append(f"  best_reason: {reason}")
     return lines
@@ -220,7 +223,7 @@ def _load_existing_project_manifest(project_dir: Path) -> dict[str, Any]:
 def _build_run_candidate(run_manifest: dict[str, Any], output_dir: Path) -> dict[str, Any]:
     comparison_metrics = _build_comparison_metrics(run_manifest)
     score = comparison_metrics["total_issue_score"]
-    return {
+    candidate = {
         "run_name": output_dir.name,
         "output_dir": str(output_dir),
         "completed_steps": run_manifest.get("completed_steps", []),
@@ -234,6 +237,8 @@ def _build_run_candidate(run_manifest: dict[str, Any], output_dir: Path) -> dict
         "project_issue_total": comparison_metrics["project_issue_total"],
         "comparison_metrics": comparison_metrics,
     }
+    candidate.update(_build_candidate_comparison_context(candidate))
+    return candidate
 
 
 def _build_comparison_metrics(run_manifest: dict[str, Any]) -> dict[str, Any]:
@@ -317,31 +322,12 @@ def _select_best_run(run_candidates: list[dict[str, Any]]) -> dict[str, Any]:
     if not run_candidates:
         return {}
     best = min(run_candidates, key=_candidate_sort_key)
-    metrics = best.get("comparison_metrics", {})
     return {
         "run_name": best.get("run_name"),
         "output_dir": best.get("output_dir"),
         "score": best.get("score"),
         "policy_snapshot": dict(best.get("policy_snapshot", {})),
-        "comparison_metrics": metrics,
-        "comparison_basis": [
-            "long_run_should_stop",
-            "continuity_issue_total",
-            "quality_issue_total",
-            "project_issue_total",
-            "high_severity_chapter_count",
-            "rerun_attempt_total",
-            "revision_attempt_total",
-            "completed_step_count",
-        ],
-        "selection_reason": [
-            f"long_run_should_stop={metrics.get('long_run_should_stop')}",
-            f"total_issue_score={metrics.get('total_issue_score')}",
-            f"high_severity_chapter_count={metrics.get('high_severity_chapter_count')}",
-            f"rerun_attempt_total={metrics.get('rerun_attempt_total')}",
-            f"revision_attempt_total={metrics.get('revision_attempt_total')}",
-            f"completed_step_count={metrics.get('completed_step_count')}",
-        ],
+        **_build_candidate_selection_metadata(best),
     }
 
 
@@ -364,6 +350,7 @@ def _build_run_comparison_summary(
         "current_run": {
             "run_name": current_run_name,
             "output_dir": str(current_output_dir),
+            **_build_candidate_comparison_context(current_candidate),
         },
         "best_run": best_run,
         "candidate_count": len(run_candidates),
@@ -401,6 +388,58 @@ def _build_run_comparison_compact_summary(current_candidate: dict[str, Any], bes
                 "best": best_policy.get("max_total_rerun_attempts"),
             },
         },
+    }
+
+
+def _comparison_basis_fields() -> list[str]:
+    return [
+        "long_run_should_stop",
+        "continuity_issue_total",
+        "quality_issue_total",
+        "project_issue_total",
+        "high_severity_chapter_count",
+        "rerun_attempt_total",
+        "revision_attempt_total",
+        "completed_step_count",
+    ]
+
+
+def _build_candidate_reason_lines(metrics: dict[str, Any]) -> list[str]:
+    return [
+        f"long_run_should_stop={metrics.get('long_run_should_stop')}",
+        f"total_issue_score={metrics.get('total_issue_score')}",
+        f"high_severity_chapter_count={metrics.get('high_severity_chapter_count')}",
+        f"rerun_attempt_total={metrics.get('rerun_attempt_total')}",
+        f"revision_attempt_total={metrics.get('revision_attempt_total')}",
+        f"completed_step_count={metrics.get('completed_step_count')}",
+    ]
+
+
+def _build_candidate_comparison_context(candidate: dict[str, Any]) -> dict[str, Any]:
+    metrics = dict(candidate.get("comparison_metrics", {}))
+    return {
+        "comparison_metrics": metrics,
+        "comparison_basis": _comparison_basis_fields(),
+        "comparison_reason": _build_candidate_reason_lines(metrics),
+    }
+
+
+def _build_candidate_selection_metadata(
+    candidate: dict[str, Any],
+    selection_source: str = "automatic",
+    manual_selection_run_name: str | None = None,
+) -> dict[str, Any]:
+    selection_reason = []
+    if manual_selection_run_name:
+        selection_reason.append(f"manual_selection={manual_selection_run_name}")
+    comparison_context = _build_candidate_comparison_context(candidate)
+    selection_reason.extend(comparison_context["comparison_reason"])
+    return {
+        "policy_snapshot": dict(candidate.get("policy_snapshot", {})),
+        "comparison_metrics": comparison_context["comparison_metrics"],
+        "comparison_basis": comparison_context["comparison_basis"],
+        "selection_reason": selection_reason,
+        "selection_source": selection_source,
     }
 
 
@@ -479,6 +518,7 @@ def build_project_status_lines(project_manifest: dict[str, Any]) -> list[str]:
         lines.append(f"  output_dir: {current_run.get('output_dir', 'unknown')}")
         lines.append(f"  current_step: {current_run.get('current_step', 'unknown')}")
         lines.append(f"  completed_steps: {len(completed_steps)}")
+        lines.extend(_build_current_comparison_summary_lines(current_run))
         lines.extend(_build_chapter_status_summary_lines(chapter_statuses))
         lines.extend(_build_long_run_status_lines(long_run_status))
 
@@ -572,6 +612,21 @@ def _build_selection_summary_lines(best_run: dict[str, Any]) -> list[str]:
     return lines
 
 
+def _build_current_comparison_summary_lines(current_run: dict[str, Any]) -> list[str]:
+    comparison_metrics = current_run.get("comparison_metrics", {})
+    comparison_reasons = current_run.get("comparison_reason", [])
+    lines: list[str] = []
+    if comparison_reasons:
+        lines.append(f"  comparison_reason_summary: {'; '.join(comparison_reasons[:2])}")
+    if comparison_metrics:
+        lines.append(
+            "  comparison_metrics: "
+            f"total_issue_score={comparison_metrics.get('total_issue_score', 'n/a')}, "
+            f"completed_step_count={comparison_metrics.get('completed_step_count', 'n/a')}"
+        )
+    return lines
+
+
 def _build_status_diff_summary_lines(current_run: dict[str, Any], best_run: dict[str, Any]) -> list[str]:
     current_metrics = _run_metrics_from_status(current_run)
     best_metrics = best_run.get("comparison_metrics", {})
@@ -619,20 +674,11 @@ def promote_best_run(project_dir: Path, run_name: str, projects_dir: Path, file_
         "run_name": candidate.get("run_name"),
         "output_dir": candidate.get("output_dir"),
         "score": candidate.get("score"),
-        "policy_snapshot": dict(candidate.get("policy_snapshot", {})),
-        "comparison_metrics": dict(candidate.get("comparison_metrics", {})),
-        "comparison_basis": [
-            "manual_selection",
-            "long_run_should_stop",
-            "total_issue_score",
-            "completed_step_count",
-        ],
-        "selection_reason": [
-            f"manual_selection={run_name}",
-            f"total_issue_score={candidate.get('comparison_metrics', {}).get('total_issue_score')}",
-            f"completed_step_count={candidate.get('comparison_metrics', {}).get('completed_step_count')}",
-        ],
-        "selection_source": "manual",
+        **_build_candidate_selection_metadata(
+            candidate,
+            selection_source="manual",
+            manual_selection_run_name=run_name,
+        ),
     }
     project_manifest["best_run"] = best_run
     save_project_manifest(projects_dir, project_manifest["project_id"], project_manifest, file_format)
