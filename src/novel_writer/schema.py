@@ -136,6 +136,25 @@ def run_comparison_summary_contract() -> dict:
             "compact_summary",
             "run_candidates",
         ],
+        "current_run": {
+            "required_fields": [
+                "run_name",
+                "output_dir",
+                "comparison_metrics",
+                "comparison_basis",
+                "comparison_reason",
+            ],
+        },
+        "best_run": {
+            "required_fields": [
+                "run_name",
+                "output_dir",
+                "comparison_metrics",
+                "comparison_basis",
+                "selection_source",
+                "selection_reason",
+            ],
+        },
         "compact_summary": {
             "selection_source": "string",
             "issue_score": ["current", "best"],
@@ -171,6 +190,17 @@ def validate_run_comparison_summary(payload: dict) -> dict:
             f"schema_version={payload.get('schema_version')!r} is not supported; expected {contract['schema_version']!r}."
         )
 
+    _validate_run_comparison_context(
+        payload.get("current_run"),
+        "current_run",
+        contract["current_run"]["required_fields"],
+    )
+    _validate_run_comparison_context(
+        payload.get("best_run"),
+        "best_run",
+        contract["best_run"]["required_fields"],
+    )
+
     compact_summary = payload.get("compact_summary")
     if not isinstance(compact_summary, dict):
         raise ValueError("Invalid run_comparison_summary: compact_summary must be an object.")
@@ -204,6 +234,32 @@ def _validate_current_best_pair(payload: dict | None, field_name: str) -> None:
     if missing_fields:
         missing = ", ".join(missing_fields)
         raise ValueError(f"Invalid run_comparison_summary: {field_name} is missing fields: {missing}.")
+
+
+def _validate_run_comparison_context(
+    payload: dict | None,
+    field_name: str,
+    required_fields: list[str],
+) -> None:
+    if not isinstance(payload, dict):
+        raise ValueError(f"Invalid run_comparison_summary: {field_name} must be an object.")
+
+    missing_fields = [key for key in required_fields if key not in payload]
+    if missing_fields:
+        missing = ", ".join(missing_fields)
+        raise ValueError(f"Invalid run_comparison_summary: {field_name} is missing fields: {missing}.")
+
+    if not isinstance(payload.get("comparison_metrics"), dict):
+        raise ValueError(f"Invalid run_comparison_summary: {field_name}.comparison_metrics must be an object.")
+    if not isinstance(payload.get("comparison_basis"), list):
+        raise ValueError(f"Invalid run_comparison_summary: {field_name}.comparison_basis must be a list.")
+
+    reason_field = "comparison_reason" if field_name == "current_run" else "selection_reason"
+    if not isinstance(payload.get(reason_field), list):
+        raise ValueError(f"Invalid run_comparison_summary: {field_name}.{reason_field} must be a list.")
+
+    if field_name == "best_run" and not isinstance(payload.get("selection_source"), str):
+        raise ValueError("Invalid run_comparison_summary: best_run.selection_source must be a string.")
 
 
 def validate_project_manifest(payload: dict) -> dict:
