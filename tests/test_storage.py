@@ -302,6 +302,40 @@ class SaveArtifactTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "schema_version='9.9' is not supported; expected '1.0'"):
                 load_run_comparison_summary(Path(tmp_dir))
 
+    def test_load_run_comparison_summary_rejects_invalid_compact_summary_contract(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            save_artifact(
+                Path(tmp_dir),
+                "run_comparison_summary",
+                {
+                    "schema_name": "run_comparison_summary",
+                    "schema_version": "1.0",
+                    "project_id": "Case 01",
+                    "project_slug": "case-01",
+                    "current_run": {"run_name": "latest_run"},
+                    "best_run": {"run_name": "latest_run"},
+                    "candidate_count": 1,
+                    "compact_summary": {
+                        "selection_source": "automatic",
+                        "issue_score": {"current": 1},
+                        "completed_step_count": {"current": 1, "best": 1},
+                        "long_run_should_stop": {"current": False, "best": False},
+                        "policy_limits": {
+                            "max_high_severity_chapters": {"current": 10, "best": 10},
+                            "max_total_rerun_attempts": {"current": 20, "best": 20},
+                        },
+                    },
+                    "run_candidates": [],
+                },
+                "json",
+            )
+
+            with self.assertRaisesRegex(
+                ValueError,
+                r"compact_summary\.issue_score is missing fields: best",
+            ):
+                load_run_comparison_summary(Path(tmp_dir))
+
 
 if __name__ == "__main__":
     unittest.main()

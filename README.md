@@ -264,6 +264,26 @@ novel-writer rerun-chapter --project-id "my-story-01" --chapter-number 2
 `project_manifest.json` も `schema_name=project_manifest` と `schema_version=1.0` を持ち、保存時・読込時に validation されます。
 `run_comparison_summary.json` には status 表示向けの `compact_summary` も保存されます。
 
+`run_comparison_summary.compact_summary` の固定 field:
+
+- `selection_source`
+- `issue_score.current|best`
+- `completed_step_count.current|best`
+- `long_run_should_stop.current|best`
+- `policy_limits.max_high_severity_chapters.current|best`
+- `policy_limits.max_total_rerun_attempts.current|best`
+
+`show-project-status` の compact diff との対応:
+
+- `diff_summary.issue_score` 相当は `compact_summary.issue_score.current|best`
+- `diff_summary.completed_steps` 相当は `compact_summary.completed_step_count.current|best`
+- `diff_summary.stop` 相当は `compact_summary.long_run_should_stop.current|best`
+- `diff_policy.max_high_severity_chapters` 相当は `compact_summary.policy_limits.max_high_severity_chapters.current|best`
+- `diff_policy.max_total_rerun_attempts` 相当は `compact_summary.policy_limits.max_total_rerun_attempts.current|best`
+- `selection_source` は status と `compact_summary` の両方で同じ語彙を使う
+
+status 表示は人間向けの要約、`run_comparison_summary.json` は下流処理向けの機械可読 artifact という役割で分けています。
+
 schema version の現方針:
 
 - `project_manifest.json` は `schema_name=project_manifest`, `schema_version=1.0`

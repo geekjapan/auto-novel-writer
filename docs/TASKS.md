@@ -5,12 +5,10 @@
 
 ## In Progress
 
-- [ ] M21: `run_comparison_summary.json` の compact summary contract を docs / tests で固定する
+- [ ] M21: manual / automatic selection の比較根拠を current run と best run の双方で出せるようにする
 
 ## Ready
 
-- [ ] M21: `show-project-status` の compact diff と `run_comparison_summary.json` の compact summary の対応を docs に明記する
-- [ ] M21: manual / automatic selection の比較根拠を current run と best run の双方で出せるようにする
 - [ ] Docs: M16-M20 実装後に README / ROADMAP / TASKS の説明を同期する
 
 ## Done
@@ -79,6 +77,8 @@
 - [x] M20: current run と best run の issue / step / policy 差分を status 出力でまとめて見やすくする
 - [x] M20: `run_comparison_summary.json` に status 表示用の compact summary を追加する
 - [x] Docs: M16-M20 実装後に README / ROADMAP / TASKS の説明を同期する
+- [x] M21: `run_comparison_summary.json` の compact summary contract を docs / tests で固定する
+- [x] M21: `show-project-status` の compact diff と `run_comparison_summary.json` の compact summary の対応を docs に明記する
 
 ## Task Update Rules
 

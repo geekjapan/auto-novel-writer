@@ -136,6 +136,16 @@ def run_comparison_summary_contract() -> dict:
             "compact_summary",
             "run_candidates",
         ],
+        "compact_summary": {
+            "selection_source": "string",
+            "issue_score": ["current", "best"],
+            "completed_step_count": ["current", "best"],
+            "long_run_should_stop": ["current", "best"],
+            "policy_limits": {
+                "max_high_severity_chapters": ["current", "best"],
+                "max_total_rerun_attempts": ["current", "best"],
+            },
+        },
     }
 
 
@@ -161,7 +171,39 @@ def validate_run_comparison_summary(payload: dict) -> dict:
             f"schema_version={payload.get('schema_version')!r} is not supported; expected {contract['schema_version']!r}."
         )
 
+    compact_summary = payload.get("compact_summary")
+    if not isinstance(compact_summary, dict):
+        raise ValueError("Invalid run_comparison_summary: compact_summary must be an object.")
+
+    compact_contract = contract["compact_summary"]
+    if not isinstance(compact_summary.get("selection_source"), str):
+        raise ValueError("Invalid run_comparison_summary: compact_summary.selection_source must be a string.")
+
+    for key in ["issue_score", "completed_step_count", "long_run_should_stop"]:
+        _validate_current_best_pair(
+            compact_summary.get(key),
+            f"compact_summary.{key}",
+        )
+
+    policy_limits = compact_summary.get("policy_limits")
+    if not isinstance(policy_limits, dict):
+        raise ValueError("Invalid run_comparison_summary: compact_summary.policy_limits must be an object.")
+    for key in compact_contract["policy_limits"]:
+        _validate_current_best_pair(
+            policy_limits.get(key),
+            f"compact_summary.policy_limits.{key}",
+        )
+
     return payload
+
+
+def _validate_current_best_pair(payload: dict | None, field_name: str) -> None:
+    if not isinstance(payload, dict):
+        raise ValueError(f"Invalid run_comparison_summary: {field_name} must be an object.")
+    missing_fields = [key for key in ["current", "best"] if key not in payload]
+    if missing_fields:
+        missing = ", ".join(missing_fields)
+        raise ValueError(f"Invalid run_comparison_summary: {field_name} is missing fields: {missing}.")
 
 
 def validate_project_manifest(payload: dict) -> dict:
