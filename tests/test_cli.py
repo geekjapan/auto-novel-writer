@@ -377,6 +377,8 @@ class CliTest(unittest.TestCase):
             self.assertIn("Project: status-01", output)
             self.assertIn("Current run: latest_run", output)
             self.assertIn("Best run: latest_run", output)
+            self.assertIn("selection_source: automatic", output)
+            self.assertIn("selection_reason_summary:", output)
             self.assertIn("Run candidates: 1", output)
             self.assertIn("chapter_statuses: 3 tracked", output)
             self.assertIn("chapters_with_issues:", output)
@@ -486,6 +488,23 @@ class CliTest(unittest.TestCase):
             self.assertEqual(comparison_summary["best_run"]["run_name"], "candidate-b")
             self.assertEqual(comparison_summary["best_run"]["selection_source"], "manual")
             self.assertIn("manual_selection=candidate-b", comparison_summary["best_run"]["selection_reason"][0])
+
+            buffer = io.StringIO()
+            with redirect_stdout(buffer):
+                status_exit_code = main(
+                    [
+                        "show-project-status",
+                        "--project-id",
+                        "Manual 01",
+                        "--projects-dir",
+                        tmp_dir,
+                    ]
+                )
+
+            status_output = buffer.getvalue()
+            self.assertEqual(status_exit_code, 0)
+            self.assertIn("selection_source: manual", status_output)
+            self.assertIn("selection_reason_summary: manual_selection=candidate-b", status_output)
 
     def test_show_project_status_displays_policy_diff_against_best_run(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

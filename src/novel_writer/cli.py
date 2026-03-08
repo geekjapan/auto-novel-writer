@@ -449,6 +449,7 @@ def build_project_status_lines(project_manifest: dict[str, Any]) -> list[str]:
         lines.append(f"Best run: {best_run.get('run_name', 'unknown')}")
         lines.append(f"  output_dir: {best_run.get('output_dir', 'unknown')}")
         lines.append(f"  score: {best_run.get('score', 'unknown')}")
+        lines.extend(_build_selection_summary_lines(best_run))
         comparison_metrics = best_run.get("comparison_metrics", {})
         if comparison_metrics:
             lines.append(
@@ -522,6 +523,15 @@ def _build_policy_diff_lines(current_policy: dict[str, Any], best_policy: dict[s
         if current_value != best_value:
             diff_lines.append(f"  policy_diff.{key}: current={current_value}, best={best_value}")
     return diff_lines
+
+
+def _build_selection_summary_lines(best_run: dict[str, Any]) -> list[str]:
+    selection_source = best_run.get("selection_source", "automatic")
+    selection_reasons = best_run.get("selection_reason", [])
+    lines = [f"  selection_source: {selection_source}"]
+    if selection_reasons:
+        lines.append(f"  selection_reason_summary: {'; '.join(selection_reasons[:2])}")
+    return lines
 
 
 def print_project_status(project_manifest: dict[str, Any]) -> None:
