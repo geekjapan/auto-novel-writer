@@ -40,12 +40,57 @@ class OpenAIClient(BaseLLMClient):
             f"tone={story_input.tone}, target_length={story_input.target_length}"
         )
 
+    def _require_dict(self, payload: Any, label: str) -> dict[str, Any]:
+        if not isinstance(payload, dict):
+            raise ValueError(f"OpenAI response for {label} must be an object.")
+        return payload
+
+    def _require_list(self, payload: Any, label: str) -> list[Any]:
+        if not isinstance(payload, list):
+            raise ValueError(f"OpenAI response for {label} must be a list.")
+        return payload
+
+    def _require_object_list(
+        self,
+        payload: Any,
+        label: str,
+        required_keys: tuple[str, ...],
+        expected_length: int | None = None,
+    ) -> list[dict[str, Any]]:
+        items = self._require_list(payload, label)
+        if expected_length is not None and len(items) != expected_length:
+            raise ValueError(f"OpenAI response for {label} must contain {expected_length} items.")
+        for index, item in enumerate(items):
+            self._require_required_keys(
+                self._require_dict(item, f"{label}[{index}]"),
+                f"{label}[{index}]",
+                required_keys,
+            )
+        return items
+
+    def _require_required_keys(
+        self,
+        payload: dict[str, Any],
+        label: str,
+        required_keys: tuple[str, ...],
+    ) -> dict[str, Any]:
+        missing_keys = [key for key in required_keys if key not in payload]
+        if missing_keys:
+            raise ValueError(f"OpenAI response for {label} is missing keys: {', '.join(missing_keys)}")
+        return payload
+
     def generate_loglines(self, story_input: StoryInput) -> list[dict[str, Any]]:
         data = self._generate_json(
             "You generate concise short-story planning assets in Japanese.",
             "Return JSON with key 'loglines' as an array of 3 items. " + self._story_context(story_input),
         )
-        return data["loglines"]
+        root = self._require_dict(data, "loglines root")
+        return self._require_object_list(
+            root.get("loglines"),
+            "loglines",
+            ("id", "title", "premise", "hook"),
+            expected_length=3,
+        )
 
     def generate_characters(self, story_input: StoryInput, logline: dict[str, Any]) -> list[dict[str, Any]]:
         data = self._generate_json(
@@ -55,7 +100,13 @@ class OpenAIClient(BaseLLMClient):
                 f"story={story_input.to_dict()}, logline={json.dumps(logline, ensure_ascii=False)}"
             ),
         )
-        return data["characters"]
+        root = self._require_dict(data, "characters root")
+        return self._require_object_list(
+            root.get("characters"),
+            "characters",
+            ("name", "role", "goal", "conflict", "arc"),
+            expected_length=3,
+        )
 
     def generate_three_act_plot(
         self,
@@ -71,7 +122,15 @@ class OpenAIClient(BaseLLMClient):
                 f"characters={json.dumps(characters, ensure_ascii=False)}"
             ),
         )
-        return data["three_act_plot"]
+        root = self._require_dict(data, "three_act_plot root")
+        plot = self._require_required_keys(
+            self._require_dict(root.get("three_act_plot"), "three_act_plot"),
+            "three_act_plot",
+            ("act_1", "act_2", "act_3"),
+        )
+        for act_name in ("act_1", "act_2", "act_3"):
+            self._require_dict(plot.get(act_name), f"three_act_plot.{act_name}")
+        return plot
 
     def generate_chapter_plan(
         self,
@@ -89,7 +148,12 @@ class OpenAIClient(BaseLLMClient):
                 f"plot={json.dumps(three_act_plot, ensure_ascii=False)}"
             ),
         )
-        return data["chapter_plan"]
+        root = self._require_dict(data, "chapter_plan root")
+        return self._require_object_list(
+            root.get("chapter_plan"),
+            "chapter_plan",
+            ("chapter_number", "title", "purpose", "point_of_view", "target_words"),
+        )
 
     def generate_chapter_draft(
         self,
@@ -109,7 +173,13 @@ class OpenAIClient(BaseLLMClient):
                 f"chapter_index={chapter_index}"
             ),
         )
-        return data.get("chapter_draft") or data["chapter_1_draft"]
+        root = self._require_dict(data, "chapter_draft root")
+        draft = root.get("chapter_draft") or root.get("chapter_1_draft")
+        return self._require_required_keys(
+            self._require_dict(draft, "chapter_draft"),
+            "chapter_draft",
+            ("chapter_number", "title", "summary", "text"),
+        )
 
     def revise_chapter_draft(
         self,
@@ -131,4 +201,12 @@ class OpenAIClient(BaseLLMClient):
                 "Keep the same chapter number and title, improve style, remove redundancy, and align summary to the selected chapter plan."
             ),
         )
-        return data["revised_chapter_draft"]
+        root = self._require_dict(data, "revised_chapter_draft root")
+        revised = self._require_required_keys(
+            self._require_dict(root.get("revised_chapter_draft"), "revised_chapter_draft"),
+            "revised_chapter_draft",
+            ("chapter_number", "title", "summary", "text"),
+        )
+        if "revision_notes" in revised and not isinstance(revised["revision_notes"], list):
+            raise ValueError("OpenAI response for revised_chapter_draft.revision_notes must be a list when present.")
+        return revised

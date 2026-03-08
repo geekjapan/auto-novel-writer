@@ -1,7 +1,16 @@
 import unittest
 
+from novel_writer.llm import OpenAIClient
 from novel_writer.llm_client import MockLLMClient
 from novel_writer.schema import StoryInput
+
+
+class FakeOpenAIClient(OpenAIClient):
+    def __init__(self, payload: dict) -> None:
+        self.payload = payload
+
+    def _generate_json(self, system_prompt: str, user_prompt: str):
+        return self.payload
 
 
 class MockLLMClientTest(unittest.TestCase):
@@ -30,6 +39,60 @@ class MockLLMClientTest(unittest.TestCase):
         self.assertEqual(revised["chapter_number"], 1)
         self.assertEqual(revised["chapter_index"], 0)
         self.assertIn("revision_notes", revised)
+
+    def test_openai_client_validates_logline_schema(self) -> None:
+        client = FakeOpenAIClient({"loglines": [{"id": "1", "title": "t"}]})
+        story_input = StoryInput(theme="喪失", genre="ミステリ", tone="静謐", target_length=6000)
+
+        with self.assertRaises(ValueError):
+            client.generate_loglines(story_input)
+
+    def test_openai_client_accepts_chapter_draft_compatibility_key(self) -> None:
+        client = FakeOpenAIClient(
+            {
+                "chapter_1_draft": {
+                    "chapter_number": 1,
+                    "title": "第1章 導入",
+                    "summary": "導入",
+                    "text": "本文",
+                }
+            }
+        )
+        story_input = StoryInput(theme="喪失", genre="ミステリ", tone="静謐", target_length=6000)
+
+        chapter_draft = client.generate_chapter_draft(
+            story_input,
+            {"id": "logline-1", "title": "鏡", "premise": "p", "hook": "h"},
+            [{"name": "篠崎 遥"}],
+            [{"chapter_number": 1, "title": "第1章 導入", "purpose": "導入", "point_of_view": "篠崎 遥", "target_words": 1000}],
+            chapter_index=0,
+        )
+
+        self.assertEqual(chapter_draft["chapter_number"], 1)
+        self.assertEqual(chapter_draft["title"], "第1章 導入")
+
+    def test_openai_client_validates_revised_draft_notes_type(self) -> None:
+        client = FakeOpenAIClient(
+            {
+                "revised_chapter_draft": {
+                    "chapter_number": 1,
+                    "title": "第1章 導入",
+                    "summary": "導入",
+                    "text": "本文",
+                    "revision_notes": "not-a-list",
+                }
+            }
+        )
+        story_input = StoryInput(theme="喪失", genre="ミステリ", tone="静謐", target_length=6000)
+
+        with self.assertRaises(ValueError):
+            client.revise_chapter_draft(
+                story_input,
+                [{"chapter_number": 1, "title": "第1章 導入", "purpose": "導入", "point_of_view": "篠崎 遥", "target_words": 1000}],
+                {"chapter_number": 1, "title": "第1章 導入", "summary": "導入", "text": "本文"},
+                {"severity": "low"},
+                chapter_index=0,
+            )
 
 
 if __name__ == "__main__":

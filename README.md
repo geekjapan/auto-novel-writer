@@ -105,6 +105,7 @@ novel-writer --resume-from-output-dir data\sample_run --rerun-from chapter_draft
 - OpenAI 実装: `--provider openai`
 - OpenAI 利用時の必須環境変数: `OPENAI_API_KEY`
 - OpenAI 利用時の追加依存: `openai`
+- OpenAI 応答は受信後に想定 JSON shape を検証し、必須 key や型が崩れている場合はエラーにします
 
 OpenAI 利用例:
 
