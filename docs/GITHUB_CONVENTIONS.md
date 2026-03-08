@@ -38,6 +38,7 @@
 - 1 件を `In Progress` に上げたら、対応 issue も着手状態にする
 - 完了して commit / test / docs 更新が終わったら `Done` に移し、対応 PR も closing できる状態にする
 - ブロックしたら code を広げず、`docs/BLOCKED.md` を追加して issue / PR に同じ内容を反映する
+- ブロック解除後は `docs/BLOCKED.md` の更新有無と `TASKS.md` の状態変更理由を PR に残す
 
 ## Recommended PR Size
 
