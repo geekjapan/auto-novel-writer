@@ -147,7 +147,7 @@ continuity check はルールベースで成果物間の構造的不整合候補
 
 ## Re-run Policy
 
-continuity check 後は `issue_counts` を見て重大度を判定し、必要なら生成を 1 回だけ再実行します。判定ルールは [rerun_policy.py](D:/dev/auto-novel-writer/src/novel_writer/rerun_policy.py) の定数として分離しています。
+continuity check 後は `issue_counts` を見て重大度を判定し、必要なら生成を 1 回だけ再実行します。判定ルールは [rerun_policy.py](src/novel_writer/rerun_policy.py) の定数として分離しています。
 
 制御フロー:
 
