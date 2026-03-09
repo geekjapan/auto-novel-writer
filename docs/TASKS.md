@@ -4,20 +4,22 @@
 ここでの task は、1 回で安全に実装・テスト・docs 更新・コミットできる粒度へ分割する。
 
 ## In Progress
-
-## Ready
-- [ ] M49: `show-run-comparison` の minimal artifact ケースで current metrics 行を固定する
-  - Title: comparison CLI の minimal artifact current metrics 行を固定する
-  - Milestone: M49 Run Comparison Minimal Metrics Coverage
-  - Purpose: `run_candidates=[]` の minimal artifact を読む read-only CLI 経路で、current 側の metrics 行も期待どおり表示されることを tests で固定する
+- [ ] M51: `show-run-comparison` の minimal artifact ケースで compact issue score 行を固定する
+  - Title: comparison CLI の minimal artifact compact issue score 行を固定する
+  - Milestone: M51 Run Comparison Minimal Compact Coverage
+  - Purpose: `run_candidates=[]` の minimal artifact を読む read-only CLI 経路で、compact summary 側の issue score 行も期待どおり表示されることを tests で固定する
   - Target files or directories: `tests/test_cli.py`, `docs/TASKS.md`
-  - Done when: minimal artifact ケースで `current_comparison_metrics` が表示されることを tests で固定する
+  - Done when: minimal artifact ケースで `compact.issue_score` が表示されることを tests で固定する
   - Required tests: `python -m unittest tests.test_cli -v`, `python -m unittest discover -s tests -v`
   - Docs to update: `docs/TASKS.md`
+
+## Ready
 
 ## Done
 
 - [x] Scaffold CLI-based short-story pipeline MVP
+- [x] M50: `show-run-comparison` の minimal artifact ケースで best metrics 行を固定する
+- [x] M49: `show-run-comparison` の minimal artifact ケースで current metrics 行を固定する
 - [x] M48: `show-run-comparison` の minimal artifact ケースで current reason code 行を固定する
 - [x] M47: `show-run-comparison` の minimal artifact ケースで automatic selection 行を固定する
 - [x] M46: `show-run-comparison` の minimal artifact ケースでも read-only 性を固定する
