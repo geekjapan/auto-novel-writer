@@ -168,6 +168,8 @@ novel-writer --provider lmstudio --model local-model-name
 ```
 
 既定の接続先は `http://127.0.0.1:1234/v1` です。`--base-url` または `LMSTUDIO_BASE_URL` で上書きできます。
+LM Studio では `response_format.type=json_object` が通らないため、現在実装は `text` 応答として JSON を返す前提で接続します。
+LM Studio が JSON を Markdown の ```json fenced block``` で返した場合は、その外側だけを明示的に取り除いて parse します。JSON 本体でない文章が返った場合は fail fast でエラーにします。
 
 Ollama を使う場合:
 
@@ -178,6 +180,7 @@ novel-writer --provider ollama --model llama3.1
 
 既定の接続先は `http://127.0.0.1:11434/v1` です。`--base-url` または `OLLAMA_BASE_URL` で上書きできます。
 Python SDK が API key 文字列を要求するため、LM Studio と Ollama では既定のダミー key を使います。`--api-key` で明示値に差し替えられます。
+Ollama などの OpenAI 互換 endpoint でも、現在実装は `text` 応答として JSON を返す前提で接続します。
 
 長編向け stop condition を試験的に調整したい場合:
 

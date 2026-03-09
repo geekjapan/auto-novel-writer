@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from json import JSONDecodeError
 from typing import Any
 
 from novel_writer.llm.base import BaseLLMClient
@@ -14,6 +15,7 @@ class OpenAIClient(BaseLLMClient):
         api_key: str | None = None,
         base_url: str | None = None,
         provider_label: str = "OpenAI",
+        response_format_type: str = "json_object",
     ) -> None:
         try:
             from openai import OpenAI
@@ -30,18 +32,40 @@ class OpenAIClient(BaseLLMClient):
         self._client = OpenAI(**client_kwargs)
         self._model = model
         self._provider_label = provider_label
+        self._response_format_type = response_format_type
 
     def _generate_json(self, system_prompt: str, user_prompt: str) -> Any:
         response = self._client.chat.completions.create(
             model=self._model,
-            response_format={"type": "json_object"},
+            response_format={"type": self._response_format_type},
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
             ],
         )
-        content = response.choices[0].message.content or "{}"
-        return json.loads(content)
+        content = response.choices[0].message.content or ""
+        normalized_content = self._normalize_json_content(content)
+        try:
+            return json.loads(normalized_content)
+        except JSONDecodeError as exc:
+            preview = normalized_content[:160].replace("\n", "\\n")
+            raise ValueError(
+                f"{self._provider_label} response was not valid JSON. content_preview={preview}"
+            ) from exc
+
+    def _normalize_json_content(self, content: str) -> str:
+        normalized = content.strip()
+        if not normalized:
+            raise ValueError(f"{self._provider_label} response content was empty.")
+
+        if normalized.startswith("```"):
+            lines = normalized.splitlines()
+            if len(lines) >= 3 and lines[0].startswith("```") and lines[-1] == "```":
+                normalized = "\n".join(lines[1:-1]).strip()
+                if normalized.lower().startswith("json\n"):
+                    normalized = normalized[5:].strip()
+
+        return normalized
 
     def _story_context(self, story_input: StoryInput) -> str:
         return (

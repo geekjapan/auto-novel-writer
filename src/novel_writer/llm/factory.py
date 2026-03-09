@@ -22,6 +22,7 @@ def resolve_openai_provider_settings(
             "default_base_url": None,
             "default_api_key": None,
             "requires_base_url": False,
+            "response_format_type": "json_object",
         },
         "openai-compatible": {
             "provider_label": "OpenAI-compatible",
@@ -30,6 +31,7 @@ def resolve_openai_provider_settings(
             "default_base_url": None,
             "default_api_key": "openai-compatible-local",
             "requires_base_url": True,
+            "response_format_type": "text",
         },
         "lmstudio": {
             "provider_label": "LM Studio",
@@ -38,6 +40,7 @@ def resolve_openai_provider_settings(
             "default_base_url": "http://127.0.0.1:1234/v1",
             "default_api_key": "lm-studio",
             "requires_base_url": False,
+            "response_format_type": "text",
         },
         "ollama": {
             "provider_label": "Ollama",
@@ -46,6 +49,7 @@ def resolve_openai_provider_settings(
             "default_base_url": "http://127.0.0.1:11434/v1",
             "default_api_key": "ollama",
             "requires_base_url": False,
+            "response_format_type": "text",
         },
     }
     config = provider_configs.get(normalized)
@@ -66,6 +70,7 @@ def resolve_openai_provider_settings(
         "model": model,
         "api_key": resolved_api_key,
         "provider_label": config["provider_label"],
+        "response_format_type": config["response_format_type"],
     }
     if resolved_base_url:
         settings["base_url"] = resolved_base_url

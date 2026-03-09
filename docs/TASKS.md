@@ -18,6 +18,8 @@
 ## Done
 
 - [x] Scaffold CLI-based short-story pipeline MVP
+- [x] M54: LM Studio の fenced JSON 応答を明示的に正規化する
+- [x] M53: OpenAI 互換 provider の response format 差分を吸収する
 - [x] M52: OpenAI 互換 provider を追加し、LM Studio / Ollama と model 指定を CLI から使えるようにする
 - [x] M50: `show-run-comparison` の minimal artifact ケースで best metrics 行を固定する
 - [x] M49: `show-run-comparison` の minimal artifact ケースで current metrics 行を固定する
