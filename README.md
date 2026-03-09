@@ -366,6 +366,7 @@ run comparison summary field と artifact field の対応:
 - `compact.policy_limits.max_total_rerun_attempts` は `run_comparison_summary.json.compact_summary.policy_limits.max_total_rerun_attempts.current|best` を表示する
 - `Run candidates` は `run_comparison_summary.json.candidate_count` を表示する
 - `run_candidate_names` は `run_comparison_summary.json.run_candidates[*].run_name` を表示する
+- `run_candidate_scores` は `run_comparison_summary.json.run_candidates[*].score` を `run_name=score` へ整形して表示する
 
 schema version の現方針:
 

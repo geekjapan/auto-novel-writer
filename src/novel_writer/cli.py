@@ -641,6 +641,10 @@ def build_saved_run_comparison_summary(
         "project_label": summary_artifact.get("project_slug") or summary_artifact.get("project_id", "unknown"),
         "candidate_count": summary_artifact.get("candidate_count", 0),
         "run_candidate_names": [candidate.get("run_name", "unknown") for candidate in summary_artifact.get("run_candidates", [])],
+        "run_candidate_scores": [
+            f"{candidate.get('run_name', 'unknown')}={candidate.get('score', 'n/a')}"
+            for candidate in summary_artifact.get("run_candidates", [])
+        ],
         "current_run": {
             "name": current_run.get("run_name", "unknown"),
             "output_dir": current_run.get("output_dir", "unknown"),
@@ -687,6 +691,8 @@ def build_saved_run_comparison_lines(summary_artifact: dict[str, Any], reason_de
     lines.append(f"Run candidates: {summary['candidate_count']}")
     if summary["run_candidate_names"]:
         lines.append(f"  run_candidate_names: {', '.join(summary['run_candidate_names'])}")
+    if summary["run_candidate_scores"]:
+        lines.append(f"  run_candidate_scores: {', '.join(summary['run_candidate_scores'])}")
     return lines
 
 

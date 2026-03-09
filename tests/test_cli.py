@@ -958,8 +958,8 @@ class CliTest(unittest.TestCase):
                 },
             },
             "run_candidates": [
-                {"run_name": "latest_run"},
-                {"run_name": "candidate-a"},
+                {"run_name": "latest_run", "score": 11},
+                {"run_name": "candidate-a", "score": 5},
             ],
         }
 
@@ -969,6 +969,7 @@ class CliTest(unittest.TestCase):
         self.assertEqual(summary["project_label"], "case-05")
         self.assertEqual(summary["candidate_count"], 2)
         self.assertEqual(summary["run_candidate_names"], ["latest_run", "candidate-a"])
+        self.assertEqual(summary["run_candidate_scores"], ["latest_run=11", "candidate-a=5"])
         self.assertEqual(summary["current_run"]["output_dir"], "data/projects/case-05/runs/latest_run")
         self.assertEqual(summary["best_run"]["output_dir"], "data/projects/case-05/runs/candidate-a")
         self.assertIn(
@@ -1030,8 +1031,8 @@ class CliTest(unittest.TestCase):
                 },
             },
             "run_candidates": [
-                {"run_name": "latest_run"},
-                {"run_name": "candidate-a"},
+                {"run_name": "latest_run", "score": 11},
+                {"run_name": "candidate-a", "score": 5},
             ],
         }
 
@@ -1058,6 +1059,7 @@ class CliTest(unittest.TestCase):
             "  compact.policy_limits.max_total_rerun_attempts: current=20, best=20",
             "Run candidates: 2",
             "  run_candidate_names: latest_run, candidate-a",
+            "  run_candidate_scores: latest_run=11, candidate-a=5",
         }
 
         self.assertTrue(expected_lines.issubset(set(lines)))
@@ -1115,6 +1117,7 @@ class CliTest(unittest.TestCase):
             self.assertIn("compact.policy_limits.max_high_severity_chapters:", output)
             self.assertIn("Run candidates: 1", output)
             self.assertIn("run_candidate_names: latest_run", output)
+            self.assertIn("run_candidate_scores: latest_run=11", output)
 
 
 if __name__ == "__main__":
