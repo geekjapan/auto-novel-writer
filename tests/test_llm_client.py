@@ -136,6 +136,8 @@ class MockLLMClientTest(unittest.TestCase):
 
         self.assertEqual(payload, {"loglines": []})
         self.assertEqual(completions.last_kwargs["response_format"], {"type": "text"})
+        self.assertIn("Output only valid JSON.", completions.last_kwargs["messages"][0]["content"])
+        self.assertIn("Do not wrap the response in markdown fences.", completions.last_kwargs["messages"][1]["content"])
 
     def test_openai_client_accepts_markdown_fenced_json_from_lmstudio(self) -> None:
         completions = RecordingCompletions('```json\n{"loglines": []}\n```')

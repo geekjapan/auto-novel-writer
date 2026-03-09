@@ -35,12 +35,23 @@ class OpenAIClient(BaseLLMClient):
         self._response_format_type = response_format_type
 
     def _generate_json(self, system_prompt: str, user_prompt: str) -> Any:
+        system_message = system_prompt
+        user_message = user_prompt
+        if self._response_format_type == "text":
+            json_only_instruction = (
+                "Output only valid JSON. "
+                "Do not wrap the response in markdown fences. "
+                "Do not add explanations before or after the JSON."
+            )
+            system_message = f"{system_prompt} {json_only_instruction}"
+            user_message = f"{json_only_instruction} {user_prompt}"
+
         response = self._client.chat.completions.create(
             model=self._model,
             response_format={"type": self._response_format_type},
             messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
+                {"role": "system", "content": system_message},
+                {"role": "user", "content": user_message},
             ],
         )
         content = response.choices[0].message.content or ""
