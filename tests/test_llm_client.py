@@ -16,6 +16,38 @@ class FakeOpenAIClient(OpenAIClient):
         return self.payload
 
 
+class RecordingCompletions:
+    def __init__(self, content: str) -> None:
+        self.content = content
+        self.last_kwargs: dict | None = None
+
+    def create(self, **kwargs):
+        self.last_kwargs = kwargs
+        return type(
+            "Response",
+            (),
+            {
+                "choices": [
+                    type(
+                        "Choice",
+                        (),
+                        {"message": type("Message", (), {"content": self.content})()},
+                    )()
+                ]
+            },
+        )()
+
+
+class RecordingChat:
+    def __init__(self, completions: RecordingCompletions) -> None:
+        self.completions = completions
+
+
+class RecordingOpenAIBackend:
+    def __init__(self, completions: RecordingCompletions) -> None:
+        self.chat = RecordingChat(completions)
+
+
 class MockLLMClientTest(unittest.TestCase):
     def test_cli_parser_accepts_lmstudio_provider_and_model(self) -> None:
         parser = build_parser()
@@ -74,7 +106,36 @@ class MockLLMClientTest(unittest.TestCase):
             base_url="http://127.0.0.1:9000/v1",
             api_key="compat-key",
             provider_label="OpenAI-compatible",
+            response_format_type="text",
         )
+
+    def test_build_llm_client_passes_openai_response_format_defaults(self) -> None:
+        with patch("novel_writer.llm.factory.OpenAIClient") as openai_client_class:
+            build_llm_client(
+                provider="openai",
+                model="gpt-4.1-mini",
+                api_key="openai-key",
+            )
+
+        openai_client_class.assert_called_once_with(
+            model="gpt-4.1-mini",
+            api_key="openai-key",
+            provider_label="OpenAI",
+            response_format_type="json_object",
+        )
+
+    def test_openai_client_uses_text_response_format_for_lmstudio(self) -> None:
+        completions = RecordingCompletions('{"loglines": []}')
+        client = object.__new__(OpenAIClient)
+        client._client = RecordingOpenAIBackend(completions)
+        client._model = "local-model"
+        client._provider_label = "LM Studio"
+        client._response_format_type = "text"
+
+        payload = client._generate_json("system", "user")
+
+        self.assertEqual(payload, {"loglines": []})
+        self.assertEqual(completions.last_kwargs["response_format"], {"type": "text"})
 
     def test_mock_client_generates_expected_shapes(self) -> None:
         client = MockLLMClient()

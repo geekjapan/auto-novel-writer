@@ -4,6 +4,16 @@
 ここでの task は、1 回で安全に実装・テスト・docs 更新・コミットできる粒度へ分割する。
 
 ## In Progress
+- [ ] M53: OpenAI 互換 provider の response format 差分を吸収する
+  - Title: LM Studio 向け response format を provider 別に切り替える
+  - Milestone: M53 OpenAI-Compatible Response Format Support
+  - Purpose: LM Studio / Ollama / OpenAI-compatible endpoint が `json_object` を受け付けない場合でも、明示的に `text` 応答で JSON を返す前提へ切り替えて実行できるようにする
+  - Target files or directories: `src/novel_writer/llm/openai_client.py`, `src/novel_writer/llm/factory.py`, `tests/test_llm_client.py`, `README.md`, `docs/TASKS.md`
+  - Done when: provider ごとに `response_format.type` を固定でき、LM Studio 系 provider は `text` を使うことを tests と README で確認できる
+  - Required tests: `python -m unittest tests.test_llm_client -v`, `python -m unittest discover -s tests -v`
+  - Docs to update: `README.md`, `docs/TASKS.md`
+
+## Ready
 - [ ] M51: `show-run-comparison` の minimal artifact ケースで compact issue score 行を固定する
   - Title: comparison CLI の minimal artifact compact issue score 行を固定する
   - Milestone: M51 Run Comparison Minimal Compact Coverage
@@ -12,8 +22,6 @@
   - Done when: minimal artifact ケースで `compact.issue_score` が表示されることを tests で固定する
   - Required tests: `python -m unittest tests.test_cli -v`, `python -m unittest discover -s tests -v`
   - Docs to update: `docs/TASKS.md`
-
-## Ready
 
 ## Done
 

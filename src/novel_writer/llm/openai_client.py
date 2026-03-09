@@ -14,6 +14,7 @@ class OpenAIClient(BaseLLMClient):
         api_key: str | None = None,
         base_url: str | None = None,
         provider_label: str = "OpenAI",
+        response_format_type: str = "json_object",
     ) -> None:
         try:
             from openai import OpenAI
@@ -30,11 +31,12 @@ class OpenAIClient(BaseLLMClient):
         self._client = OpenAI(**client_kwargs)
         self._model = model
         self._provider_label = provider_label
+        self._response_format_type = response_format_type
 
     def _generate_json(self, system_prompt: str, user_prompt: str) -> Any:
         response = self._client.chat.completions.create(
             model=self._model,
-            response_format={"type": "json_object"},
+            response_format={"type": self._response_format_type},
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
