@@ -968,10 +968,10 @@ class CliTest(unittest.TestCase):
 
         self.assertEqual(summary["project_label"], "case-05")
         self.assertEqual(summary["candidate_count"], 2)
-        self.assertEqual(summary["run_candidate_names"], ["latest_run", "candidate-a"])
-        self.assertEqual(summary["run_candidate_scores"], ["latest_run=11", "candidate-a=5"])
+        self.assertEqual(summary["run_candidates"]["names"], ["latest_run", "candidate-a"])
+        self.assertEqual(summary["run_candidates"]["scores"], ["latest_run=11", "candidate-a=5"])
         self.assertEqual(
-            summary["run_candidate_output_dirs"],
+            summary["run_candidates"]["output_dirs"],
             [
                 "latest_run=data/projects/case-05/runs/latest_run",
                 "candidate-a=data/projects/case-05/runs/candidate-a",
@@ -983,6 +983,7 @@ class CliTest(unittest.TestCase):
             "  current_comparison_reason_codes: long_run_should_stop, total_issue_score",
             summary["current_run"]["comparison_lines"],
         )
+        self.assertIn("  run_candidate_names: latest_run, candidate-a", summary["run_candidates"]["lines"])
         self.assertIn("  best_selection_source: manual", summary["best_run"]["selection_lines"])
         self.assertEqual(summary["compact_summary"]["selection_source"], "manual")
         self.assertEqual(summary["compact_summary"]["issue_score"], {"current": 11, "best": 5})

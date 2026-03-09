@@ -640,15 +640,7 @@ def build_saved_run_comparison_summary(
     return {
         "project_label": summary_artifact.get("project_slug") or summary_artifact.get("project_id", "unknown"),
         "candidate_count": summary_artifact.get("candidate_count", 0),
-        "run_candidate_names": [candidate.get("run_name", "unknown") for candidate in summary_artifact.get("run_candidates", [])],
-        "run_candidate_scores": [
-            f"{candidate.get('run_name', 'unknown')}={candidate.get('score', 'n/a')}"
-            for candidate in summary_artifact.get("run_candidates", [])
-        ],
-        "run_candidate_output_dirs": [
-            f"{candidate.get('run_name', 'unknown')}={candidate.get('output_dir', 'unknown')}"
-            for candidate in summary_artifact.get("run_candidates", [])
-        ],
+        "run_candidates": _build_saved_run_candidate_section(summary_artifact.get("run_candidates", [])),
         "current_run": {
             "name": current_run.get("run_name", "unknown"),
             "output_dir": current_run.get("output_dir", "unknown"),
@@ -693,12 +685,9 @@ def build_saved_run_comparison_lines(summary_artifact: dict[str, Any], reason_de
     if compact_summary:
         lines.extend(compact_summary["lines"])
     lines.append(f"Run candidates: {summary['candidate_count']}")
-    if summary["run_candidate_names"]:
-        lines.append(f"  run_candidate_names: {', '.join(summary['run_candidate_names'])}")
-    if summary["run_candidate_scores"]:
-        lines.append(f"  run_candidate_scores: {', '.join(summary['run_candidate_scores'])}")
-    if summary["run_candidate_output_dirs"]:
-        lines.append(f"  run_candidate_output_dirs: {', '.join(summary['run_candidate_output_dirs'])}")
+    run_candidates = summary.get("run_candidates")
+    if run_candidates:
+        lines.extend(run_candidates["lines"])
     return lines
 
 
@@ -710,6 +699,31 @@ def _build_saved_run_compact_summary_section(compact_summary: dict[str, Any]) ->
         "long_run_should_stop": dict(compact_summary.get("long_run_should_stop", {})),
         "policy_limits": deepcopy(compact_summary.get("policy_limits", {})),
         "lines": _build_compact_summary_lines(compact_summary),
+    }
+
+
+def _build_saved_run_candidate_section(run_candidates: list[dict[str, Any]]) -> dict[str, Any]:
+    names = [candidate.get("run_name", "unknown") for candidate in run_candidates]
+    scores = [
+        f"{candidate.get('run_name', 'unknown')}={candidate.get('score', 'n/a')}"
+        for candidate in run_candidates
+    ]
+    output_dirs = [
+        f"{candidate.get('run_name', 'unknown')}={candidate.get('output_dir', 'unknown')}"
+        for candidate in run_candidates
+    ]
+    lines: list[str] = []
+    if names:
+        lines.append(f"  run_candidate_names: {', '.join(names)}")
+    if scores:
+        lines.append(f"  run_candidate_scores: {', '.join(scores)}")
+    if output_dirs:
+        lines.append(f"  run_candidate_output_dirs: {', '.join(output_dirs)}")
+    return {
+        "names": names,
+        "scores": scores,
+        "output_dirs": output_dirs,
+        "lines": lines,
     }
 
 

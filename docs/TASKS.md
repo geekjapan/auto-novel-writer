@@ -6,12 +6,12 @@
 ## In Progress
 
 ## Ready
-- [ ] M35: `show-run-comparison` の run candidate summary を section dict として構造化する
-  - Title: comparison CLI の candidate section builder を構造化する
-  - Milestone: M35 Run Comparison Candidate Section Cleanup
-  - Purpose: `run_candidate_names` / `run_candidate_scores` / `run_candidate_output_dirs` を 1 つの section dict にまとめ、renderer との責務分離を揃える
+- [ ] M36: `show-run-comparison` の current / best summary から metrics line を structured field へ寄せる
+  - Title: comparison CLI の current/best metrics builder を構造化する
+  - Milestone: M36 Run Comparison Section Cleanup
+  - Purpose: `best_comparison_metrics` の line 生成を section dict 側へ寄せ、current / best / compact / candidates の責務分離を揃える
   - Target files or directories: `src/novel_writer/cli.py`, `tests/test_cli.py`, `docs/TASKS.md`
-  - Done when: `build_saved_run_comparison_summary()` が candidate section を構造化して返し、CLI 出力は現状維持される
+  - Done when: `build_saved_run_comparison_summary()` が current / best summary でも metrics を構造化して返し、CLI 出力は現状維持される
   - Required tests: `python -m unittest tests.test_cli -v`, `python -m unittest discover -s tests -v`
   - Docs to update: `docs/TASKS.md`
 
@@ -113,6 +113,7 @@
 - [x] M32: `show-run-comparison` に `run_candidates[*].run_name` の一覧を表示する
 - [x] M33: `show-run-comparison` に `run_candidates[*].score` の一覧を表示する
 - [x] M34: `show-run-comparison` に `run_candidates[*].output_dir` の一覧を表示する
+- [x] M35: `show-run-comparison` の run candidate summary を section dict として構造化する
 
 ## Task Update Rules
 
