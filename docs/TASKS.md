@@ -6,18 +6,20 @@
 ## In Progress
 
 ## Ready
-- [ ] M42: `show-run-comparison` の section 表示順 contract を tests で固定する
-  - Title: comparison CLI の section 表示順 contract を固定する
-  - Milestone: M42 Run Comparison Order Contract
-  - Purpose: renderer cleanup 後の current / best / compact / candidates の表示順を tests で明示し、今後の整理で出力順が意図せず崩れないようにする
+- [ ] M44: `show-run-comparison` CLI の read-only 経路でも optional section 欠落ケースを固定する
+  - Title: comparison CLI の read-only optional section ケースを固定する
+  - Milestone: M44 Run Comparison CLI Optional Section Coverage
+  - Purpose: builder 単体テストだけでなく、保存済み `run_comparison_summary.json` を読む CLI 経路でも optional section 欠落ケースを固定し、read-only 利用時の安定性を確認する
   - Target files or directories: `tests/test_cli.py`, `docs/TASKS.md`
-  - Done when: `build_saved_run_comparison_lines()` の主要 section 順が tests で固定され、既存の line mapping test と役割が重複しすぎない
+  - Done when: `show-run-comparison` CLI が current-only の comparison artifact を読み、再実行なしで project header と current section を表示できることを tests で固定する
   - Required tests: `python -m unittest tests.test_cli -v`, `python -m unittest discover -s tests -v`
   - Docs to update: `docs/TASKS.md`
 
 ## Done
 
 - [x] Scaffold CLI-based short-story pipeline MVP
+- [x] M42: `show-run-comparison` の section 表示順 contract を tests で固定する
+- [x] M43: `show-run-comparison` が optional section 欠落時も安定して表示できることを tests で固定する
 - [x] Separate orchestration, schema, storage, and LLM access modules
 - [x] Add mock provider and OpenAI provider selection
 - [x] Save intermediate artifacts as JSON or YAML

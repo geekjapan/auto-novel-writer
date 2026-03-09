@@ -1118,6 +1118,92 @@ class CliTest(unittest.TestCase):
 
         self.assertTrue(expected_lines.issubset(set(lines)))
 
+    def test_build_run_comparison_lines_keeps_section_order_contract(self) -> None:
+        summary_artifact = {
+            "project_id": "Case 07",
+            "project_slug": "case-07",
+            "candidate_count": 2,
+            "current_run": {
+                "run_name": "latest_run",
+                "output_dir": "data/projects/case-07/runs/latest_run",
+                "comparison_basis": ["long_run_should_stop", "continuity_issue_total"],
+                "comparison_metrics": {
+                    "total_issue_score": 11,
+                    "completed_step_count": 12,
+                },
+                "comparison_reason_details": [
+                    {"code": "long_run_should_stop", "value": False},
+                ],
+            },
+            "best_run": {
+                "run_name": "candidate-a",
+                "output_dir": "data/projects/case-07/runs/candidate-a",
+                "selection_source": "manual",
+                "comparison_basis": ["long_run_should_stop", "continuity_issue_total"],
+                "comparison_metrics": {
+                    "total_issue_score": 5,
+                    "completed_step_count": 7,
+                },
+                "selection_reason_details": [
+                    {"code": "manual_selection", "value": "candidate-a"},
+                ],
+            },
+            "compact_summary": {
+                "selection_source": "manual",
+                "issue_score": {"current": 11, "best": 5},
+                "completed_step_count": {"current": 12, "best": 7},
+                "long_run_should_stop": {"current": False, "best": True},
+                "policy_limits": {
+                    "max_high_severity_chapters": {"current": 6, "best": 2},
+                    "max_total_rerun_attempts": {"current": 20, "best": 20},
+                },
+            },
+            "run_candidates": [
+                {"run_name": "latest_run", "score": 11, "output_dir": "data/projects/case-07/runs/latest_run"},
+                {"run_name": "candidate-a", "score": 5, "output_dir": "data/projects/case-07/runs/candidate-a"},
+            ],
+        }
+
+        lines = build_saved_run_comparison_lines(summary_artifact, reason_detail_mode="codes")
+
+        project_index = lines.index("Project: case-07")
+        current_index = lines.index("Current run: latest_run")
+        best_index = lines.index("Best run: candidate-a")
+        compact_index = lines.index("Compact summary: selection_source=manual")
+        candidate_index = lines.index("Run candidates: 2")
+
+        self.assertLess(project_index, current_index)
+        self.assertLess(current_index, best_index)
+        self.assertLess(best_index, compact_index)
+        self.assertLess(compact_index, candidate_index)
+
+    def test_build_run_comparison_lines_skips_missing_optional_sections(self) -> None:
+        summary_artifact = {
+            "project_id": "Case 08",
+            "project_slug": "case-08",
+            "candidate_count": 0,
+            "current_run": {
+                "run_name": "latest_run",
+                "output_dir": "data/projects/case-08/runs/latest_run",
+                "comparison_basis": ["long_run_should_stop"],
+                "comparison_metrics": {
+                    "total_issue_score": 3,
+                    "completed_step_count": 4,
+                },
+                "comparison_reason_details": [
+                    {"code": "total_issue_score", "value": 3},
+                ],
+            },
+        }
+
+        lines = build_saved_run_comparison_lines(summary_artifact, reason_detail_mode="codes")
+
+        self.assertEqual(lines[0], "Project: case-08")
+        self.assertIn("Current run: latest_run", lines)
+        self.assertNotIn("Best run: candidate-a", lines)
+        self.assertNotIn("Compact summary: selection_source=manual", lines)
+        self.assertIn("Run candidates: 0", lines)
+
     def test_cli_show_run_comparison_reads_artifact_without_rerunning(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             main(
