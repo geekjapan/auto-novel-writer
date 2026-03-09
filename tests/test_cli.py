@@ -11,7 +11,7 @@ from novel_writer.cli import (
     build_saved_run_comparison_summary,
     main,
 )
-from novel_writer.storage import load_artifact
+from novel_writer.storage import load_artifact, save_run_comparison_summary
 
 
 class CliTest(unittest.TestCase):
@@ -991,19 +991,54 @@ class CliTest(unittest.TestCase):
         )
         self.assertIn(
             "  current_comparison_reason_codes: long_run_should_stop, total_issue_score",
-            summary["current_run"]["comparison_lines"],
+            summary["current_run"]["comparison_summary"]["lines"],
         )
         self.assertIn("  run_candidate_names: latest_run, candidate-a", summary["run_candidates"]["lines"])
-        self.assertIn("  best_selection_source: manual", summary["best_run"]["selection_lines"])
+        self.assertEqual(
+            summary["current_run"]["comparison_summary"]["basis_summary"],
+            "long_run_should_stop, continuity_issue_total",
+        )
+        self.assertEqual(
+            summary["current_run"]["comparison_summary"]["reason_summary"],
+            "long_run_should_stop=False; total_issue_score=11",
+        )
+        self.assertEqual(
+            summary["current_run"]["comparison_summary"]["reason_codes"],
+            ["long_run_should_stop", "total_issue_score"],
+        )
+        self.assertEqual(summary["best_run"]["selection_summary"]["selection_source"], "manual")
+        self.assertEqual(
+            summary["best_run"]["selection_summary"]["basis_summary"],
+            "long_run_should_stop, continuity_issue_total",
+        )
+        self.assertEqual(
+            summary["best_run"]["selection_summary"]["reason_summary"],
+            "manual_selection=candidate-a; long_run_should_stop=True",
+        )
+        self.assertEqual(
+            summary["best_run"]["selection_summary"]["reason_codes"],
+            ["manual_selection", "long_run_should_stop"],
+        )
+        self.assertIn("  best_selection_source: manual", summary["best_run"]["selection_summary"]["lines"])
         self.assertEqual(summary["compact_summary"]["selection_source"], "manual")
         self.assertEqual(summary["compact_summary"]["issue_score"], {"current": 11, "best": 5})
         self.assertEqual(
             summary["compact_summary"]["policy_limits"]["max_high_severity_chapters"],
             {"current": 6, "best": 2},
         )
+        self.assertEqual(
+            summary["compact_summary"]["lines"][0],
+            "Compact summary: selection_source=manual",
+        )
+        self.assertEqual(
+            summary["run_candidates"]["lines"][0],
+            "  run_candidate_names: latest_run, candidate-a",
+        )
         self.assertIn("Compact summary: selection_source=manual", lines)
         self.assertIn("  compact.issue_score: current=11, best=5", lines)
         self.assertIn("  compact.policy_limits.max_high_severity_chapters: current=6, best=2", lines)
+        self.assertIn("Run candidates: 2", lines)
+        self.assertEqual(lines[0], "Project: case-05")
 
     def test_build_run_comparison_lines_keep_documented_field_mapping(self) -> None:
         summary_artifact = {
@@ -1083,6 +1118,92 @@ class CliTest(unittest.TestCase):
 
         self.assertTrue(expected_lines.issubset(set(lines)))
 
+    def test_build_run_comparison_lines_keeps_section_order_contract(self) -> None:
+        summary_artifact = {
+            "project_id": "Case 07",
+            "project_slug": "case-07",
+            "candidate_count": 2,
+            "current_run": {
+                "run_name": "latest_run",
+                "output_dir": "data/projects/case-07/runs/latest_run",
+                "comparison_basis": ["long_run_should_stop", "continuity_issue_total"],
+                "comparison_metrics": {
+                    "total_issue_score": 11,
+                    "completed_step_count": 12,
+                },
+                "comparison_reason_details": [
+                    {"code": "long_run_should_stop", "value": False},
+                ],
+            },
+            "best_run": {
+                "run_name": "candidate-a",
+                "output_dir": "data/projects/case-07/runs/candidate-a",
+                "selection_source": "manual",
+                "comparison_basis": ["long_run_should_stop", "continuity_issue_total"],
+                "comparison_metrics": {
+                    "total_issue_score": 5,
+                    "completed_step_count": 7,
+                },
+                "selection_reason_details": [
+                    {"code": "manual_selection", "value": "candidate-a"},
+                ],
+            },
+            "compact_summary": {
+                "selection_source": "manual",
+                "issue_score": {"current": 11, "best": 5},
+                "completed_step_count": {"current": 12, "best": 7},
+                "long_run_should_stop": {"current": False, "best": True},
+                "policy_limits": {
+                    "max_high_severity_chapters": {"current": 6, "best": 2},
+                    "max_total_rerun_attempts": {"current": 20, "best": 20},
+                },
+            },
+            "run_candidates": [
+                {"run_name": "latest_run", "score": 11, "output_dir": "data/projects/case-07/runs/latest_run"},
+                {"run_name": "candidate-a", "score": 5, "output_dir": "data/projects/case-07/runs/candidate-a"},
+            ],
+        }
+
+        lines = build_saved_run_comparison_lines(summary_artifact, reason_detail_mode="codes")
+
+        project_index = lines.index("Project: case-07")
+        current_index = lines.index("Current run: latest_run")
+        best_index = lines.index("Best run: candidate-a")
+        compact_index = lines.index("Compact summary: selection_source=manual")
+        candidate_index = lines.index("Run candidates: 2")
+
+        self.assertLess(project_index, current_index)
+        self.assertLess(current_index, best_index)
+        self.assertLess(best_index, compact_index)
+        self.assertLess(compact_index, candidate_index)
+
+    def test_build_run_comparison_lines_skips_missing_optional_sections(self) -> None:
+        summary_artifact = {
+            "project_id": "Case 08",
+            "project_slug": "case-08",
+            "candidate_count": 0,
+            "current_run": {
+                "run_name": "latest_run",
+                "output_dir": "data/projects/case-08/runs/latest_run",
+                "comparison_basis": ["long_run_should_stop"],
+                "comparison_metrics": {
+                    "total_issue_score": 3,
+                    "completed_step_count": 4,
+                },
+                "comparison_reason_details": [
+                    {"code": "total_issue_score", "value": 3},
+                ],
+            },
+        }
+
+        lines = build_saved_run_comparison_lines(summary_artifact, reason_detail_mode="codes")
+
+        self.assertEqual(lines[0], "Project: case-08")
+        self.assertIn("Current run: latest_run", lines)
+        self.assertNotIn("Best run: candidate-a", lines)
+        self.assertNotIn("Compact summary: selection_source=manual", lines)
+        self.assertIn("Run candidates: 0", lines)
+
     def test_cli_show_run_comparison_reads_artifact_without_rerunning(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             main(
@@ -1138,6 +1259,80 @@ class CliTest(unittest.TestCase):
             self.assertIn("run_candidate_names: latest_run", output)
             self.assertIn("run_candidate_scores: latest_run=11", output)
             self.assertIn("run_candidate_output_dirs: latest_run=", output)
+
+    def test_cli_show_run_comparison_reads_minimal_valid_artifact(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            project_dir = Path(tmp_dir) / "compare-optional-01"
+            project_dir.mkdir(parents=True, exist_ok=True)
+            comparison_payload = {
+                "schema_name": "run_comparison_summary",
+                "schema_version": "1.0",
+                "project_id": "Compare Optional 01",
+                "project_slug": "compare-optional-01",
+                "current_run": {
+                    "run_name": "latest_run",
+                    "output_dir": "data/projects/compare-optional-01/runs/latest_run",
+                    "comparison_basis": ["long_run_should_stop"],
+                    "comparison_metrics": {
+                        "total_issue_score": 3,
+                        "completed_step_count": 4,
+                    },
+                    "comparison_reason": [],
+                    "comparison_reason_details": [
+                        {"code": "total_issue_score", "value": 3},
+                    ],
+                },
+                "best_run": {
+                    "run_name": "latest_run",
+                    "output_dir": "data/projects/compare-optional-01/runs/latest_run",
+                    "selection_source": "automatic",
+                    "comparison_basis": ["long_run_should_stop"],
+                    "comparison_metrics": {
+                        "total_issue_score": 3,
+                        "completed_step_count": 4,
+                    },
+                    "selection_reason": [],
+                    "selection_reason_details": [
+                        {"code": "total_issue_score", "value": 3},
+                    ],
+                },
+                "candidate_count": 0,
+                "compact_summary": {
+                    "selection_source": "automatic",
+                    "issue_score": {"current": 3, "best": 3},
+                    "completed_step_count": {"current": 4, "best": 4},
+                    "long_run_should_stop": {"current": False, "best": False},
+                    "policy_limits": {
+                        "max_high_severity_chapters": {"current": 10, "best": 10},
+                        "max_total_rerun_attempts": {"current": 20, "best": 20},
+                    },
+                },
+                "run_candidates": [],
+            }
+            save_run_comparison_summary(project_dir, comparison_payload)
+
+            buffer = io.StringIO()
+            with redirect_stdout(buffer):
+                exit_code = main(
+                    [
+                        "show-run-comparison",
+                        "--project-id",
+                        "Compare Optional 01",
+                        "--projects-dir",
+                        tmp_dir,
+                        "--reason-detail-mode",
+                        "codes",
+                    ]
+                )
+
+            output = buffer.getvalue()
+
+            self.assertEqual(exit_code, 0)
+            self.assertIn("Project: compare-optional-01", output)
+            self.assertIn("Current run: latest_run", output)
+            self.assertIn("Best run: latest_run", output)
+            self.assertIn("Compact summary: selection_source=automatic", output)
+            self.assertIn("Run candidates: 0", output)
 
 
 if __name__ == "__main__":

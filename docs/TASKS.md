@@ -6,18 +6,21 @@
 ## In Progress
 
 ## Ready
-- [ ] M37: `show-run-comparison` の current / best reason/basis 表示を structured field へ寄せる
-  - Title: comparison CLI の current/best reason section を構造化する
-  - Milestone: M37 Run Comparison Section Cleanup
-  - Purpose: `comparison_lines` / `selection_lines` に残っている basis と reason 系の line 生成を section dict 側へ寄せ、current / best / compact / candidates の構造を揃える
-  - Target files or directories: `src/novel_writer/cli.py`, `tests/test_cli.py`, `docs/TASKS.md`
-  - Done when: `build_saved_run_comparison_summary()` が current / best summary でも basis / reason 系を structured field で返し、CLI 出力は現状維持される
+- [ ] M45: `show-run-comparison` CLI が candidate 0 件のとき detail line を出さないことを固定する
+  - Title: comparison CLI の zero-candidate detail line を固定する
+  - Milestone: M45 Run Comparison Zero Candidate Coverage
+  - Purpose: `run_candidates=[]` の最小 valid artifact を読む read-only CLI 経路で、candidate count は出るが name / score / output_dir detail line は出ないことを tests で固定する
+  - Target files or directories: `tests/test_cli.py`, `docs/TASKS.md`
+  - Done when: `show-run-comparison` CLI の zero-candidate ケースで `Run candidates: 0` は表示され、`run_candidate_*` detail line は表示されないことを tests で固定する
   - Required tests: `python -m unittest tests.test_cli -v`, `python -m unittest discover -s tests -v`
   - Docs to update: `docs/TASKS.md`
 
 ## Done
 
 - [x] Scaffold CLI-based short-story pipeline MVP
+- [x] M44: `show-run-comparison` CLI が最小 valid comparison artifact を read-only 表示できることを固定する
+- [x] M42: `show-run-comparison` の section 表示順 contract を tests で固定する
+- [x] M43: `show-run-comparison` が optional section 欠落時も安定して表示できることを tests で固定する
 - [x] Separate orchestration, schema, storage, and LLM access modules
 - [x] Add mock provider and OpenAI provider selection
 - [x] Save intermediate artifacts as JSON or YAML
@@ -115,6 +118,11 @@
 - [x] M34: `show-run-comparison` に `run_candidates[*].output_dir` の一覧を表示する
 - [x] M35: `show-run-comparison` の run candidate summary を section dict として構造化する
 - [x] M36: `show-run-comparison` の current / best summary から metrics line を structured field へ寄せる
+- [x] M37: `show-run-comparison` の current / best reason/basis 表示を structured field へ寄せる
+- [x] M38: `show-run-comparison` の current / best section renderer を helper 分離する
+- [x] M39: `show-run-comparison` の compact / candidate section renderer を helper 分離する
+- [x] M40: `show-run-comparison` の top-level line builder を section dispatch へ統一する
+- [x] M41: `show-run-comparison` の section renderer dispatch 定義を helper 化する
 
 ## Task Update Rules
 
