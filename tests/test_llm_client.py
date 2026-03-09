@@ -1,6 +1,9 @@
 import unittest
+from unittest.mock import patch
 
 from novel_writer.llm import OpenAIClient
+from novel_writer.llm.factory import build_llm_client, resolve_openai_provider_settings
+from novel_writer.cli import build_parser
 from novel_writer.llm_client import MockLLMClient
 from novel_writer.schema import StoryInput
 
@@ -14,6 +17,65 @@ class FakeOpenAIClient(OpenAIClient):
 
 
 class MockLLMClientTest(unittest.TestCase):
+    def test_cli_parser_accepts_lmstudio_provider_and_model(self) -> None:
+        parser = build_parser()
+
+        args = parser.parse_args(
+            [
+                "--theme",
+                "境界",
+                "--genre",
+                "SF",
+                "--tone",
+                "ビター",
+                "--target-length",
+                "5000",
+                "--provider",
+                "lmstudio",
+                "--model",
+                "local-model",
+            ]
+        )
+
+        self.assertEqual(args.provider, "lmstudio")
+        self.assertEqual(args.model, "local-model")
+
+    def test_resolve_lmstudio_provider_settings_uses_documented_defaults(self) -> None:
+        settings = resolve_openai_provider_settings("lmstudio", model="local-model")
+
+        self.assertEqual(settings["provider_label"], "LM Studio")
+        self.assertEqual(settings["model"], "local-model")
+        self.assertEqual(settings["base_url"], "http://127.0.0.1:1234/v1")
+        self.assertEqual(settings["api_key"], "lm-studio")
+
+    def test_resolve_ollama_provider_settings_uses_documented_defaults(self) -> None:
+        settings = resolve_openai_provider_settings("ollama", model="llama3.1")
+
+        self.assertEqual(settings["provider_label"], "Ollama")
+        self.assertEqual(settings["model"], "llama3.1")
+        self.assertEqual(settings["base_url"], "http://127.0.0.1:11434/v1")
+        self.assertEqual(settings["api_key"], "ollama")
+
+    def test_resolve_openai_compatible_settings_require_base_url(self) -> None:
+        with self.assertRaises(RuntimeError):
+            resolve_openai_provider_settings("openai-compatible", model="local-model")
+
+    def test_build_llm_client_passes_openai_compatible_settings_to_client(self) -> None:
+        with patch("novel_writer.llm.factory.OpenAIClient") as openai_client_class:
+            build_llm_client(
+                provider="openai-compatible",
+                model="mistral-nemo",
+                base_url="http://127.0.0.1:9000/v1",
+                api_key="compat-key",
+            )
+
+        openai_client_class.assert_called_once_with(
+            model="mistral-nemo",
+            base_url="http://127.0.0.1:9000/v1",
+            api_key="compat-key",
+            provider_label="OpenAI-compatible",
+        )
+
     def test_mock_client_generates_expected_shapes(self) -> None:
         client = MockLLMClient()
         story_input = StoryInput(theme="喪失", genre="ミステリ", tone="静謐", target_length=6000)

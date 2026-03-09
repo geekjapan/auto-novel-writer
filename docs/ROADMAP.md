@@ -11,6 +11,8 @@ CLI から小説プロジェクトを作成し、章単位・作品単位で
 ## Current State
 
 - CLI から `theme`、`genre`、`tone`、`target_length` を受け取り、`project_id` つきの project/run 管理ができる
+- LLM provider は `mock` / `openai` / `openai-compatible` / `lmstudio` / `ollama` を選べる
+- provider ごとに model 名を CLI から指定できる
 - `story_input → loglines → characters → three_act_plot → chapter_plan → chapter_drafts` の生成フローがある
 - chapter plan 全件に対して draft / revised draft を生成し、全章 artifact を保存できる
 - continuity check と quality report により、構造不整合、POV 一貫性、章長バランス、キャラクター継続性を評価できる
@@ -35,7 +37,7 @@ CLI から小説プロジェクトを作成し、章単位・作品単位で
 ## 現在地の整理
 
 実装済みなのは、**全章生成・再開・再実行・改稿・作品単位成果物出力までの基盤**です。  
-現在の主戦場は新しい生成段ではなく、**comparison artifact と status 表示の責務をさらに安定化し、read-only 観測経路を tests で固定していくこと**です。
+現在の主戦場は新しい生成段ではなく、**comparison artifact と status 表示の責務安定化を続けつつ、LLM provider 境界を OpenAI 互換 endpoint へ安全に広げること**です。
 
 ## 仕様上の柱
 

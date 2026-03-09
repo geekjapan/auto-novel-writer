@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import os
 from typing import Any
 
 from novel_writer.llm.base import BaseLLMClient
@@ -9,18 +8,28 @@ from novel_writer.schema import StoryInput
 
 
 class OpenAIClient(BaseLLMClient):
-    def __init__(self, model: str = "gpt-4.1-mini") -> None:
+    def __init__(
+        self,
+        model: str = "gpt-4.1-mini",
+        api_key: str | None = None,
+        base_url: str | None = None,
+        provider_label: str = "OpenAI",
+    ) -> None:
         try:
             from openai import OpenAI
         except ImportError as exc:
-            raise RuntimeError("OpenAI provider requires the openai package to be installed.") from exc
+            raise RuntimeError(f"{provider_label} provider requires the openai package to be installed.") from exc
 
-        api_key = os.getenv("OPENAI_API_KEY")
         if not api_key:
-            raise RuntimeError("OPENAI_API_KEY is not set.")
+            raise RuntimeError(f"{provider_label} provider requires an API key.")
 
-        self._client = OpenAI(api_key=api_key)
+        client_kwargs: dict[str, str] = {"api_key": api_key}
+        if base_url:
+            client_kwargs["base_url"] = base_url
+
+        self._client = OpenAI(**client_kwargs)
         self._model = model
+        self._provider_label = provider_label
 
     def _generate_json(self, system_prompt: str, user_prompt: str) -> Any:
         response = self._client.chat.completions.create(

@@ -18,6 +18,7 @@
 ## Done
 
 - [x] Scaffold CLI-based short-story pipeline MVP
+- [x] M52: OpenAI 互換 provider を追加し、LM Studio / Ollama と model 指定を CLI から使えるようにする
 - [x] M50: `show-run-comparison` の minimal artifact ケースで best metrics 行を固定する
 - [x] M49: `show-run-comparison` の minimal artifact ケースで current metrics 行を固定する
 - [x] M48: `show-run-comparison` の minimal artifact ケースで current reason code 行を固定する
