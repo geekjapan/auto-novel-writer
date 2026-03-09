@@ -4,12 +4,12 @@
 ここでの task は、1 回で安全に実装・テスト・docs 更新・コミットできる粒度へ分割する。
 
 ## In Progress
-- [ ] M32: `show-run-comparison` に `run_candidates[*].run_name` の一覧を表示する
-  - Title: comparison CLI に run candidate 名を表示する
-  - Milestone: M32 Run Comparison Candidate Visibility
-  - Purpose: candidate_count だけでは見えない候補 run 名を comparison artifact からそのまま確認できるようにする
+- [ ] M33: `show-run-comparison` に `run_candidates[*].score` の一覧を表示する
+  - Title: comparison CLI に candidate score 一覧を表示する
+  - Milestone: M33 Run Comparison Candidate Scores
+  - Purpose: candidate 名だけでなく比較 score も artifact から直接確認できるようにし、best 採用理由の目視確認を補助する
   - Target files or directories: `src/novel_writer/cli.py`, `tests/test_cli.py`, `README.md`, `docs/ROADMAP.md`, `docs/TASKS.md`
-  - Done when: `show-run-comparison` が `run_candidates[*].run_name` 一覧を表示し、tests と docs が field 対応を固定する
+  - Done when: `show-run-comparison` が `run_candidates[*].score` 一覧を表示し、tests と docs が field 対応を固定する
   - Required tests: `python -m unittest tests.test_cli -v`, `python -m unittest discover -s tests -v`
   - Docs to update: `README.md`, `docs/ROADMAP.md`, `docs/TASKS.md`
 
@@ -110,6 +110,7 @@
 - [x] M30: `build_saved_run_comparison_summary()` に compact summary section を構造化して持たせ、line renderer を分離する
 - [x] Docs: M30 実装後に README / ROADMAP / TASKS の説明を同期する
 - [x] M31: `show-run-comparison` に current / best run の `output_dir` を表示する
+- [x] M32: `show-run-comparison` に `run_candidates[*].run_name` の一覧を表示する
 
 ## Task Update Rules
 

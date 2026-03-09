@@ -957,6 +957,10 @@ class CliTest(unittest.TestCase):
                     "max_total_rerun_attempts": {"current": 20, "best": 20},
                 },
             },
+            "run_candidates": [
+                {"run_name": "latest_run"},
+                {"run_name": "candidate-a"},
+            ],
         }
 
         summary = build_saved_run_comparison_summary(summary_artifact, reason_detail_mode="codes")
@@ -964,6 +968,7 @@ class CliTest(unittest.TestCase):
 
         self.assertEqual(summary["project_label"], "case-05")
         self.assertEqual(summary["candidate_count"], 2)
+        self.assertEqual(summary["run_candidate_names"], ["latest_run", "candidate-a"])
         self.assertEqual(summary["current_run"]["output_dir"], "data/projects/case-05/runs/latest_run")
         self.assertEqual(summary["best_run"]["output_dir"], "data/projects/case-05/runs/candidate-a")
         self.assertIn(
@@ -1024,6 +1029,10 @@ class CliTest(unittest.TestCase):
                     "max_total_rerun_attempts": {"current": 20, "best": 20},
                 },
             },
+            "run_candidates": [
+                {"run_name": "latest_run"},
+                {"run_name": "candidate-a"},
+            ],
         }
 
         lines = build_saved_run_comparison_lines(summary_artifact, reason_detail_mode="codes")
@@ -1048,6 +1057,7 @@ class CliTest(unittest.TestCase):
             "  compact.policy_limits.max_high_severity_chapters: current=6, best=2",
             "  compact.policy_limits.max_total_rerun_attempts: current=20, best=20",
             "Run candidates: 2",
+            "  run_candidate_names: latest_run, candidate-a",
         }
 
         self.assertTrue(expected_lines.issubset(set(lines)))
@@ -1104,6 +1114,7 @@ class CliTest(unittest.TestCase):
             self.assertIn("compact.issue_score:", output)
             self.assertIn("compact.policy_limits.max_high_severity_chapters:", output)
             self.assertIn("Run candidates: 1", output)
+            self.assertIn("run_candidate_names: latest_run", output)
 
 
 if __name__ == "__main__":

@@ -160,6 +160,7 @@ chapter 配列ベースの内部正本、chapter 1 互換 artifact、publish-rea
 - `show-run-comparison` CLI で `run_comparison_summary.json` を読み取り専用表示できる
 - comparison artifact から current / best / compact summary を直接確認できる
 - comparison artifact から current / best run の `output_dir` も確認できる
+- comparison artifact から `run_candidates[*].run_name` も確認できる
 - README / tests で `show-run-comparison` の summary field と artifact field の対応を固定する
 - `show-project-status` は project manifest 中心、`show-run-comparison` は comparison artifact 中心という責務差を docs に反映する
 - `compact_summary.policy_limits` も `show-run-comparison` から確認できる
