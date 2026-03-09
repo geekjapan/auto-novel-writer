@@ -11,7 +11,7 @@ from novel_writer.cli import (
     build_saved_run_comparison_summary,
     main,
 )
-from novel_writer.storage import load_artifact
+from novel_writer.storage import load_artifact, save_run_comparison_summary
 
 
 class CliTest(unittest.TestCase):
@@ -1259,6 +1259,80 @@ class CliTest(unittest.TestCase):
             self.assertIn("run_candidate_names: latest_run", output)
             self.assertIn("run_candidate_scores: latest_run=11", output)
             self.assertIn("run_candidate_output_dirs: latest_run=", output)
+
+    def test_cli_show_run_comparison_reads_minimal_valid_artifact(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            project_dir = Path(tmp_dir) / "compare-optional-01"
+            project_dir.mkdir(parents=True, exist_ok=True)
+            comparison_payload = {
+                "schema_name": "run_comparison_summary",
+                "schema_version": "1.0",
+                "project_id": "Compare Optional 01",
+                "project_slug": "compare-optional-01",
+                "current_run": {
+                    "run_name": "latest_run",
+                    "output_dir": "data/projects/compare-optional-01/runs/latest_run",
+                    "comparison_basis": ["long_run_should_stop"],
+                    "comparison_metrics": {
+                        "total_issue_score": 3,
+                        "completed_step_count": 4,
+                    },
+                    "comparison_reason": [],
+                    "comparison_reason_details": [
+                        {"code": "total_issue_score", "value": 3},
+                    ],
+                },
+                "best_run": {
+                    "run_name": "latest_run",
+                    "output_dir": "data/projects/compare-optional-01/runs/latest_run",
+                    "selection_source": "automatic",
+                    "comparison_basis": ["long_run_should_stop"],
+                    "comparison_metrics": {
+                        "total_issue_score": 3,
+                        "completed_step_count": 4,
+                    },
+                    "selection_reason": [],
+                    "selection_reason_details": [
+                        {"code": "total_issue_score", "value": 3},
+                    ],
+                },
+                "candidate_count": 0,
+                "compact_summary": {
+                    "selection_source": "automatic",
+                    "issue_score": {"current": 3, "best": 3},
+                    "completed_step_count": {"current": 4, "best": 4},
+                    "long_run_should_stop": {"current": False, "best": False},
+                    "policy_limits": {
+                        "max_high_severity_chapters": {"current": 10, "best": 10},
+                        "max_total_rerun_attempts": {"current": 20, "best": 20},
+                    },
+                },
+                "run_candidates": [],
+            }
+            save_run_comparison_summary(project_dir, comparison_payload)
+
+            buffer = io.StringIO()
+            with redirect_stdout(buffer):
+                exit_code = main(
+                    [
+                        "show-run-comparison",
+                        "--project-id",
+                        "Compare Optional 01",
+                        "--projects-dir",
+                        tmp_dir,
+                        "--reason-detail-mode",
+                        "codes",
+                    ]
+                )
+
+            output = buffer.getvalue()
+
+            self.assertEqual(exit_code, 0)
+            self.assertIn("Project: compare-optional-01", output)
+            self.assertIn("Current run: latest_run", output)
+            self.assertIn("Best run: latest_run", output)
+            self.assertIn("Compact summary: selection_source=automatic", output)
+            self.assertIn("Run candidates: 0", output)
 
 
 if __name__ == "__main__":
