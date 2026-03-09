@@ -137,6 +137,29 @@ class MockLLMClientTest(unittest.TestCase):
         self.assertEqual(payload, {"loglines": []})
         self.assertEqual(completions.last_kwargs["response_format"], {"type": "text"})
 
+    def test_openai_client_accepts_markdown_fenced_json_from_lmstudio(self) -> None:
+        completions = RecordingCompletions('```json\n{"loglines": []}\n```')
+        client = object.__new__(OpenAIClient)
+        client._client = RecordingOpenAIBackend(completions)
+        client._model = "local-model"
+        client._provider_label = "LM Studio"
+        client._response_format_type = "text"
+
+        payload = client._generate_json("system", "user")
+
+        self.assertEqual(payload, {"loglines": []})
+
+    def test_openai_client_raises_clear_error_for_non_json_text(self) -> None:
+        completions = RecordingCompletions("JSONではなく普通の文章です。")
+        client = object.__new__(OpenAIClient)
+        client._client = RecordingOpenAIBackend(completions)
+        client._model = "local-model"
+        client._provider_label = "LM Studio"
+        client._response_format_type = "text"
+
+        with self.assertRaisesRegex(ValueError, "LM Studio response was not valid JSON"):
+            client._generate_json("system", "user")
+
     def test_mock_client_generates_expected_shapes(self) -> None:
         client = MockLLMClient()
         story_input = StoryInput(theme="喪失", genre="ミステリ", tone="静謐", target_length=6000)
