@@ -108,7 +108,10 @@
 ## Task Update Rules
 
 - `In Progress` は常に 1 件まで
-- 完了したら `Done` へ移し、次の最上位 `Ready` を `In Progress` へ上げる
+- 完了したら `Done` へ移す
+- `Ready` が残っている場合は、次の最上位 `Ready` を `In Progress` へ上げる
+- `Ready` が空の場合は、`docs/ROADMAP.md` と現在のコードを確認し、次のマイルストーンに必要な最小子タスクを `Ready` に追加する
+- 新規子タスクを追加した場合は、その先頭 1 件を `In Progress` へ上げる
 - 大きすぎる項目は着手前に分割する
 - docs-only タスクでも、README / tests / task 状態更新の要否を確認する
 - ブロックしたら `docs/BLOCKED.md` を更新し、原因・試したこと・次に必要な判断を書く

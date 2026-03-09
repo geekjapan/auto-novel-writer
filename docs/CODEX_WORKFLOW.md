@@ -32,6 +32,8 @@ Codex がこのリポジトリで、1 タスクずつ安全に実装を前進さ
 8. `docs/TASKS.md` の状態を更新する
 9. 小さなコミットを作る
 10. 次の `Ready` が残っていれば、同じ手順で次タスクへ進む
+11. `Ready` が空なら、`docs/ROADMAP.md` と repository の現状から次の最小子タスクを起票し、`In Progress` に上げて続行する
+12. 停止条件に該当する場合だけ停止し、`docs/BLOCKED.md` を更新する
 
 ## Guardrails
 

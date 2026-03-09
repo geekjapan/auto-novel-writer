@@ -97,3 +97,33 @@
   - ディレクトリ: ディレクトリ名
   - ファイル: `filename:line_number(要約)`
   - データ保存形式: 対象ファイル名、必要ならキー名やスキーマ名
+
+
+## 自律継続ルール
+
+- Codex は現在タスクを完了したら、停止条件に該当しない限り、ユーザーの追加指示を待たずに次のタスクへ進む
+- `docs/TASKS.md` の `In Progress` が空で、`Ready` も空の場合、Codex は `docs/ROADMAP.md` と現在の実装状況を根拠に、次の最小実装単位の子タスクを 1 件以上 `Ready` に追加してよい
+- Codex は子タスクを追加する際、1 回の変更で安全に実装・テスト・docs 更新・コミットできる粒度へ分割する
+- Codex は、新規タスクを起票したら、その先頭 1 件を `In Progress` に上げて着手してよい
+- Codex は、同一マイルストーン内で依存関係が明確な限り、このループを継続してよい
+
+## 自律起票時の必須項目
+
+- Title
+- Milestone
+- Purpose
+- Target files or directories
+- Done when
+- Required tests
+- Docs to update
+- Depends on（必要な場合のみ）
+
+## 停止条件
+
+以下の場合は自律起票や推測実装を行わず停止し、`docs/BLOCKED.md` を更新して判断を求める
+
+- repository 内の docs / code / tests を見ても、次の仕様判断が一意に決まらない
+- 既存 CLI、artifact contract、schema version、保存形式の互換性を壊す可能性がある
+- rename / remove / migration のような広範囲変更が必要
+- 外部 API 利用方針、品質評価軸、生成仕様のようなプロダクト判断が必要
+- 既存不具合と今回変更のどちらに起因するか切り分けできないテスト失敗がある
