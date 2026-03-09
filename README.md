@@ -170,6 +170,7 @@ novel-writer --provider lmstudio --model local-model-name
 既定の接続先は `http://127.0.0.1:1234/v1` です。`--base-url` または `LMSTUDIO_BASE_URL` で上書きできます。
 LM Studio では `response_format.type=json_object` が通らないため、現在実装は `text` 応答として JSON を返す前提で接続します。
 LM Studio が JSON を Markdown の ```json fenced block``` で返した場合は、その外側だけを明示的に取り除いて parse します。JSON 本体でない文章が返った場合は fail fast でエラーにします。
+text mode の provider には、CLI 側からも「JSON 以外を書かない」「Markdown fence を付けない」指示を明示的に付与します。
 
 Ollama を使う場合:
 
