@@ -979,6 +979,16 @@ class CliTest(unittest.TestCase):
         )
         self.assertEqual(summary["current_run"]["output_dir"], "data/projects/case-05/runs/latest_run")
         self.assertEqual(summary["best_run"]["output_dir"], "data/projects/case-05/runs/candidate-a")
+        self.assertEqual(summary["current_run"]["comparison_metrics"]["total_issue_score"], 11)
+        self.assertEqual(summary["best_run"]["comparison_metrics"]["total_issue_score"], 5)
+        self.assertEqual(
+            summary["current_run"]["comparison_metrics_line"],
+            "  current_comparison_metrics: total_issue_score=11, completed_step_count=12",
+        )
+        self.assertEqual(
+            summary["best_run"]["comparison_metrics_line"],
+            "  best_comparison_metrics: total_issue_score=5, completed_step_count=7",
+        )
         self.assertIn(
             "  current_comparison_reason_codes: long_run_should_stop, total_issue_score",
             summary["current_run"]["comparison_lines"],
