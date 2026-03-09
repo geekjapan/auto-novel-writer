@@ -6,18 +6,20 @@
 ## In Progress
 
 ## Ready
-- [ ] M45: `show-run-comparison` CLI が candidate 0 件のとき detail line を出さないことを固定する
-  - Title: comparison CLI の zero-candidate detail line を固定する
-  - Milestone: M45 Run Comparison Zero Candidate Coverage
-  - Purpose: `run_candidates=[]` の最小 valid artifact を読む read-only CLI 経路で、candidate count は出るが name / score / output_dir detail line は出ないことを tests で固定する
+- [ ] M47: `show-run-comparison` の minimal artifact ケースで automatic selection 行を固定する
+  - Title: comparison CLI の minimal artifact selection 行を固定する
+  - Milestone: M47 Run Comparison Minimal Selection Coverage
+  - Purpose: `run_candidates=[]` の minimal artifact を読む read-only CLI 経路で、`best_selection_source` と reason code 行が期待どおり表示されることを tests で固定する
   - Target files or directories: `tests/test_cli.py`, `docs/TASKS.md`
-  - Done when: `show-run-comparison` CLI の zero-candidate ケースで `Run candidates: 0` は表示され、`run_candidate_*` detail line は表示されないことを tests で固定する
+  - Done when: minimal artifact ケースで `best_selection_source: automatic` と `best_selection_reason_codes` が表示されることを tests で固定する
   - Required tests: `python -m unittest tests.test_cli -v`, `python -m unittest discover -s tests -v`
   - Docs to update: `docs/TASKS.md`
 
 ## Done
 
 - [x] Scaffold CLI-based short-story pipeline MVP
+- [x] M46: `show-run-comparison` の minimal artifact ケースでも read-only 性を固定する
+- [x] M45: `show-run-comparison` CLI が candidate 0 件のとき detail line を出さないことを固定する
 - [x] M44: `show-run-comparison` CLI が最小 valid comparison artifact を read-only 表示できることを固定する
 - [x] M42: `show-run-comparison` の section 表示順 contract を tests で固定する
 - [x] M43: `show-run-comparison` が optional section 欠落時も安定して表示できることを tests で固定する

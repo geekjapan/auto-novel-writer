@@ -1310,6 +1310,7 @@ class CliTest(unittest.TestCase):
                 "run_candidates": [],
             }
             save_run_comparison_summary(project_dir, comparison_payload)
+            comparison_before = load_artifact(project_dir, "run_comparison_summary")
 
             buffer = io.StringIO()
             with redirect_stdout(buffer):
@@ -1325,14 +1326,19 @@ class CliTest(unittest.TestCase):
                     ]
                 )
 
+            comparison_after = load_artifact(project_dir, "run_comparison_summary")
             output = buffer.getvalue()
 
             self.assertEqual(exit_code, 0)
+            self.assertEqual(comparison_before, comparison_after)
             self.assertIn("Project: compare-optional-01", output)
             self.assertIn("Current run: latest_run", output)
             self.assertIn("Best run: latest_run", output)
             self.assertIn("Compact summary: selection_source=automatic", output)
             self.assertIn("Run candidates: 0", output)
+            self.assertNotIn("run_candidate_names:", output)
+            self.assertNotIn("run_candidate_scores:", output)
+            self.assertNotIn("run_candidate_output_dirs:", output)
 
 
 if __name__ == "__main__":
