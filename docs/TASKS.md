@@ -4,16 +4,16 @@
 ここでの task は、1 回で安全に実装・テスト・docs 更新・コミットできる粒度へ分割する。
 
 ## In Progress
-- [ ] M34: `show-run-comparison` に `run_candidates[*].output_dir` の一覧を表示する
-  - Title: comparison CLI に candidate directory 一覧を表示する
-  - Milestone: M34 Run Comparison Candidate Directories
-  - Purpose: candidate ごとの score と実体ディレクトリを対応づけて確認できるようにし、比較後の追跡を容易にする
-  - Target files or directories: `src/novel_writer/cli.py`, `tests/test_cli.py`, `README.md`, `docs/ROADMAP.md`, `docs/TASKS.md`
-  - Done when: `show-run-comparison` が `run_candidates[*].output_dir` 一覧を表示し、tests と docs が field 対応を固定する
-  - Required tests: `python -m unittest tests.test_cli -v`, `python -m unittest discover -s tests -v`
-  - Docs to update: `README.md`, `docs/ROADMAP.md`, `docs/TASKS.md`
 
 ## Ready
+- [ ] M35: `show-run-comparison` の run candidate summary を section dict として構造化する
+  - Title: comparison CLI の candidate section builder を構造化する
+  - Milestone: M35 Run Comparison Candidate Section Cleanup
+  - Purpose: `run_candidate_names` / `run_candidate_scores` / `run_candidate_output_dirs` を 1 つの section dict にまとめ、renderer との責務分離を揃える
+  - Target files or directories: `src/novel_writer/cli.py`, `tests/test_cli.py`, `docs/TASKS.md`
+  - Done when: `build_saved_run_comparison_summary()` が candidate section を構造化して返し、CLI 出力は現状維持される
+  - Required tests: `python -m unittest tests.test_cli -v`, `python -m unittest discover -s tests -v`
+  - Docs to update: `docs/TASKS.md`
 
 ## Done
 
@@ -112,6 +112,7 @@
 - [x] M31: `show-run-comparison` に current / best run の `output_dir` を表示する
 - [x] M32: `show-run-comparison` に `run_candidates[*].run_name` の一覧を表示する
 - [x] M33: `show-run-comparison` に `run_candidates[*].score` の一覧を表示する
+- [x] M34: `show-run-comparison` に `run_candidates[*].output_dir` の一覧を表示する
 
 ## Task Update Rules
 

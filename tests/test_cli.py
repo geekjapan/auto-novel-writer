@@ -958,8 +958,8 @@ class CliTest(unittest.TestCase):
                 },
             },
             "run_candidates": [
-                {"run_name": "latest_run", "score": 11},
-                {"run_name": "candidate-a", "score": 5},
+                {"run_name": "latest_run", "score": 11, "output_dir": "data/projects/case-05/runs/latest_run"},
+                {"run_name": "candidate-a", "score": 5, "output_dir": "data/projects/case-05/runs/candidate-a"},
             ],
         }
 
@@ -970,6 +970,13 @@ class CliTest(unittest.TestCase):
         self.assertEqual(summary["candidate_count"], 2)
         self.assertEqual(summary["run_candidate_names"], ["latest_run", "candidate-a"])
         self.assertEqual(summary["run_candidate_scores"], ["latest_run=11", "candidate-a=5"])
+        self.assertEqual(
+            summary["run_candidate_output_dirs"],
+            [
+                "latest_run=data/projects/case-05/runs/latest_run",
+                "candidate-a=data/projects/case-05/runs/candidate-a",
+            ],
+        )
         self.assertEqual(summary["current_run"]["output_dir"], "data/projects/case-05/runs/latest_run")
         self.assertEqual(summary["best_run"]["output_dir"], "data/projects/case-05/runs/candidate-a")
         self.assertIn(
@@ -1031,8 +1038,8 @@ class CliTest(unittest.TestCase):
                 },
             },
             "run_candidates": [
-                {"run_name": "latest_run", "score": 11},
-                {"run_name": "candidate-a", "score": 5},
+                {"run_name": "latest_run", "score": 11, "output_dir": "data/projects/case-06/runs/latest_run"},
+                {"run_name": "candidate-a", "score": 5, "output_dir": "data/projects/case-06/runs/candidate-a"},
             ],
         }
 
@@ -1060,6 +1067,7 @@ class CliTest(unittest.TestCase):
             "Run candidates: 2",
             "  run_candidate_names: latest_run, candidate-a",
             "  run_candidate_scores: latest_run=11, candidate-a=5",
+            "  run_candidate_output_dirs: latest_run=data/projects/case-06/runs/latest_run, candidate-a=data/projects/case-06/runs/candidate-a",
         }
 
         self.assertTrue(expected_lines.issubset(set(lines)))
@@ -1118,6 +1126,7 @@ class CliTest(unittest.TestCase):
             self.assertIn("Run candidates: 1", output)
             self.assertIn("run_candidate_names: latest_run", output)
             self.assertIn("run_candidate_scores: latest_run=11", output)
+            self.assertIn("run_candidate_output_dirs: latest_run=", output)
 
 
 if __name__ == "__main__":

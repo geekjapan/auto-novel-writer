@@ -645,6 +645,10 @@ def build_saved_run_comparison_summary(
             f"{candidate.get('run_name', 'unknown')}={candidate.get('score', 'n/a')}"
             for candidate in summary_artifact.get("run_candidates", [])
         ],
+        "run_candidate_output_dirs": [
+            f"{candidate.get('run_name', 'unknown')}={candidate.get('output_dir', 'unknown')}"
+            for candidate in summary_artifact.get("run_candidates", [])
+        ],
         "current_run": {
             "name": current_run.get("run_name", "unknown"),
             "output_dir": current_run.get("output_dir", "unknown"),
@@ -693,6 +697,8 @@ def build_saved_run_comparison_lines(summary_artifact: dict[str, Any], reason_de
         lines.append(f"  run_candidate_names: {', '.join(summary['run_candidate_names'])}")
     if summary["run_candidate_scores"]:
         lines.append(f"  run_candidate_scores: {', '.join(summary['run_candidate_scores'])}")
+    if summary["run_candidate_output_dirs"]:
+        lines.append(f"  run_candidate_output_dirs: {', '.join(summary['run_candidate_output_dirs'])}")
     return lines
 
 
