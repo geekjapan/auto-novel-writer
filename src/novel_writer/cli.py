@@ -655,18 +655,10 @@ def build_saved_run_comparison_lines(summary_artifact: dict[str, Any], reason_de
     lines = [f"Project: {summary['project_label']}"]
     current_run = summary.get("current_run")
     if current_run:
-        lines.append(f"Current run: {current_run['name']}")
-        lines.append(f"  output_dir: {current_run['output_dir']}")
-        lines.extend(current_run["comparison_summary"]["lines"])
-        if current_run["comparison_metrics_line"]:
-            lines.append(current_run["comparison_metrics_line"])
+        lines.extend(_build_saved_run_current_section_lines(current_run))
     best_run = summary.get("best_run")
     if best_run:
-        lines.append(f"Best run: {best_run['name']}")
-        lines.append(f"  output_dir: {best_run['output_dir']}")
-        lines.extend(best_run["selection_summary"]["lines"])
-        if best_run["comparison_metrics_line"]:
-            lines.append(best_run["comparison_metrics_line"])
+        lines.extend(_build_saved_run_best_section_lines(best_run))
     compact_summary = summary.get("compact_summary")
     if compact_summary:
         lines.extend(compact_summary["lines"])
@@ -674,6 +666,28 @@ def build_saved_run_comparison_lines(summary_artifact: dict[str, Any], reason_de
     run_candidates = summary.get("run_candidates")
     if run_candidates:
         lines.extend(run_candidates["lines"])
+    return lines
+
+
+def _build_saved_run_current_section_lines(current_run: dict[str, Any]) -> list[str]:
+    lines = [
+        f"Current run: {current_run['name']}",
+        f"  output_dir: {current_run['output_dir']}",
+    ]
+    lines.extend(current_run["comparison_summary"]["lines"])
+    if current_run["comparison_metrics_line"]:
+        lines.append(current_run["comparison_metrics_line"])
+    return lines
+
+
+def _build_saved_run_best_section_lines(best_run: dict[str, Any]) -> list[str]:
+    lines = [
+        f"Best run: {best_run['name']}",
+        f"  output_dir: {best_run['output_dir']}",
+    ]
+    lines.extend(best_run["selection_summary"]["lines"])
+    if best_run["comparison_metrics_line"]:
+        lines.append(best_run["comparison_metrics_line"])
     return lines
 
 

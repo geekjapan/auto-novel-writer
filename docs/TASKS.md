@@ -6,12 +6,12 @@
 ## In Progress
 
 ## Ready
-- [ ] M38: `show-run-comparison` の current / best section renderer を helper 分離する
-  - Title: comparison CLI の current/best renderer を分離する
-  - Milestone: M38 Run Comparison Renderer Cleanup
-  - Purpose: current / best / compact / candidates の各 section がそれぞれ自分の line renderer を持つ形に寄せ、`build_saved_run_comparison_lines()` の責務を薄くする
+- [ ] M39: `show-run-comparison` の compact / candidate section renderer を helper 分離する
+  - Title: comparison CLI の compact/candidate renderer を分離する
+  - Milestone: M39 Run Comparison Renderer Cleanup
+  - Purpose: compact / candidates も section renderer を持つ形に寄せ、`build_saved_run_comparison_lines()` を section dispatch だけの構造に揃える
   - Target files or directories: `src/novel_writer/cli.py`, `tests/test_cli.py`, `docs/TASKS.md`
-  - Done when: `build_saved_run_comparison_lines()` が section renderer を呼ぶだけの形になり、CLI 出力は現状維持される
+  - Done when: `build_saved_run_comparison_lines()` が compact / candidates も helper 経由で描画し、CLI 出力は現状維持される
   - Required tests: `python -m unittest tests.test_cli -v`, `python -m unittest discover -s tests -v`
   - Docs to update: `docs/TASKS.md`
 
@@ -116,6 +116,7 @@
 - [x] M35: `show-run-comparison` の run candidate summary を section dict として構造化する
 - [x] M36: `show-run-comparison` の current / best summary から metrics line を structured field へ寄せる
 - [x] M37: `show-run-comparison` の current / best reason/basis 表示を structured field へ寄せる
+- [x] M38: `show-run-comparison` の current / best section renderer を helper 分離する
 
 ## Task Update Rules
 
