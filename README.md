@@ -101,7 +101,8 @@
 
 ## 現在実装済みの主要機能
 
-- `mock` / `openai` の LLM プロバイダ切替
+- `mock` / `openai` / `openai-compatible` / `lmstudio` / `ollama` の LLM プロバイダ切替
+- provider ごとのモデル名選択
 - 全章 `chapter_plan` と全章 `chapter_{n}_draft` 生成
 - 全章 `revised_chapter_{n}_draft` 保存
 - continuity report と quality report の生成
@@ -151,6 +152,32 @@ OpenAI プロバイダを使う場合:
 python -m pip install openai
 set OPENAI_API_KEY=your_api_key
 ```
+
+OpenAI 互換 endpoint を使う場合:
+
+```bash
+python -m pip install openai
+novel-writer --provider openai-compatible --base-url http://127.0.0.1:8080/v1 --api-key local-key --model your-model-name
+```
+
+LM Studio を使う場合:
+
+```bash
+python -m pip install openai
+novel-writer --provider lmstudio --model local-model-name
+```
+
+既定の接続先は `http://127.0.0.1:1234/v1` です。`--base-url` または `LMSTUDIO_BASE_URL` で上書きできます。
+
+Ollama を使う場合:
+
+```bash
+python -m pip install openai
+novel-writer --provider ollama --model llama3.1
+```
+
+既定の接続先は `http://127.0.0.1:11434/v1` です。`--base-url` または `OLLAMA_BASE_URL` で上書きできます。
+Python SDK が API key 文字列を要求するため、LM Studio と Ollama では既定のダミー key を使います。`--api-key` で明示値に差し替えられます。
 
 長編向け stop condition を試験的に調整したい場合:
 

@@ -31,8 +31,21 @@ def add_generation_arguments(parser: argparse.ArgumentParser) -> None:
 
 
 def add_runtime_arguments(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("--provider", default="mock", choices=["mock", "openai"], help="LLM provider")
-    parser.add_argument("--model", default="gpt-4.1-mini", help="Model name for provider=openai")
+    parser.add_argument(
+        "--provider",
+        default="mock",
+        choices=["mock", "openai", "openai-compatible", "lmstudio", "ollama"],
+        help="LLM provider",
+    )
+    parser.add_argument("--model", default="gpt-4.1-mini", help="Model name for the selected provider")
+    parser.add_argument(
+        "--base-url",
+        help="Override the provider base URL. Required for provider=openai-compatible.",
+    )
+    parser.add_argument(
+        "--api-key",
+        help="Override the provider API key. Local OpenAI-compatible providers can use a dummy value if needed.",
+    )
     parser.add_argument("--format", default="json", choices=["json", "yaml"], help="Artifact serialization format")
     parser.add_argument(
         "--max-high-severity-chapters",
@@ -491,7 +504,12 @@ def run_pipeline(
     resume_from: Path | None = None,
     rerun_from: str | None = None,
 ):
-    llm_client = build_llm_client(provider=args.provider, model=args.model)
+    llm_client = build_llm_client(
+        provider=args.provider,
+        model=args.model,
+        base_url=getattr(args, "base_url", None),
+        api_key=getattr(args, "api_key", None),
+    )
     pipeline = StoryPipeline(
         llm_client=llm_client,
         output_dir=output_dir,
@@ -502,7 +520,12 @@ def run_pipeline(
 
 
 def rerun_project_chapter(args: argparse.Namespace, output_dir: Path):
-    llm_client = build_llm_client(provider=args.provider, model=args.model)
+    llm_client = build_llm_client(
+        provider=args.provider,
+        model=args.model,
+        base_url=getattr(args, "base_url", None),
+        api_key=getattr(args, "api_key", None),
+    )
     pipeline = StoryPipeline(
         llm_client=llm_client,
         output_dir=output_dir,
