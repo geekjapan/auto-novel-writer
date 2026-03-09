@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 from copy import deepcopy
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from novel_writer.llm_client import build_llm_client
 from novel_writer.pipeline import PIPELINE_STEP_ORDER, StoryPipeline
@@ -652,21 +652,28 @@ def build_saved_run_comparison_lines(summary_artifact: dict[str, Any], reason_de
     if not summary:
         return []
 
-    lines = [f"Project: {summary['project_label']}"]
-    current_run = summary.get("current_run")
-    if current_run:
-        lines.extend(_build_saved_run_current_section_lines(current_run))
-    best_run = summary.get("best_run")
-    if best_run:
-        lines.extend(_build_saved_run_best_section_lines(best_run))
-    compact_summary = summary.get("compact_summary")
-    if compact_summary:
-        lines.extend(compact_summary["lines"])
-    lines.append(f"Run candidates: {summary['candidate_count']}")
-    run_candidates = summary.get("run_candidates")
-    if run_candidates:
-        lines.extend(run_candidates["lines"])
+    lines = _build_saved_run_header_lines(summary["project_label"])
+    section_renderers = _build_saved_run_section_renderers(summary["candidate_count"])
+    for section_name, renderer in section_renderers:
+        section = summary.get(section_name)
+        if section:
+            lines.extend(renderer(section))
     return lines
+
+
+def _build_saved_run_header_lines(project_label: str) -> list[str]:
+    return [f"Project: {project_label}"]
+
+
+def _build_saved_run_section_renderers(
+    candidate_count: int,
+) -> tuple[tuple[str, Callable[[dict[str, Any]], list[str]]], ...]:
+    return (
+        ("current_run", _build_saved_run_current_section_lines),
+        ("best_run", _build_saved_run_best_section_lines),
+        ("compact_summary", _build_saved_run_compact_section_lines),
+        ("run_candidates", lambda section: _build_saved_run_candidate_section_lines(candidate_count, section)),
+    )
 
 
 def _build_saved_run_current_section_lines(current_run: dict[str, Any]) -> list[str]:
@@ -688,6 +695,16 @@ def _build_saved_run_best_section_lines(best_run: dict[str, Any]) -> list[str]:
     lines.extend(best_run["selection_summary"]["lines"])
     if best_run["comparison_metrics_line"]:
         lines.append(best_run["comparison_metrics_line"])
+    return lines
+
+
+def _build_saved_run_compact_section_lines(compact_summary: dict[str, Any]) -> list[str]:
+    return list(compact_summary["lines"])
+
+
+def _build_saved_run_candidate_section_lines(candidate_count: int, run_candidates: dict[str, Any]) -> list[str]:
+    lines = [f"Run candidates: {candidate_count}"]
+    lines.extend(run_candidates["lines"])
     return lines
 
 

@@ -1026,9 +1026,19 @@ class CliTest(unittest.TestCase):
             summary["compact_summary"]["policy_limits"]["max_high_severity_chapters"],
             {"current": 6, "best": 2},
         )
+        self.assertEqual(
+            summary["compact_summary"]["lines"][0],
+            "Compact summary: selection_source=manual",
+        )
+        self.assertEqual(
+            summary["run_candidates"]["lines"][0],
+            "  run_candidate_names: latest_run, candidate-a",
+        )
         self.assertIn("Compact summary: selection_source=manual", lines)
         self.assertIn("  compact.issue_score: current=11, best=5", lines)
         self.assertIn("  compact.policy_limits.max_high_severity_chapters: current=6, best=2", lines)
+        self.assertIn("Run candidates: 2", lines)
+        self.assertEqual(lines[0], "Project: case-05")
 
     def test_build_run_comparison_lines_keep_documented_field_mapping(self) -> None:
         summary_artifact = {
