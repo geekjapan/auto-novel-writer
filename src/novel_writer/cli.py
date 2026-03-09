@@ -657,14 +657,14 @@ def build_saved_run_comparison_lines(summary_artifact: dict[str, Any], reason_de
     if current_run:
         lines.append(f"Current run: {current_run['name']}")
         lines.append(f"  output_dir: {current_run['output_dir']}")
-        lines.extend(current_run["comparison_lines"])
+        lines.extend(current_run["comparison_summary"]["lines"])
         if current_run["comparison_metrics_line"]:
             lines.append(current_run["comparison_metrics_line"])
     best_run = summary.get("best_run")
     if best_run:
         lines.append(f"Best run: {best_run['name']}")
         lines.append(f"  output_dir: {best_run['output_dir']}")
-        lines.extend(best_run["selection_lines"])
+        lines.extend(best_run["selection_summary"]["lines"])
         if best_run["comparison_metrics_line"]:
             lines.append(best_run["comparison_metrics_line"])
     compact_summary = summary.get("compact_summary")
@@ -719,7 +719,7 @@ def _build_saved_run_current_section(current_run: dict[str, Any], reason_detail_
         "name": current_run.get("run_name", "unknown"),
         "output_dir": current_run.get("output_dir", "unknown"),
         "comparison_metrics": comparison_metrics,
-        "comparison_lines": _build_saved_run_current_comparison_lines(current_run, reason_detail_mode),
+        "comparison_summary": _build_saved_run_current_comparison_section(current_run, reason_detail_mode),
         "comparison_metrics_line": _build_comparison_metrics_line("current_comparison_metrics", comparison_metrics),
     }
 
@@ -730,7 +730,7 @@ def _build_saved_run_best_section(best_run: dict[str, Any], reason_detail_mode: 
         "name": best_run.get("run_name", "unknown"),
         "output_dir": best_run.get("output_dir", "unknown"),
         "comparison_metrics": comparison_metrics,
-        "selection_lines": _build_selection_summary_lines(best_run, reason_detail_mode),
+        "selection_summary": _build_saved_run_best_selection_section(best_run, reason_detail_mode),
         "comparison_metrics_line": _build_comparison_metrics_line("best_comparison_metrics", comparison_metrics),
     }
 
@@ -745,19 +745,56 @@ def _build_comparison_metrics_line(label: str, comparison_metrics: dict[str, Any
     )
 
 
-def _build_saved_run_current_comparison_lines(current_run: dict[str, Any], reason_detail_mode: str) -> list[str]:
+def _build_saved_run_current_comparison_section(current_run: dict[str, Any], reason_detail_mode: str) -> dict[str, Any]:
     comparison_basis = current_run.get("comparison_basis", [])
     comparison_reason_details = current_run.get("comparison_reason_details", [])
+    basis_summary = ", ".join(comparison_basis[:3]) if comparison_basis else None
+    reason_summary = _reason_detail_summary(comparison_reason_details) if comparison_reason_details else None
+    reason_codes = (
+        _reason_detail_codes(comparison_reason_details[:3])
+        if reason_detail_mode == "codes" and comparison_reason_details
+        else []
+    )
     lines: list[str] = []
-    if comparison_basis:
-        lines.append(f"  current_comparison_basis_summary: {', '.join(comparison_basis[:3])}")
-    if comparison_reason_details:
-        lines.append(f"  current_comparison_reason_summary: {_reason_detail_summary(comparison_reason_details)}")
-    if reason_detail_mode == "codes" and comparison_reason_details:
-        lines.append(
-            f"  current_comparison_reason_codes: {', '.join(_reason_detail_codes(comparison_reason_details[:3]))}"
-        )
-    return lines
+    if basis_summary:
+        lines.append(f"  current_comparison_basis_summary: {basis_summary}")
+    if reason_summary:
+        lines.append(f"  current_comparison_reason_summary: {reason_summary}")
+    if reason_codes:
+        lines.append(f"  current_comparison_reason_codes: {', '.join(reason_codes)}")
+    return {
+        "basis_summary": basis_summary,
+        "reason_summary": reason_summary,
+        "reason_codes": reason_codes,
+        "lines": lines,
+    }
+
+
+def _build_saved_run_best_selection_section(best_run: dict[str, Any], reason_detail_mode: str) -> dict[str, Any]:
+    selection_source = best_run.get("selection_source", "automatic")
+    comparison_basis = best_run.get("comparison_basis", [])
+    selection_reason_details = best_run.get("selection_reason_details", [])
+    basis_summary = ", ".join(comparison_basis[:3]) if comparison_basis else None
+    reason_summary = _reason_detail_summary(selection_reason_details) if selection_reason_details else None
+    reason_codes = (
+        _reason_detail_codes(selection_reason_details[:3])
+        if reason_detail_mode == "codes" and selection_reason_details
+        else []
+    )
+    lines = [f"  best_selection_source: {selection_source}"]
+    if basis_summary:
+        lines.append(f"  best_comparison_basis_summary: {basis_summary}")
+    if reason_summary:
+        lines.append(f"  best_selection_reason_summary: {reason_summary}")
+    if reason_codes:
+        lines.append(f"  best_selection_reason_codes: {', '.join(reason_codes)}")
+    return {
+        "selection_source": selection_source,
+        "basis_summary": basis_summary,
+        "reason_summary": reason_summary,
+        "reason_codes": reason_codes,
+        "lines": lines,
+    }
 
 
 def _build_compact_summary_lines(compact_summary: dict[str, Any]) -> list[str]:

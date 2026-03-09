@@ -991,10 +991,35 @@ class CliTest(unittest.TestCase):
         )
         self.assertIn(
             "  current_comparison_reason_codes: long_run_should_stop, total_issue_score",
-            summary["current_run"]["comparison_lines"],
+            summary["current_run"]["comparison_summary"]["lines"],
         )
         self.assertIn("  run_candidate_names: latest_run, candidate-a", summary["run_candidates"]["lines"])
-        self.assertIn("  best_selection_source: manual", summary["best_run"]["selection_lines"])
+        self.assertEqual(
+            summary["current_run"]["comparison_summary"]["basis_summary"],
+            "long_run_should_stop, continuity_issue_total",
+        )
+        self.assertEqual(
+            summary["current_run"]["comparison_summary"]["reason_summary"],
+            "long_run_should_stop=False; total_issue_score=11",
+        )
+        self.assertEqual(
+            summary["current_run"]["comparison_summary"]["reason_codes"],
+            ["long_run_should_stop", "total_issue_score"],
+        )
+        self.assertEqual(summary["best_run"]["selection_summary"]["selection_source"], "manual")
+        self.assertEqual(
+            summary["best_run"]["selection_summary"]["basis_summary"],
+            "long_run_should_stop, continuity_issue_total",
+        )
+        self.assertEqual(
+            summary["best_run"]["selection_summary"]["reason_summary"],
+            "manual_selection=candidate-a; long_run_should_stop=True",
+        )
+        self.assertEqual(
+            summary["best_run"]["selection_summary"]["reason_codes"],
+            ["manual_selection", "long_run_should_stop"],
+        )
+        self.assertIn("  best_selection_source: manual", summary["best_run"]["selection_summary"]["lines"])
         self.assertEqual(summary["compact_summary"]["selection_source"], "manual")
         self.assertEqual(summary["compact_summary"]["issue_score"], {"current": 11, "best": 5})
         self.assertEqual(
