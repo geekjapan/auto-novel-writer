@@ -1334,6 +1334,8 @@ class CliTest(unittest.TestCase):
             self.assertIn("Project: compare-optional-01", output)
             self.assertIn("Current run: latest_run", output)
             self.assertIn("Best run: latest_run", output)
+            self.assertIn("best_selection_source: automatic", output)
+            self.assertIn("best_selection_reason_codes: total_issue_score", output)
             self.assertIn("Compact summary: selection_source=automatic", output)
             self.assertIn("Run candidates: 0", output)
             self.assertNotIn("run_candidate_names:", output)
