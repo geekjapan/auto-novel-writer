@@ -3,7 +3,7 @@
 `auto-novel-writer` は、CLI ベースの小説制作パイプラインです。  
 目指すのは「一発で完成原稿を出す本文生成器」ではなく、**小説制作を工程分解し、章単位・作品単位で再開可能に回せる制御基盤**です。
 
-現在は、CLI 入力から `story_input`、`loglines`、`characters`、`three_act_plot`、`chapter_plan`、全章 draft、全章 revised draft、quality 系 artifact、project/run 管理用 manifest までを順に生成できます。
+現在は、CLI 入力から `story_input`、`loglines`、`characters`、`three_act_plot`、`chapter_plan`、全章 draft、全章 revised draft、quality 系 artifact、project/run 管理用 manifest、comparison artifact までを順に生成できます。
 
 ## ソフトウェアの目的
 
@@ -113,6 +113,7 @@
 - run candidates と `best_run` の記録
 - `best_run` の比較根拠となる comparison metrics の保存
 - current run と `best_run` の比較結果を CLI から確認
+- `show-project-status` / `show-run-comparison` の read-only 表示
 
 ## chapter 1 互換 artifact と全章状態
 
@@ -237,6 +238,7 @@ novel-writer rerun-chapter --project-id "my-story-01" --chapter-number 2
 - 確認対象: current / best comparison context、selection source、compact summary
 - 向いている用途: run 候補比較、best_run 採用理由確認、downstream 向け comparison artifact の目視確認
 - 内部実装では `show-run-comparison` も `run_comparison_summary.json -> structured summary -> lines` の順で整形する
+- `show-run-comparison` の read-only テストでは、minimal valid artifact と zero-candidate artifact の表示境界も固定している
 
 ## 主な出力物
 
@@ -368,6 +370,12 @@ run comparison summary field と artifact field の対応:
 - `run_candidate_names` は `run_comparison_summary.json.run_candidates[*].run_name` を表示する
 - `run_candidate_scores` は `run_comparison_summary.json.run_candidates[*].score` を `run_name=score` へ整形して表示する
 - `run_candidate_output_dirs` は `run_comparison_summary.json.run_candidates[*].output_dir` を `run_name=output_dir` へ整形して表示する
+
+minimal valid comparison artifact の read-only 境界:
+
+- `show-run-comparison` は `run_comparison_summary.json` の validator を通る最小 shape に対しても表示できる
+- 現在は `current_comparison_reason_codes`, `current_comparison_metrics`, `best_selection_source`, `best_selection_reason_codes`, `best_comparison_metrics`, `Run candidates: 0` まで tests で固定している
+- `run_candidates=[]` の場合でも count 行は表示するが、`run_candidate_names` / `run_candidate_scores` / `run_candidate_output_dirs` は表示しない
 
 schema version の現方針:
 

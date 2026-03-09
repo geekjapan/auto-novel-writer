@@ -35,6 +35,12 @@ Codex がこのリポジトリで、1 タスクずつ安全に実装を前進さ
 11. `Ready` が空なら、`docs/ROADMAP.md` と repository の現状から次の最小子タスクを起票し、`In Progress` に上げて続行する
 12. 停止条件に該当する場合だけ停止し、`docs/BLOCKED.md` を更新する
 
+補足:
+
+- docs 更新タスクでも、対応する code / tests / artifact contract を実際に読んでから書く
+- tests だけで完了する小タスクでも、`docs/TASKS.md` は同じターンで更新する
+- read-only CLI のタスクでは、可能なら「出力内容」だけでなく「artifact を変更しないこと」も確認する
+
 ## Guardrails
 
 - 1 回の主目的は 1 タスクだけにする
@@ -52,6 +58,7 @@ Codex がこのリポジトリで、1 タスクずつ安全に実装を前進さ
 - 既存ユーザーの利用方法を大きく変える可能性がある
 - どの挙動を正とするか、実装と docs のどちらを基準にすべきか判断できない
 - 作業中にユーザー変更と衝突する差分を見つけた
+- 既存 validator / schema contract が task 文面と矛盾し、どちらを正とするか docs だけでは決められない
 
 停止時は `docs/BLOCKED.md` を更新し、必要ならユーザーに判断を求める。
 
