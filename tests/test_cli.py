@@ -950,6 +950,10 @@ class CliTest(unittest.TestCase):
                 "issue_score": {"current": 11, "best": 5},
                 "completed_step_count": {"current": 12, "best": 7},
                 "long_run_should_stop": {"current": False, "best": True},
+                "policy_limits": {
+                    "max_high_severity_chapters": {"current": 6, "best": 2},
+                    "max_total_rerun_attempts": {"current": 20, "best": 20},
+                },
             },
         }
 
@@ -965,6 +969,7 @@ class CliTest(unittest.TestCase):
         self.assertIn("  best_selection_source: manual", summary["best_run"]["selection_lines"])
         self.assertIn("Compact summary: selection_source=manual", lines)
         self.assertIn("  compact.issue_score: current=11, best=5", lines)
+        self.assertIn("  compact.policy_limits.max_high_severity_chapters: current=6, best=2", lines)
 
     def test_build_run_comparison_lines_keep_documented_field_mapping(self) -> None:
         summary_artifact = {
@@ -1002,6 +1007,10 @@ class CliTest(unittest.TestCase):
                 "issue_score": {"current": 11, "best": 5},
                 "completed_step_count": {"current": 12, "best": 7},
                 "long_run_should_stop": {"current": False, "best": True},
+                "policy_limits": {
+                    "max_high_severity_chapters": {"current": 6, "best": 2},
+                    "max_total_rerun_attempts": {"current": 20, "best": 20},
+                },
             },
         }
 
@@ -1022,6 +1031,8 @@ class CliTest(unittest.TestCase):
             "  compact.issue_score: current=11, best=5",
             "  compact.completed_step_count: current=12, best=7",
             "  compact.long_run_should_stop: current=False, best=True",
+            "  compact.policy_limits.max_high_severity_chapters: current=6, best=2",
+            "  compact.policy_limits.max_total_rerun_attempts: current=20, best=20",
             "Run candidates: 2",
         }
 
@@ -1076,6 +1087,7 @@ class CliTest(unittest.TestCase):
             self.assertIn("best_selection_source:", output)
             self.assertIn("Compact summary: selection_source=", output)
             self.assertIn("compact.issue_score:", output)
+            self.assertIn("compact.policy_limits.max_high_severity_chapters:", output)
             self.assertIn("Run candidates: 1", output)
 
 

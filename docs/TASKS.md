@@ -7,6 +7,7 @@
 
 
 
+
 ## Ready
 
 
@@ -101,6 +102,8 @@
 - [x] M28: `run_comparison_summary.json` を読み取り専用で表示する `show-run-comparison` CLI を追加する
 - [x] M28: `show-run-comparison` の summary field 名と `run_comparison_summary.json` の field 名の対応を docs / tests で固定する
 - [x] M28: `show-project-status` と `show-run-comparison` の責務差を README / ROADMAP / TASKS で整理する
+- [x] M29: `show-run-comparison` に `compact_summary.policy_limits` の current / best 表示を追加する
+- [x] M29: `show-run-comparison` の compact policy lines と `run_comparison_summary.json.compact_summary.policy_limits` の対応を docs / tests で固定する
 
 ## Task Update Rules
 

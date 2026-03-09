@@ -360,6 +360,8 @@ run comparison summary field と artifact field の対応:
 - `compact.issue_score` は `run_comparison_summary.json.compact_summary.issue_score.current|best` を表示する
 - `compact.completed_step_count` は `run_comparison_summary.json.compact_summary.completed_step_count.current|best` を表示する
 - `compact.long_run_should_stop` は `run_comparison_summary.json.compact_summary.long_run_should_stop.current|best` を表示する
+- `compact.policy_limits.max_high_severity_chapters` は `run_comparison_summary.json.compact_summary.policy_limits.max_high_severity_chapters.current|best` を表示する
+- `compact.policy_limits.max_total_rerun_attempts` は `run_comparison_summary.json.compact_summary.policy_limits.max_total_rerun_attempts.current|best` を表示する
 - `Run candidates` は `run_comparison_summary.json.candidate_count` を表示する
 
 schema version の現方針:

@@ -688,6 +688,9 @@ def _build_compact_summary_lines(compact_summary: dict[str, Any]) -> list[str]:
     issue_score = compact_summary.get("issue_score", {})
     completed_step_count = compact_summary.get("completed_step_count", {})
     long_run_should_stop = compact_summary.get("long_run_should_stop", {})
+    policy_limits = compact_summary.get("policy_limits", {})
+    high_severity_limit = policy_limits.get("max_high_severity_chapters", {})
+    rerun_limit = policy_limits.get("max_total_rerun_attempts", {})
     return [
         f"Compact summary: selection_source={compact_summary.get('selection_source', 'unknown')}",
         "  compact.issue_score: "
@@ -696,6 +699,10 @@ def _build_compact_summary_lines(compact_summary: dict[str, Any]) -> list[str]:
         f"current={completed_step_count.get('current', 'n/a')}, best={completed_step_count.get('best', 'n/a')}",
         "  compact.long_run_should_stop: "
         f"current={long_run_should_stop.get('current', 'n/a')}, best={long_run_should_stop.get('best', 'n/a')}",
+        "  compact.policy_limits.max_high_severity_chapters: "
+        f"current={high_severity_limit.get('current', 'n/a')}, best={high_severity_limit.get('best', 'n/a')}",
+        "  compact.policy_limits.max_total_rerun_attempts: "
+        f"current={rerun_limit.get('current', 'n/a')}, best={rerun_limit.get('best', 'n/a')}",
     ]
 
 
