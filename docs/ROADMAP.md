@@ -162,6 +162,7 @@ chapter 配列ベースの内部正本、chapter 1 互換 artifact、publish-rea
 - README / tests で `show-run-comparison` の summary field と artifact field の対応を固定する
 - `show-project-status` は project manifest 中心、`show-run-comparison` は comparison artifact 中心という責務差を docs に反映する
 - `compact_summary.policy_limits` も `show-run-comparison` から確認できる
+- `show-run-comparison` の builder も `summary dict -> lines` の責務分離で単体テスト可能にする
 
 ## 現在の本命
 

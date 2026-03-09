@@ -967,6 +967,12 @@ class CliTest(unittest.TestCase):
             summary["current_run"]["comparison_lines"],
         )
         self.assertIn("  best_selection_source: manual", summary["best_run"]["selection_lines"])
+        self.assertEqual(summary["compact_summary"]["selection_source"], "manual")
+        self.assertEqual(summary["compact_summary"]["issue_score"], {"current": 11, "best": 5})
+        self.assertEqual(
+            summary["compact_summary"]["policy_limits"]["max_high_severity_chapters"],
+            {"current": 6, "best": 2},
+        )
         self.assertIn("Compact summary: selection_source=manual", lines)
         self.assertIn("  compact.issue_score: current=11, best=5", lines)
         self.assertIn("  compact.policy_limits.max_high_severity_chapters: current=6, best=2", lines)

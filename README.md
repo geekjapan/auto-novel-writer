@@ -236,6 +236,7 @@ novel-writer rerun-chapter --project-id "my-story-01" --chapter-number 2
 - `show-run-comparison` は comparison artifact 中心の比較確認に使う
 - 確認対象: current / best comparison context、selection source、compact summary
 - 向いている用途: run 候補比較、best_run 採用理由確認、downstream 向け comparison artifact の目視確認
+- 内部実装では `show-run-comparison` も `run_comparison_summary.json -> structured summary -> lines` の順で整形する
 
 ## 主な出力物
 

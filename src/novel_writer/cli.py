@@ -657,7 +657,7 @@ def build_saved_run_comparison_summary(
         }
         if best_run
         else None,
-        "compact_summary_lines": _build_compact_summary_lines(compact_summary),
+        "compact_summary": _build_saved_run_compact_summary_section(compact_summary),
     }
 
 
@@ -676,9 +676,22 @@ def build_saved_run_comparison_lines(summary_artifact: dict[str, Any], reason_de
         lines.append(f"Best run: {best_run['name']}")
         lines.extend(best_run["selection_lines"])
         lines.append(best_run["comparison_metrics_line"])
-    lines.extend(summary["compact_summary_lines"])
+    compact_summary = summary.get("compact_summary")
+    if compact_summary:
+        lines.extend(compact_summary["lines"])
     lines.append(f"Run candidates: {summary['candidate_count']}")
     return lines
+
+
+def _build_saved_run_compact_summary_section(compact_summary: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "selection_source": compact_summary.get("selection_source", "unknown"),
+        "issue_score": dict(compact_summary.get("issue_score", {})),
+        "completed_step_count": dict(compact_summary.get("completed_step_count", {})),
+        "long_run_should_stop": dict(compact_summary.get("long_run_should_stop", {})),
+        "policy_limits": deepcopy(compact_summary.get("policy_limits", {})),
+        "lines": _build_compact_summary_lines(compact_summary),
+    }
 
 
 def _build_compact_summary_lines(compact_summary: dict[str, Any]) -> list[str]:
