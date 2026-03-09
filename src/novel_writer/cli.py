@@ -642,12 +642,14 @@ def build_saved_run_comparison_summary(
         "candidate_count": summary_artifact.get("candidate_count", 0),
         "current_run": {
             "name": current_run.get("run_name", "unknown"),
+            "output_dir": current_run.get("output_dir", "unknown"),
             "comparison_lines": _build_current_comparison_summary_lines(current_run, reason_detail_mode),
         }
         if current_run
         else None,
         "best_run": {
             "name": best_run.get("run_name", "unknown"),
+            "output_dir": best_run.get("output_dir", "unknown"),
             "selection_lines": _build_selection_summary_lines(best_run, reason_detail_mode),
             "comparison_metrics_line": (
                 "  best_comparison_metrics: "
@@ -670,10 +672,12 @@ def build_saved_run_comparison_lines(summary_artifact: dict[str, Any], reason_de
     current_run = summary.get("current_run")
     if current_run:
         lines.append(f"Current run: {current_run['name']}")
+        lines.append(f"  output_dir: {current_run['output_dir']}")
         lines.extend(current_run["comparison_lines"])
     best_run = summary.get("best_run")
     if best_run:
         lines.append(f"Best run: {best_run['name']}")
+        lines.append(f"  output_dir: {best_run['output_dir']}")
         lines.extend(best_run["selection_lines"])
         lines.append(best_run["comparison_metrics_line"])
     compact_summary = summary.get("compact_summary")

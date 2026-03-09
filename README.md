@@ -347,6 +347,7 @@ status summary field と artifact field の対応:
 run comparison summary field と artifact field の対応:
 
 - `Current run` は `run_comparison_summary.json.current_run.run_name` を表示する
+- `output_dir` は `run_comparison_summary.json.current_run.output_dir` または `run_comparison_summary.json.best_run.output_dir` を表示する
 - `current_comparison_basis_summary` は `run_comparison_summary.json.current_run.comparison_basis[:3]` を表示する
 - `current_comparison_reason_summary` は `run_comparison_summary.json.current_run.comparison_reason_details[:2]` を `code=value` へ整形して表示する
 - `current_comparison_reason_codes` は `run_comparison_summary.json.current_run.comparison_reason_details[:3].code` を schema 順へ整列して表示する

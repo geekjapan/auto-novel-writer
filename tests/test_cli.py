@@ -921,6 +921,7 @@ class CliTest(unittest.TestCase):
             "candidate_count": 2,
             "current_run": {
                 "run_name": "latest_run",
+                "output_dir": "data/projects/case-05/runs/latest_run",
                 "comparison_basis": ["long_run_should_stop", "continuity_issue_total"],
                 "comparison_metrics": {
                     "total_issue_score": 11,
@@ -934,6 +935,7 @@ class CliTest(unittest.TestCase):
             },
             "best_run": {
                 "run_name": "candidate-a",
+                "output_dir": "data/projects/case-05/runs/candidate-a",
                 "selection_source": "manual",
                 "comparison_basis": ["long_run_should_stop", "continuity_issue_total"],
                 "comparison_metrics": {
@@ -962,6 +964,8 @@ class CliTest(unittest.TestCase):
 
         self.assertEqual(summary["project_label"], "case-05")
         self.assertEqual(summary["candidate_count"], 2)
+        self.assertEqual(summary["current_run"]["output_dir"], "data/projects/case-05/runs/latest_run")
+        self.assertEqual(summary["best_run"]["output_dir"], "data/projects/case-05/runs/candidate-a")
         self.assertIn(
             "  current_comparison_reason_codes: long_run_should_stop, total_issue_score",
             summary["current_run"]["comparison_lines"],
@@ -984,6 +988,7 @@ class CliTest(unittest.TestCase):
             "candidate_count": 2,
             "current_run": {
                 "run_name": "latest_run",
+                "output_dir": "data/projects/case-06/runs/latest_run",
                 "comparison_basis": ["long_run_should_stop", "continuity_issue_total", "quality_issue_total"],
                 "comparison_metrics": {
                     "total_issue_score": 11,
@@ -997,6 +1002,7 @@ class CliTest(unittest.TestCase):
             },
             "best_run": {
                 "run_name": "candidate-a",
+                "output_dir": "data/projects/case-06/runs/candidate-a",
                 "selection_source": "manual",
                 "comparison_basis": ["long_run_should_stop", "continuity_issue_total", "quality_issue_total"],
                 "comparison_metrics": {
@@ -1023,11 +1029,13 @@ class CliTest(unittest.TestCase):
         lines = build_saved_run_comparison_lines(summary_artifact, reason_detail_mode="codes")
         expected_lines = {
             "Current run: latest_run",
+            "  output_dir: data/projects/case-06/runs/latest_run",
             "  current_comparison_basis_summary: long_run_should_stop, continuity_issue_total, quality_issue_total",
             "  current_comparison_reason_summary: long_run_should_stop=False; total_issue_score=11",
             "  current_comparison_reason_codes: long_run_should_stop, total_issue_score",
             "  current_comparison_metrics: total_issue_score=11, completed_step_count=12",
             "Best run: candidate-a",
+            "  output_dir: data/projects/case-06/runs/candidate-a",
             "  best_selection_source: manual",
             "  best_comparison_basis_summary: long_run_should_stop, continuity_issue_total, quality_issue_total",
             "  best_selection_reason_summary: manual_selection=candidate-a; long_run_should_stop=True",
@@ -1088,6 +1096,7 @@ class CliTest(unittest.TestCase):
             self.assertEqual(comparison_before, comparison_after)
             self.assertIn("Project: compare-01", output)
             self.assertIn("Current run: latest_run", output)
+            self.assertIn("output_dir:", output)
             self.assertIn("Best run: latest_run", output)
             self.assertIn("current_comparison_reason_codes:", output)
             self.assertIn("best_selection_source:", output)
