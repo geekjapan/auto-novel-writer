@@ -1340,6 +1340,7 @@ class CliTest(unittest.TestCase):
             self.assertIn("best_selection_reason_codes: total_issue_score", output)
             self.assertIn("best_comparison_metrics: total_issue_score=3, completed_step_count=4", output)
             self.assertIn("Compact summary: selection_source=automatic", output)
+            self.assertIn("compact.issue_score: current=3, best=3", output)
             self.assertIn("Run candidates: 0", output)
             self.assertNotIn("run_candidate_names:", output)
             self.assertNotIn("run_candidate_scores:", output)
