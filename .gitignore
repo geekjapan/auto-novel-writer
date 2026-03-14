@@ -5,6 +5,7 @@ __pycache__/
 .env.*
 data/*
 !data/.gitkeep
+venv/
 .venv/
 dist/
 build/

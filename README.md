@@ -135,8 +135,8 @@
 ## セットアップ
 
 ```bash
-python -m venv .venv
-.venv\Scripts\activate
+python3 -m venv venv
+source venv/bin/activate
 python -m pip install -e .
 ```
 
@@ -405,8 +405,9 @@ run comparison summary field と artifact field の対応:
 minimal valid comparison artifact の read-only 境界:
 
 - `show-run-comparison` は `run_comparison_summary.json` の validator を通る最小 shape に対しても表示できる
-- 現在は `current_comparison_reason_codes`, `current_comparison_metrics`, `best_selection_source`, `best_selection_reason_codes`, `best_comparison_metrics`, `Run candidates: 0` まで tests で固定している
+- 現在は `current_comparison_reason_codes`, `current_comparison_metrics`, `best_selection_source`, `best_selection_reason_codes`, `best_comparison_metrics`, `compact.issue_score`, `compact.completed_step_count`, `Run candidates: 0` まで tests で固定している
 - `run_candidates=[]` の場合でも count 行は表示するが、`run_candidate_names` / `run_candidate_scores` / `run_candidate_output_dirs` は表示しない
+- 次の最小タスクは `compact.long_run_should_stop` 行も同じ minimal artifact 経路で固定すること
 
 schema version の現方針:
 
@@ -440,7 +441,7 @@ schema version の現方針:
 - chapter 1 互換 artifact は当面維持
 - manifest に履歴を残す
 - manifest に artifact contract も残す
-- `mock` / `openai` を切替可能
+- `mock` / `openai` / `openai-compatible` / `lmstudio` / `ollama` を切替可能
 - artifact は JSON / YAML で保存する
 - secrets と生成成果物は repo に push しない運用を前提にする
 
@@ -454,7 +455,8 @@ schema version の現方針:
 ## テスト
 
 ```bash
-python -m unittest discover -s tests -v
+./venv/bin/python -m unittest tests.test_cli -v
+./venv/bin/python -m unittest discover -s tests -v
 ```
 
 ## 開発ドキュメント
