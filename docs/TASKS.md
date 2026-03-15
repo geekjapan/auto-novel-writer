@@ -4,6 +4,64 @@
 ここでの task は、1 回で安全に実装・テスト・docs 更新・コミットできる粒度へ分割する。
 
 ## In Progress
+- [ ] M57a: `story_bible` schema を追加し、artifact contract を固定する
+  - Title: `story_bible` の schema と保存 contract を定義する
+  - Milestone: M57 Story Bible Foundation
+  - Purpose: 長編設計の正本 artifact を導入する前に、最低限必要な field を schema / storage contract として固定する
+  - Target files or directories: `src/novel_writer/schema.py`, `src/novel_writer/storage.py`, `tests/test_storage.py`, `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
+  - Done when: `story_bible` の最低限 field を schema で表現でき、保存・読込 contract を tests で固定できる
+  - Required tests: `./venv/bin/python -m unittest tests.test_storage -v`, `./venv/bin/python -m unittest discover -s tests -v`
+  - Docs to update: `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
+
+## Ready
+- [ ] M57b: pipeline に `story_bible` 生成段を追加する
+  - Title: `three_act_plot` の後に `story_bible` を生成する
+  - Milestone: M57 Story Bible Foundation
+  - Purpose: 設計情報を chapter plan より前で確定し、後続工程が参照できるようにする
+  - Target files or directories: `src/novel_writer/pipeline.py`, `src/novel_writer/storage.py`, `tests/test_pipeline.py`, `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
+  - Done when: pipeline が `story_bible.json` を生成・保存し、resume / manifest から扱える
+  - Required tests: `./venv/bin/python -m unittest tests.test_pipeline -v`, `./venv/bin/python -m unittest discover -s tests -v`
+  - Docs to update: `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
+- [ ] M57c: LLM client に `generate_story_bible()` を追加する
+  - Title: `story_bible` 生成 API を provider 境界へ追加する
+  - Milestone: M57 Story Bible Foundation
+  - Purpose: mock と本番 provider の両方で story bible を生成できる呼び出し面をそろえる
+  - Target files or directories: `src/novel_writer/llm/base.py`, `src/novel_writer/llm/mock.py`, `src/novel_writer/llm/openai_client.py`, `tests/test_pipeline.py`, `tests/test_llm_client.py`, `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
+  - Done when: provider interface が `generate_story_bible()` を持ち、mock で安定した artifact を返せる
+  - Required tests: `./venv/bin/python -m unittest tests.test_llm_client -v`, `./venv/bin/python -m unittest tests.test_pipeline -v`, `./venv/bin/python -m unittest discover -s tests -v`
+  - Docs to update: `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
+- [ ] M57d: `chapter_plan` 生成が `story_bible` を参照するようにする
+  - Title: chapter planning を story bible 駆動に寄せる
+  - Milestone: M57 Story Bible Foundation
+  - Purpose: `story_bible` を単なる追加 artifact で終わらせず、実際に chapter plan の質を上げる入力にする
+  - Target files or directories: `src/novel_writer/llm/base.py`, `src/novel_writer/llm/mock.py`, `src/novel_writer/llm/openai_client.py`, `src/novel_writer/pipeline.py`, `tests/test_pipeline.py`, `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
+  - Done when: `generate_chapter_plan()` が `story_bible` を受け取り、pipeline の依存順も docs / tests で固定される
+  - Required tests: `./venv/bin/python -m unittest tests.test_pipeline -v`, `./venv/bin/python -m unittest discover -s tests -v`
+  - Docs to update: `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
+- [ ] M57e: `story_bible` の後方互換と docs を同期する
+  - Title: `story_bible` 導入後の step 順序と artifact 一覧を同期する
+  - Milestone: M57 Story Bible Foundation
+  - Purpose: CLI / docs / tests の説明が新しい pipeline 順序とずれないようにする
+  - Target files or directories: `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`, `tests/test_cli.py`, `tests/test_pipeline.py`
+  - Done when: step 順序、artifact 一覧、resume の説明が `story_bible` 追加後の形でそろう
+  - Required tests: `./venv/bin/python -m unittest tests.test_cli -v`, `./venv/bin/python -m unittest tests.test_pipeline -v`, `./venv/bin/python -m unittest discover -s tests -v`
+  - Docs to update: `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
+- [ ] M58: `chapter_briefs` を追加し、章の成功条件を固定する
+  - Title: chapter brief を章生成の正式入力にする
+  - Milestone: M58 Chapter Brief Layer
+  - Purpose: 各章が何を達成すべきかを `goal` `conflict` `turn` `must_include` `continuity_dependencies` で固定し、脱線しにくい章生成へ寄せる
+  - Target files or directories: `src/novel_writer/schema.py`, `src/novel_writer/pipeline.py`, `src/novel_writer/storage.py`, `src/novel_writer/llm/base.py`, `src/novel_writer/llm/mock.py`, `tests/test_pipeline.py`, `tests/test_storage.py`, `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
+  - Done when: `chapter_briefs.json` を生成・保存でき、chapter draft 生成が chapter plan だけでなく chapter brief も受け取る
+  - Required tests: `./venv/bin/python -m unittest tests.test_pipeline -v`, `./venv/bin/python -m unittest discover -s tests -v`
+  - Docs to update: `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
+- [ ] M59: `scene_cards` を追加し、scene 単位分解を導入する
+  - Title: scene card レイヤを導入する
+  - Milestone: M59 Scene Planning Layer
+  - Purpose: chapter brief を本文化する前に scene 単位の目的と転換点を固定し、章の中身の制御粒度を上げる
+  - Target files or directories: `src/novel_writer/schema.py`, `src/novel_writer/pipeline.py`, `src/novel_writer/storage.py`, `src/novel_writer/llm/base.py`, `src/novel_writer/llm/mock.py`, `tests/test_pipeline.py`, `tests/test_storage.py`, `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
+  - Done when: `scene_cards` を章ごとに生成・保存でき、chapter draft 生成が対応する scene cards を受け取る
+  - Required tests: `./venv/bin/python -m unittest tests.test_pipeline -v`, `./venv/bin/python -m unittest discover -s tests -v`
+  - Docs to update: `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
 - [ ] M56: `show-run-comparison` の minimal artifact ケースで compact long-run stop 行を固定する
   - Title: comparison CLI の minimal artifact compact long-run stop 行を固定する
   - Milestone: M56 Run Comparison Minimal Compact Coverage
@@ -12,8 +70,6 @@
   - Done when: minimal artifact ケースで `compact.long_run_should_stop` が表示されることを tests で固定する
   - Required tests: `./venv/bin/python -m unittest tests.test_cli -v`, `./venv/bin/python -m unittest discover -s tests -v`
   - Docs to update: `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
-
-## Ready
 
 ## Done
 
