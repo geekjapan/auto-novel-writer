@@ -4,48 +4,16 @@
 ここでの task は、1 回で安全に実装・テスト・docs 更新・コミットできる粒度へ分割する。
 
 ## In Progress
-- [ ] M57a: `story_bible` schema を追加し、artifact contract を固定する
-  - Title: `story_bible` の schema と保存 contract を定義する
-  - Milestone: M57 Story Bible Foundation
-  - Purpose: 長編設計の正本 artifact を導入する前に、最低限必要な field を schema / storage contract として固定する
-  - Target files or directories: `src/novel_writer/schema.py`, `src/novel_writer/storage.py`, `tests/test_storage.py`, `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
-  - Done when: `story_bible` の最低限 field を schema で表現でき、保存・読込 contract を tests で固定できる
-  - Required tests: `./venv/bin/python -m unittest tests.test_storage -v`, `./venv/bin/python -m unittest discover -s tests -v`
-  - Docs to update: `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
-
-## Ready
-- [ ] M57b: pipeline に `story_bible` 生成段を追加する
-  - Title: `three_act_plot` の後に `story_bible` を生成する
-  - Milestone: M57 Story Bible Foundation
-  - Purpose: 設計情報を chapter plan より前で確定し、後続工程が参照できるようにする
-  - Target files or directories: `src/novel_writer/pipeline.py`, `src/novel_writer/storage.py`, `tests/test_pipeline.py`, `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
-  - Done when: pipeline が `story_bible.json` を生成・保存し、resume / manifest から扱える
-  - Required tests: `./venv/bin/python -m unittest tests.test_pipeline -v`, `./venv/bin/python -m unittest discover -s tests -v`
-  - Docs to update: `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
-- [ ] M57c: LLM client に `generate_story_bible()` を追加する
-  - Title: `story_bible` 生成 API を provider 境界へ追加する
-  - Milestone: M57 Story Bible Foundation
-  - Purpose: mock と本番 provider の両方で story bible を生成できる呼び出し面をそろえる
-  - Target files or directories: `src/novel_writer/llm/base.py`, `src/novel_writer/llm/mock.py`, `src/novel_writer/llm/openai_client.py`, `tests/test_pipeline.py`, `tests/test_llm_client.py`, `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
-  - Done when: provider interface が `generate_story_bible()` を持ち、mock で安定した artifact を返せる
-  - Required tests: `./venv/bin/python -m unittest tests.test_llm_client -v`, `./venv/bin/python -m unittest tests.test_pipeline -v`, `./venv/bin/python -m unittest discover -s tests -v`
-  - Docs to update: `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
-- [ ] M57d: `chapter_plan` 生成が `story_bible` を参照するようにする
-  - Title: chapter planning を story bible 駆動に寄せる
-  - Milestone: M57 Story Bible Foundation
-  - Purpose: `story_bible` を単なる追加 artifact で終わらせず、実際に chapter plan の質を上げる入力にする
-  - Target files or directories: `src/novel_writer/llm/base.py`, `src/novel_writer/llm/mock.py`, `src/novel_writer/llm/openai_client.py`, `src/novel_writer/pipeline.py`, `tests/test_pipeline.py`, `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
-  - Done when: `generate_chapter_plan()` が `story_bible` を受け取り、pipeline の依存順も docs / tests で固定される
-  - Required tests: `./venv/bin/python -m unittest tests.test_pipeline -v`, `./venv/bin/python -m unittest discover -s tests -v`
-  - Docs to update: `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
 - [ ] M57e: `story_bible` の後方互換と docs を同期する
   - Title: `story_bible` 導入後の step 順序と artifact 一覧を同期する
   - Milestone: M57 Story Bible Foundation
-  - Purpose: CLI / docs / tests の説明が新しい pipeline 順序とずれないようにする
+  - Purpose: CLI / docs / tests の説明が新しい pipeline 順序と `story_bible` 依存関係からずれないようにする
   - Target files or directories: `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`, `tests/test_cli.py`, `tests/test_pipeline.py`
-  - Done when: step 順序、artifact 一覧、resume の説明が `story_bible` 追加後の形でそろう
+  - Done when: step 順序、artifact 一覧、resume の説明が `story_bible` 追加後の形でそろい、`story_bible` が planning に使われる前提も docs / tests に反映される
   - Required tests: `./venv/bin/python -m unittest tests.test_cli -v`, `./venv/bin/python -m unittest tests.test_pipeline -v`, `./venv/bin/python -m unittest discover -s tests -v`
   - Docs to update: `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
+
+## Ready
 - [ ] M58: `chapter_briefs` を追加し、章の成功条件を固定する
   - Title: chapter brief を章生成の正式入力にする
   - Milestone: M58 Chapter Brief Layer
@@ -74,6 +42,10 @@
 ## Done
 
 - [x] Scaffold CLI-based short-story pipeline MVP
+- [x] M57d: `chapter_plan` 生成が `story_bible` を参照するようにする
+- [x] M57c: LLM client に `generate_story_bible()` を追加する
+- [x] M57b: pipeline に `story_bible` 生成段を追加する
+- [x] M57a: `story_bible` schema を追加し、artifact contract を固定する
 - [x] M55: `show-run-comparison` の minimal artifact ケースで compact completed step count 行を固定する
 - [x] M51: `show-run-comparison` の minimal artifact ケースで compact issue score 行を固定する
 - [x] M54: LM Studio の fenced JSON 応答を明示的に正規化する

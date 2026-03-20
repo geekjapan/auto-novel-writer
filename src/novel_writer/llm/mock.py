@@ -79,22 +79,74 @@ class MockLLMClient(BaseLLMClient):
             },
         }
 
+    def generate_story_bible(
+        self,
+        story_input: StoryInput,
+        logline: dict[str, Any],
+        characters: list[dict[str, Any]],
+        three_act_plot: dict[str, Any],
+    ) -> dict[str, Any]:
+        return {
+            "schema_name": "story_bible",
+            "schema_version": "1.0",
+            "core_premise": logline.get("premise", ""),
+            "ending_reveal": (
+                three_act_plot.get("act_2", {}).get("midpoint")
+                or three_act_plot.get("act_3", {}).get("resolution", "")
+            ),
+            "theme_statement": f"{story_input.theme} を通じて、{story_input.tone} に選び直しの価値を描く。",
+            "character_arcs": [
+                {
+                    "name": character.get("name"),
+                    "role": character.get("role"),
+                    "goal": character.get("goal"),
+                    "conflict": character.get("conflict"),
+                    "arc": character.get("arc"),
+                }
+                for character in characters
+            ],
+            "world_rules": [
+                f"{story_input.genre} としての約束を保ちつつ、{story_input.theme} に関わる異変は現実へ具体的な影響を与える。",
+                f"作品全体のトーンは {story_input.tone} を維持し、過剰な喜劇化で緊張を逃がさない。",
+            ],
+            "forbidden_facts": [
+                "序盤で ending_reveal の核心を明示しない。",
+                "主人公の選択の代償をなかったことにしない。",
+            ],
+            "foreshadowing_seeds": [
+                {
+                    "id": "seed-1",
+                    "setup": three_act_plot.get("act_1", {}).get("inciting_incident", ""),
+                    "payoff_target": three_act_plot.get("act_2", {}).get("midpoint", ""),
+                },
+                {
+                    "id": "seed-2",
+                    "setup": logline.get("hook", ""),
+                    "payoff_target": three_act_plot.get("act_3", {}).get("resolution", ""),
+                },
+            ],
+        }
+
     def generate_chapter_plan(
         self,
         story_input: StoryInput,
         logline: dict[str, Any],
         characters: list[dict[str, Any]],
         three_act_plot: dict[str, Any],
+        story_bible: dict[str, Any],
     ) -> list[dict[str, Any]]:
         target = max(3, min(6, story_input.target_length // 2000))
         chapters: list[dict[str, Any]] = []
+        theme_statement = story_bible.get("theme_statement", "")
+        ending_reveal = story_bible.get("ending_reveal", "")
+        foreshadowing_seeds = story_bible.get("foreshadowing_seeds", [])
         beats = [
-            ("導入", three_act_plot["act_1"]["setup"]),
-            ("転機", three_act_plot["act_1"]["inciting_incident"]),
+            ("導入", f"{three_act_plot['act_1']['setup']} テーマ命題: {theme_statement}"),
+            ("転機", f"{three_act_plot['act_1']['inciting_incident']} 伏線: {foreshadowing_seeds[0].get('setup', '')}" if foreshadowing_seeds else three_act_plot["act_1"]["inciting_incident"]),
             ("対立", three_act_plot["act_2"]["rising_action"]),
-            ("危機", three_act_plot["act_2"]["crisis"]),
-            ("結末", three_act_plot["act_3"]["resolution"]),
-            ("余韻", f"{logline['title']}の余波が静かに残る締め。"),
+            ("危機", f"{three_act_plot['act_2']['crisis']} 真相の影: {ending_reveal}"),
+            ("結末", f"{three_act_plot['act_3']['resolution']} 回収: {ending_reveal}"),
+            ("余韻", f"{logline['title']}の余波が静かに残る締め。命題: {theme_statement}"),
         ]
         for index in range(target):
             heading, purpose = beats[index]

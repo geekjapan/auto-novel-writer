@@ -30,6 +30,63 @@ def chapter_artifact_contract() -> dict:
     }
 
 
+def story_bible_contract() -> dict:
+    return {
+        "schema_name": "story_bible",
+        "schema_version": "1.0",
+        "required_fields": [
+            "schema_name",
+            "schema_version",
+            "core_premise",
+            "ending_reveal",
+            "theme_statement",
+            "character_arcs",
+            "world_rules",
+            "forbidden_facts",
+            "foreshadowing_seeds",
+        ],
+        "list_fields": [
+            "character_arcs",
+            "world_rules",
+            "forbidden_facts",
+            "foreshadowing_seeds",
+        ],
+    }
+
+
+def validate_story_bible(payload: dict) -> dict:
+    contract = story_bible_contract()
+    missing_fields = [field for field in contract["required_fields"] if field not in payload]
+    if missing_fields:
+        missing = ", ".join(sorted(missing_fields))
+        raise ValueError(
+            "Invalid story_bible: missing required fields: "
+            f"{missing}. Regenerate the story bible from the pipeline."
+        )
+
+    if payload.get("schema_name") != contract["schema_name"]:
+        raise ValueError(
+            "Invalid story_bible: "
+            f"schema_name={payload.get('schema_name')!r} is not supported; expected {contract['schema_name']!r}."
+        )
+
+    if payload.get("schema_version") != contract["schema_version"]:
+        raise ValueError(
+            "Invalid story_bible: "
+            f"schema_version={payload.get('schema_version')!r} is not supported; expected {contract['schema_version']!r}."
+        )
+
+    for field_name in ["core_premise", "ending_reveal", "theme_statement"]:
+        if not isinstance(payload.get(field_name), str):
+            raise ValueError(f"Invalid story_bible: {field_name} must be a string.")
+
+    for field_name in contract["list_fields"]:
+        if not isinstance(payload.get(field_name), list):
+            raise ValueError(f"Invalid story_bible: {field_name} must be a list.")
+
+    return payload
+
+
 def publish_ready_bundle_contract() -> dict:
     return {
         "schema_name": "publish_ready_bundle",
@@ -477,6 +534,7 @@ class StoryArtifacts:
     loglines: list[dict] = field(default_factory=list)
     characters: list[dict] = field(default_factory=list)
     three_act_plot: dict = field(default_factory=dict)
+    story_bible: dict = field(default_factory=dict)
     chapter_plan: list[dict] = field(default_factory=list)
     chapter_drafts: list[dict] = field(default_factory=list)
     chapter_1_draft: dict = field(default_factory=dict)
@@ -499,6 +557,7 @@ class StoryArtifacts:
                 "loglines",
                 "characters",
                 "three_act_plot",
+                "story_bible",
                 "chapter_plan",
                 "chapter_drafts",
                 "continuity_report",
@@ -536,6 +595,7 @@ class StoryArtifacts:
     def artifact_contract(self) -> dict:
         return {
             "chapter_artifacts": chapter_artifact_contract(),
+            "story_bible": story_bible_contract(),
             "publish_ready_bundle": publish_ready_bundle_contract(),
         }
 

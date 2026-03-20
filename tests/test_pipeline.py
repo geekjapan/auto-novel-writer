@@ -23,6 +23,7 @@ class StoryPipelineTest(unittest.TestCase):
                 "01_loglines.json",
                 "02_characters.json",
                 "03_three_act_plot.json",
+                "story_bible.json",
                 "04_chapter_plan.json",
                 "05_chapter_1_draft.json",
                 "chapter_1_draft.json",
@@ -46,6 +47,7 @@ class StoryPipelineTest(unittest.TestCase):
                 (output_dir / "continuity_report.json").read_text(encoding="utf-8")
             )
             quality_report = json.loads((output_dir / "quality_report.json").read_text(encoding="utf-8"))
+            story_bible = json.loads((output_dir / "story_bible.json").read_text(encoding="utf-8"))
             story_summary = json.loads((output_dir / "story_summary.json").read_text(encoding="utf-8"))
             project_quality_report = json.loads(
                 (output_dir / "project_quality_report.json").read_text(encoding="utf-8")
@@ -67,8 +69,15 @@ class StoryPipelineTest(unittest.TestCase):
                 "continuity_report",
             )
             self.assertEqual(manifest["artifact_contract"]["publish_ready_bundle"]["schema_version"], "1.0")
+            self.assertEqual(manifest["artifact_contract"]["story_bible"]["schema_version"], "1.0")
             self.assertEqual(manifest["policy_snapshot"]["long_run"]["max_high_severity_chapters"], 10)
             self.assertEqual(manifest["policy_snapshot"]["long_run"]["max_total_rerun_attempts"], 20)
+            self.assertEqual(artifacts.story_bible, story_bible)
+            self.assertEqual(manifest["artifacts"]["story_bible"], story_bible)
+            self.assertEqual(story_bible["schema_name"], "story_bible")
+            self.assertIn("core_premise", story_bible)
+            self.assertTrue(story_bible["character_arcs"])
+            self.assertIn(story_bible["theme_statement"], artifacts.chapter_plan[0]["purpose"])
             self.assertEqual(artifacts.chapter_1_draft["chapter_number"], 1)
             self.assertIn("length_warnings", continuity_report)
             self.assertIn("overall_recommendation", quality_report)
@@ -222,14 +231,14 @@ class StoryPipelineTest(unittest.TestCase):
             manifest["revise_history"] = []
             manifest["chapter_histories"] = []
             manifest["current_step"] = "chapter_drafts"
-            manifest["completed_steps"] = PIPELINE_STEP_ORDER[:6]
+            manifest["completed_steps"] = PIPELINE_STEP_ORDER[:7]
             manifest["checkpoints"] = [
                 {
                     "step": step_name,
                     "status": "completed",
                     "completed_steps": PIPELINE_STEP_ORDER[: index + 1],
                 }
-                for index, step_name in enumerate(PIPELINE_STEP_ORDER[:6])
+                for index, step_name in enumerate(PIPELINE_STEP_ORDER[:7])
             ]
             manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
 

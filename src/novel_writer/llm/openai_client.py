@@ -5,7 +5,7 @@ from json import JSONDecodeError
 from typing import Any
 
 from novel_writer.llm.base import BaseLLMClient
-from novel_writer.schema import StoryInput
+from novel_writer.schema import StoryInput, validate_story_bible
 
 
 class OpenAIClient(BaseLLMClient):
@@ -182,6 +182,7 @@ class OpenAIClient(BaseLLMClient):
         logline: dict[str, Any],
         characters: list[dict[str, Any]],
         three_act_plot: dict[str, Any],
+        story_bible: dict[str, Any],
     ) -> list[dict[str, Any]]:
         data = self._generate_json(
             "You generate a short chapter plan in Japanese.",
@@ -189,7 +190,8 @@ class OpenAIClient(BaseLLMClient):
                 "Return JSON with key 'chapter_plan' as an array. "
                 f"story={story_input.to_dict()}, logline={json.dumps(logline, ensure_ascii=False)}, "
                 f"characters={json.dumps(characters, ensure_ascii=False)}, "
-                f"plot={json.dumps(three_act_plot, ensure_ascii=False)}"
+                f"plot={json.dumps(three_act_plot, ensure_ascii=False)}, "
+                f"story_bible={json.dumps(story_bible, ensure_ascii=False)}"
             ),
         )
         root = self._require_dict(data, "chapter_plan root")
@@ -198,6 +200,26 @@ class OpenAIClient(BaseLLMClient):
             "chapter_plan",
             ("chapter_number", "title", "purpose", "point_of_view", "target_words"),
         )
+
+    def generate_story_bible(
+        self,
+        story_input: StoryInput,
+        logline: dict[str, Any],
+        characters: list[dict[str, Any]],
+        three_act_plot: dict[str, Any],
+    ) -> dict[str, Any]:
+        data = self._generate_json(
+            "You generate a long-form story bible in Japanese.",
+            (
+                "Return JSON with key 'story_bible'. "
+                f"story={story_input.to_dict()}, logline={json.dumps(logline, ensure_ascii=False)}, "
+                f"characters={json.dumps(characters, ensure_ascii=False)}, "
+                f"plot={json.dumps(three_act_plot, ensure_ascii=False)}"
+            ),
+        )
+        root = self._require_dict(data, "story_bible root")
+        story_bible = self._require_dict(root.get("story_bible"), "story_bible")
+        return validate_story_bible(story_bible)
 
     def generate_chapter_draft(
         self,

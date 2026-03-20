@@ -10,12 +10,14 @@ from novel_writer.storage import (
     load_project_manifest,
     load_publish_ready_bundle,
     load_run_comparison_summary,
+    load_story_bible,
     normalize_project_id,
     resolve_artifact_path,
     save_artifact,
     save_publish_ready_bundle,
     save_project_manifest,
     save_run_comparison_summary,
+    save_story_bible,
 )
 
 
@@ -168,6 +170,86 @@ class SaveArtifactTest(unittest.TestCase):
             self.assertEqual(saved["project_id"], payload["project_id"])
             self.assertEqual(saved["schema_name"], "project_manifest")
             self.assertEqual(saved["schema_version"], "1.0")
+
+    def test_save_story_bible_validates_required_fields(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            with self.assertRaisesRegex(ValueError, "missing required fields: ending_reveal, forbidden_facts"):
+                save_story_bible(
+                    Path(tmp_dir),
+                    {
+                        "schema_name": "story_bible",
+                        "schema_version": "1.0",
+                        "core_premise": "記憶を失うたびに未来が書き換わる。",
+                        "theme_statement": "喪失の先でも選び直せる。",
+                        "character_arcs": [],
+                        "world_rules": [],
+                        "foreshadowing_seeds": [],
+                    },
+                )
+
+    def test_save_story_bible_writes_story_design_contract(self) -> None:
+        payload = {
+            "schema_name": "story_bible",
+            "schema_version": "1.0",
+            "core_premise": "記憶を失うたびに未来が書き換わる。",
+            "ending_reveal": "喪失の原因は主人公自身の選択だった。",
+            "theme_statement": "喪失の先でも選び直せる。",
+            "character_arcs": [{"name": "ミナト", "want": "過去の回復", "need": "罪を認めること"}],
+            "world_rules": ["記憶改変は一日一度だけ起きる"],
+            "forbidden_facts": ["第1章では黒幕の正体を明かさない"],
+            "foreshadowing_seeds": [{"id": "seed-1", "setup": "壊れた腕時計", "payoff_target": "終盤の真相"}],
+        }
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            target = save_story_bible(Path(tmp_dir), payload, "json")
+            saved = json.loads(target.read_text(encoding="utf-8"))
+
+            self.assertEqual(target.name, "story_bible.json")
+            self.assertEqual(saved, payload)
+
+    def test_load_story_bible_rejects_unsupported_schema_version(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            save_artifact(
+                Path(tmp_dir),
+                "story_bible",
+                {
+                    "schema_name": "story_bible",
+                    "schema_version": "9.9",
+                    "core_premise": "記憶を失うたびに未来が書き換わる。",
+                    "ending_reveal": "喪失の原因は主人公自身の選択だった。",
+                    "theme_statement": "喪失の先でも選び直せる。",
+                    "character_arcs": [],
+                    "world_rules": [],
+                    "forbidden_facts": [],
+                    "foreshadowing_seeds": [],
+                },
+                "json",
+            )
+
+            with self.assertRaisesRegex(ValueError, "schema_version='9.9' is not supported; expected '1.0'"):
+                load_story_bible(Path(tmp_dir))
+
+    def test_load_story_bible_rejects_invalid_list_contract(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            save_artifact(
+                Path(tmp_dir),
+                "story_bible",
+                {
+                    "schema_name": "story_bible",
+                    "schema_version": "1.0",
+                    "core_premise": "記憶を失うたびに未来が書き換わる。",
+                    "ending_reveal": "喪失の原因は主人公自身の選択だった。",
+                    "theme_statement": "喪失の先でも選び直せる。",
+                    "character_arcs": [],
+                    "world_rules": {"law": "time memory conservation"},
+                    "forbidden_facts": [],
+                    "foreshadowing_seeds": [],
+                },
+                "json",
+            )
+
+            with self.assertRaisesRegex(ValueError, "world_rules must be a list"):
+                load_story_bible(Path(tmp_dir))
 
     def test_load_project_manifest_validates_required_fields(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

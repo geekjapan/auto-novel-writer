@@ -169,7 +169,8 @@ class MockLLMClientTest(unittest.TestCase):
         loglines = client.generate_loglines(story_input)
         characters = client.generate_characters(story_input, loglines[0])
         plot = client.generate_three_act_plot(story_input, loglines[0], characters)
-        chapter_plan = client.generate_chapter_plan(story_input, loglines[0], characters, plot)
+        story_bible = client.generate_story_bible(story_input, loglines[0], characters, plot)
+        chapter_plan = client.generate_chapter_plan(story_input, loglines[0], characters, plot, story_bible)
         draft = client.generate_chapter_draft(story_input, loglines[0], characters, chapter_plan)
         revised = client.revise_chapter_draft(
             story_input,
@@ -183,7 +184,10 @@ class MockLLMClientTest(unittest.TestCase):
         self.assertEqual(len(loglines), 3)
         self.assertEqual(len(characters), 3)
         self.assertIn("act_1", plot)
+        self.assertEqual(story_bible["schema_name"], "story_bible")
+        self.assertIn("ending_reveal", story_bible)
         self.assertEqual(chapter_plan[0]["chapter_number"], 1)
+        self.assertIn(story_bible["theme_statement"], chapter_plan[0]["purpose"])
         self.assertEqual(draft["chapter_number"], 1)
         self.assertEqual(revised["chapter_number"], 1)
         self.assertEqual(revised["chapter_index"], 0)
@@ -255,6 +259,31 @@ class MockLLMClientTest(unittest.TestCase):
                 {"id": "logline-1", "title": "鏡", "premise": "p", "hook": "h"},
                 [{"chapter_number": 1, "title": "第1章 導入", "purpose": "導入", "point_of_view": "篠崎 遥", "target_words": 1000}],
                 [{"chapter_number": 1, "title": "第1章 導入", "summary": "導入", "text": "本文"}],
+            )
+
+    def test_openai_client_validates_story_bible_schema(self) -> None:
+        client = FakeOpenAIClient(
+            {
+                "story_bible": {
+                    "schema_name": "story_bible",
+                    "schema_version": "1.0",
+                    "core_premise": "premise",
+                    "theme_statement": "theme",
+                    "character_arcs": [],
+                    "world_rules": [],
+                    "forbidden_facts": [],
+                    "foreshadowing_seeds": [],
+                }
+            }
+        )
+        story_input = StoryInput(theme="喪失", genre="ミステリ", tone="静謐", target_length=6000)
+
+        with self.assertRaises(ValueError):
+            client.generate_story_bible(
+                story_input,
+                {"id": "logline-1", "title": "鏡", "premise": "p", "hook": "h"},
+                [{"name": "篠崎 遥", "role": "protagonist", "goal": "g", "conflict": "c", "arc": "a"}],
+                {"act_1": {}, "act_2": {}, "act_3": {}},
             )
 
 

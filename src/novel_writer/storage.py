@@ -7,6 +7,7 @@ from typing import Any
 
 from novel_writer.schema import (
     project_manifest_contract,
+    validate_story_bible,
     validate_project_manifest,
     validate_publish_ready_bundle,
     validate_run_comparison_summary,
@@ -92,6 +93,17 @@ def save_project_manifest(
     manifest_payload.setdefault("schema_version", contract["schema_version"])
     validate_project_manifest(manifest_payload)
     return save_artifact(project_layout["project_dir"], "project_manifest", manifest_payload, file_format)
+
+
+def save_story_bible(output_dir: Path, payload: Any, file_format: str = "json") -> Path:
+    validate_story_bible(payload)
+    return save_artifact(output_dir, "story_bible", payload, file_format)
+
+
+def load_story_bible(output_dir: Path, file_format: str | None = None) -> dict[str, Any]:
+    payload = load_artifact(output_dir, "story_bible", file_format)
+    validate_story_bible(payload)
+    return payload
 
 
 def load_project_manifest(project_dir: Path, file_format: str | None = None) -> dict[str, Any]:

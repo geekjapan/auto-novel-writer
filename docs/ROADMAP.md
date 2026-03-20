@@ -114,6 +114,15 @@ CLI から小説プロジェクトを作成し、長編小説を
 目的:
 長編の土台になる作品設計を、後続工程が参照できる contract に落とす。
 
+進捗:
+
+- `story_bible` の schema / storage contract は導入済み
+- 最低限の required field と validation は tests で固定済み
+- pipeline は `three_act_plot` の後に `story_bible.json` を生成・保存できる
+- provider interface は `generate_story_bible()` を持ち、mock / OpenAI client から同じ contract を返せる
+- `chapter_plan` は `story_bible` を参照し、theme statement / ending reveal / foreshadowing seed を planning に反映できる
+- 次は導入済みの `story_bible` を chapter brief / scene planning へ広げる
+
 完了条件:
 
 - `story_bible.json` を生成・保存できる
