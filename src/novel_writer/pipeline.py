@@ -8,7 +8,14 @@ from novel_writer.continuity import ContinuityChecker
 from novel_writer.llm_client import BaseLLMClient
 from novel_writer.rerun_policy import ContinuityRerunPolicy
 from novel_writer.schema import StoryArtifacts, StoryInput
-from novel_writer.storage import load_artifact, load_publish_ready_bundle, save_artifact, save_publish_ready_bundle
+from novel_writer.storage import (
+    load_artifact,
+    load_publish_ready_bundle,
+    load_story_bible,
+    save_artifact,
+    save_publish_ready_bundle,
+    save_story_bible,
+)
 
 
 PIPELINE_STEP_ORDER = [
@@ -16,6 +23,7 @@ PIPELINE_STEP_ORDER = [
     "loglines",
     "characters",
     "three_act_plot",
+    "story_bible",
     "chapter_plan",
     "chapter_drafts",
     "continuity_report",
@@ -229,9 +237,26 @@ class StoryPipeline:
             selected_logline,
             artifacts.characters,
             artifacts.three_act_plot,
+            artifacts.story_bible,
         )
         save_artifact(self.output_dir, "04_chapter_plan", artifacts.chapter_plan, self.file_format)
         self._mark_checkpoint("chapter_plan", checkpoints, artifacts, selected_logline)
+
+    def _run_story_bible_step(
+        self,
+        story_input: StoryInput,
+        selected_logline: dict,
+        artifacts: StoryArtifacts,
+        checkpoints: list[dict],
+    ) -> None:
+        artifacts.story_bible = self.llm_client.generate_story_bible(
+            story_input,
+            selected_logline,
+            artifacts.characters,
+            artifacts.three_act_plot,
+        )
+        save_story_bible(self.output_dir, artifacts.story_bible, self.file_format)
+        self._mark_checkpoint("story_bible", checkpoints, artifacts, selected_logline)
 
     def _run_chapter_drafts_step(
         self,
@@ -332,6 +357,9 @@ class StoryPipeline:
         if step_name == "three_act_plot":
             self._run_three_act_plot_step(story_input, selected_logline, artifacts, checkpoints)
             return selected_logline
+        if step_name == "story_bible":
+            self._run_story_bible_step(story_input, selected_logline, artifacts, checkpoints)
+            return selected_logline
         if step_name == "chapter_plan":
             self._run_chapter_plan_step(story_input, selected_logline, artifacts, checkpoints)
             return selected_logline
@@ -367,6 +395,7 @@ class StoryPipeline:
             "loglines",
             "characters",
             "three_act_plot",
+            "story_bible",
             "chapter_plan",
             "chapter_drafts",
             "chapter_1_draft",
@@ -383,6 +412,11 @@ class StoryPipeline:
         ]:
             if field_name in artifacts_data:
                 setattr(artifacts, field_name, artifacts_data[field_name])
+        if not artifacts.story_bible:
+            try:
+                artifacts.story_bible = load_story_bible(resume_from)
+            except FileNotFoundError:
+                pass
         if not artifacts.publish_ready_bundle:
             try:
                 artifacts.publish_ready_bundle = load_publish_ready_bundle(resume_from)
@@ -413,6 +447,9 @@ class StoryPipeline:
             return
         if rerun_from == "three_act_plot":
             self._reset_from_three_act_plot(artifacts)
+            return
+        if rerun_from == "story_bible":
+            self._reset_from_story_bible(artifacts)
             return
         if rerun_from == "chapter_plan":
             self._reset_from_chapter_plan(artifacts)
@@ -448,6 +485,10 @@ class StoryPipeline:
 
     def _reset_from_three_act_plot(self, artifacts: StoryArtifacts) -> None:
         artifacts.three_act_plot = {}
+        self._reset_from_story_bible(artifacts)
+
+    def _reset_from_story_bible(self, artifacts: StoryArtifacts) -> None:
+        artifacts.story_bible = {}
         self._reset_from_chapter_plan(artifacts)
 
     def _reset_from_chapter_plan(self, artifacts: StoryArtifacts) -> None:
@@ -692,6 +733,7 @@ class StoryPipeline:
                 selected_logline,
                 artifacts.characters,
                 artifacts.three_act_plot,
+                artifacts.story_bible,
             )
             save_artifact(self.output_dir, "04_chapter_plan", artifacts.chapter_plan, self.file_format)
 

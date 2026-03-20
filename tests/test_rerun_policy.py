@@ -58,20 +58,33 @@ class CountingLLMClient:
             "act_3": {"resolution": "resolution"},
         }
 
-    def generate_chapter_plan(self, story_input, logline, characters, three_act_plot):
+    def generate_story_bible(self, story_input, logline, characters, three_act_plot):
+        return {
+            "schema_name": "story_bible",
+            "schema_version": "1.0",
+            "core_premise": logline["premise"],
+            "ending_reveal": "resolution",
+            "theme_statement": f"{story_input.theme} を通じて変化を描く。",
+            "character_arcs": characters,
+            "world_rules": ["rule-1"],
+            "forbidden_facts": ["fact-1"],
+            "foreshadowing_seeds": [{"id": "seed-1"}],
+        }
+
+    def generate_chapter_plan(self, story_input, logline, characters, three_act_plot, story_bible):
         self.chapter_plan_calls += 1
         return [
             {
                 "chapter_number": 1,
                 "title": f"第1章 導入 {self.chapter_plan_calls}",
-                "purpose": "setup",
+                "purpose": f"setup {story_bible['theme_statement']}",
                 "point_of_view": "篠崎 遥",
                 "target_words": 1000,
             },
             {
                 "chapter_number": 2,
                 "title": f"第2章 対立 {self.chapter_plan_calls}",
-                "purpose": "conflict",
+                "purpose": f"conflict {story_bible['ending_reveal']}",
                 "point_of_view": "篠崎 遥",
                 "target_words": 1000,
             }
@@ -260,7 +273,7 @@ class ContinuityRerunPolicyTest(unittest.TestCase):
         self.assertEqual(artifacts.rerun_history[1]["severity"], "medium")
         self.assertEqual(artifacts.rerun_history[2]["action_taken"], "reran_chapter_draft")
         self.assertEqual(artifacts.rerun_history[2]["chapter_index"], 1)
-        self.assertEqual(artifacts.revised_chapter_1_draft["summary"], "setup")
+        self.assertEqual(artifacts.revised_chapter_1_draft["summary"], "setup 記憶 を通じて変化を描く。")
         self.assertEqual(artifacts.revised_chapter_1_draft["chapter_index"], 0)
         self.assertEqual(artifacts.revised_chapter_drafts[1]["chapter_index"], 1)
 

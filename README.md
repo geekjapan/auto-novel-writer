@@ -3,7 +3,7 @@
 `auto-novel-writer` は、CLI ベースの小説制作パイプラインです。  
 目指すのは「一発で完成原稿を出す本文生成器」ではなく、**小説制作を工程分解し、章単位・作品単位で再開可能に回せる制御基盤**です。
 
-現在は、CLI 入力から `story_input`、`loglines`、`characters`、`three_act_plot`、`chapter_plan`、全章 draft、全章 revised draft、quality 系 artifact、project/run 管理用 manifest、comparison artifact までを順に生成できます。
+現在は、CLI 入力から `story_input`、`loglines`、`characters`、`three_act_plot`、`story_bible`、`chapter_plan`、全章 draft、全章 revised draft、quality 系 artifact、project/run 管理用 manifest、comparison artifact までを順に生成できます。
 
 ## ソフトウェアの目的
 
@@ -31,6 +31,7 @@
 - 章別履歴束ね: `chapter_histories`
 - 全章草稿の正本: `chapter_drafts`
 - 全章改稿稿の正本: `revised_chapter_drafts`
+- 長編設計の正本: `story_bible`
 - chapter 1 互換出力: `chapter_1_draft`, `revised_chapter_1_draft`, `continuity_report`
 - 配布向け成果物: `publish_ready_bundle.json`
 - artifact 契約定義: `artifact_contract`
@@ -57,8 +58,9 @@
 2. `loglines`
 3. `characters`
 4. `three_act_plot`
-5. `chapter_plan`
-6. `chapter_drafts`
+5. `story_bible`
+6. `chapter_plan`
+7. `chapter_drafts`
 
 `chapter_plan` は全件ループで処理し、各章の `chapter_{n}_draft` を保存します。
 
@@ -115,6 +117,22 @@
 - `best_run` の比較根拠となる comparison metrics の保存
 - current run と `best_run` の比較結果を CLI から確認
 - `show-project-status` / `show-run-comparison` の read-only 表示
+- `story_bible` の schema / storage contract
+
+## 長編設計 artifact の現状
+
+`story_bible` は、長編向け設計情報を保持するための正本 artifact として導入済みです。
+現在は pipeline で `three_act_plot` の後に生成し、storage / validation を通して保存します。最低限以下の field を固定しています。
+
+- `core_premise`
+- `ending_reveal`
+- `theme_statement`
+- `character_arcs`
+- `world_rules`
+- `forbidden_facts`
+- `foreshadowing_seeds`
+
+現在は `chapter_plan` 生成も `story_bible` を参照し、テーマ命題や終盤の真相、伏線情報を planning に反映します。
 
 ## chapter 1 互換 artifact と全章状態
 
@@ -217,14 +235,15 @@ novel-writer --resume-from-output-dir data\sample_run --rerun-from chapter_draft
 2. `loglines`
 3. `characters`
 4. `three_act_plot`
-5. `chapter_plan`
-6. `chapter_drafts`
-7. `continuity_report`
-8. `quality_report`
-9. `revised_chapter_drafts`
-10. `story_summary`
-11. `project_quality_report`
-12. `publish_ready_bundle`
+5. `story_bible`
+6. `chapter_plan`
+7. `chapter_drafts`
+8. `continuity_report`
+9. `quality_report`
+10. `revised_chapter_drafts`
+11. `story_summary`
+12. `project_quality_report`
+13. `publish_ready_bundle`
 
 ## project-level run
 
@@ -277,6 +296,7 @@ novel-writer rerun-chapter --project-id "my-story-01" --chapter-number 2
 - `01_loglines`
 - `02_characters`
 - `03_three_act_plot`
+- `story_bible`
 - `04_chapter_plan`
 - `05_chapter_1_draft`
 - `chapter_{n}_draft`

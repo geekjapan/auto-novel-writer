@@ -25,12 +25,23 @@ class BaseLLMClient(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def generate_story_bible(
+        self,
+        story_input: StoryInput,
+        logline: dict[str, Any],
+        characters: list[dict[str, Any]],
+        three_act_plot: dict[str, Any],
+    ) -> dict[str, Any]:
+        raise NotImplementedError
+
+    @abstractmethod
     def generate_chapter_plan(
         self,
         story_input: StoryInput,
         logline: dict[str, Any],
         characters: list[dict[str, Any]],
         three_act_plot: dict[str, Any],
+        story_bible: dict[str, Any],
     ) -> list[dict[str, Any]]:
         raise NotImplementedError
 
