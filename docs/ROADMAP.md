@@ -36,6 +36,8 @@ CLI から小説プロジェクトを作成し、長編小説を
 
 ## Gap To Goal
 
+実装済みなのは、**全章生成・再開・再実行・改稿・作品単位成果物出力までの基盤**です。  
+また、LLM provider 境界は openai-compatible / lmstudio / ollama まで広がっています。  
 長編自律執筆に対して、現在不足している主な能力は以下である。
 
 ### 1. Story Bible がない
@@ -267,3 +269,4 @@ M57 の実装順は次のとおりに進める。
 - ROADMAP は「最終目標までに必要な能力」を書く
 - TASKS は「次に安全に実装できる最小単位」を書く
 - docs では既存の `run_candidates` / `best_run` / `chapter_statuses` / `chapter_histories` / `artifact_contract` / `long_run_status` を維持しつつ、今後は `story_bible` / `chapter_briefs` / `scene_cards` / `canon_ledger` / `thread_registry` / `replan_history` を追加の正本語彙として育てる
+
