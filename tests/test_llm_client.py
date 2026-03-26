@@ -218,6 +218,27 @@ class MockLLMClientTest(unittest.TestCase):
         self.assertEqual(story_summary["chapter_count"], len(chapter_plan))
         self.assertIn("synopsis", story_summary)
 
+    def test_mock_client_generates_chapter_briefs_and_scene_cards(self) -> None:
+        client = MockLLMClient()
+        story_input = StoryInput(theme="喪失", genre="ミステリ", tone="静謐", target_length=120000)
+        loglines = client.generate_loglines(story_input)
+        characters = client.generate_characters(story_input, loglines[0])
+        plot = client.generate_three_act_plot(story_input, loglines[0], characters)
+        story_bible = client.generate_story_bible(story_input, loglines[0], characters, plot)
+        chapter_plan = client.generate_chapter_plan(story_input, loglines[0], characters, plot, story_bible)
+
+        chapter_briefs = client.generate_chapter_briefs(
+            story_input, loglines[0], characters, plot, story_bible, chapter_plan
+        )
+        scene_cards = client.generate_scene_cards(
+            story_input, loglines[0], characters, plot, story_bible, chapter_plan, chapter_briefs
+        )
+
+        self.assertEqual(len(chapter_briefs), len(chapter_plan))
+        self.assertEqual(len(scene_cards), len(chapter_plan))
+        self.assertEqual(scene_cards[0]["chapter_number"], chapter_briefs[0]["chapter_number"])
+        self.assertGreaterEqual(len(scene_cards[0]["scenes"]), 3)
+
     def test_openai_client_validates_logline_schema(self) -> None:
         client = FakeOpenAIClient({"loglines": [{"id": "1", "title": "t"}]})
         story_input = StoryInput(theme="喪失", genre="ミステリ", tone="静謐", target_length=6000)
@@ -307,6 +328,42 @@ class MockLLMClientTest(unittest.TestCase):
                 {"id": "logline-1", "title": "鏡", "premise": "p", "hook": "h"},
                 [{"name": "篠崎 遥", "role": "protagonist", "goal": "g", "conflict": "c", "arc": "a"}],
                 {"act_1": {}, "act_2": {}, "act_3": {}},
+            )
+
+    def test_openai_client_validates_scene_cards_shape(self) -> None:
+        client = FakeOpenAIClient({"scene_cards": [{"chapter_number": 1, "scenes": "not-a-list"}]})
+        story_input = StoryInput(theme="喪失", genre="ミステリ", tone="静謐", target_length=120000)
+
+        with self.assertRaisesRegex(ValueError, "scene_cards\\[0\\].scenes must be a list"):
+            client.generate_scene_cards(
+                story_input,
+                {"id": "logline-1", "title": "鏡", "premise": "p", "hook": "h"},
+                [{"name": "篠崎 遥"}],
+                {"act_1": {}, "act_2": {}, "act_3": {}},
+                {
+                    "schema_name": "story_bible",
+                    "schema_version": "1.0",
+                    "core_premise": "p",
+                    "ending_reveal": "r",
+                    "theme_statement": "t",
+                    "character_arcs": [],
+                    "world_rules": [],
+                    "forbidden_facts": [],
+                    "foreshadowing_seeds": [],
+                },
+                [{"chapter_number": 1, "title": "第1章", "purpose": "導入", "point_of_view": "篠崎 遥", "target_words": 5000}],
+                [{
+                    "chapter_number": 1,
+                    "purpose": "導入",
+                    "goal": "g",
+                    "conflict": "c",
+                    "turn": "t",
+                    "must_include": [],
+                    "continuity_dependencies": [],
+                    "foreshadowing_targets": [],
+                    "arc_progress": "a",
+                    "target_length_guidance": "標準",
+                }],
             )
 
 

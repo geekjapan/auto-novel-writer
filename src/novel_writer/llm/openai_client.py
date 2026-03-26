@@ -5,7 +5,12 @@ from json import JSONDecodeError
 from typing import Any
 
 from novel_writer.llm.base import BaseLLMClient
-from novel_writer.schema import StoryInput, validate_story_bible
+from novel_writer.schema import (
+    StoryInput,
+    validate_chapter_briefs,
+    validate_scene_cards,
+    validate_story_bible,
+)
 
 
 class OpenAIClient(BaseLLMClient):
@@ -221,12 +226,85 @@ class OpenAIClient(BaseLLMClient):
         story_bible = self._require_dict(root.get("story_bible"), "story_bible")
         return validate_story_bible(story_bible)
 
+    def generate_chapter_briefs(
+        self,
+        story_input: StoryInput,
+        logline: dict[str, Any],
+        characters: list[dict[str, Any]],
+        three_act_plot: dict[str, Any],
+        story_bible: dict[str, Any],
+        chapter_plan: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        data = self._generate_json(
+            "You generate chapter briefs in Japanese.",
+            (
+                "Return JSON with key 'chapter_briefs' as an array. "
+                f"story={story_input.to_dict()}, "
+                f"chapter_plan={json.dumps(chapter_plan, ensure_ascii=False)}, "
+                f"story_bible={json.dumps(story_bible, ensure_ascii=False)}"
+            ),
+        )
+        root = self._require_dict(data, "chapter_briefs root")
+        chapter_briefs = self._require_object_list(
+            root.get("chapter_briefs"),
+            "chapter_briefs",
+            (
+                "chapter_number",
+                "purpose",
+                "goal",
+                "conflict",
+                "turn",
+                "must_include",
+                "continuity_dependencies",
+                "foreshadowing_targets",
+                "arc_progress",
+                "target_length_guidance",
+            ),
+            expected_length=len(chapter_plan),
+        )
+        return validate_chapter_briefs(chapter_briefs)
+
+    def generate_scene_cards(
+        self,
+        story_input: StoryInput,
+        logline: dict[str, Any],
+        characters: list[dict[str, Any]],
+        three_act_plot: dict[str, Any],
+        story_bible: dict[str, Any],
+        chapter_plan: list[dict[str, Any]],
+        chapter_briefs: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        data = self._generate_json(
+            "You generate scene cards in Japanese.",
+            (
+                "Return JSON with key 'scene_cards' as an array. "
+                f"story={story_input.to_dict()}, "
+                f"chapter_plan={json.dumps(chapter_plan, ensure_ascii=False)}, "
+                f"chapter_briefs={json.dumps(chapter_briefs, ensure_ascii=False)}, "
+                f"story_bible={json.dumps(story_bible, ensure_ascii=False)}"
+            ),
+        )
+        root = self._require_dict(data, "scene_cards root")
+        packets = self._require_object_list(
+            root.get("scene_cards"),
+            "scene_cards",
+            ("chapter_number", "scenes"),
+            expected_length=len(chapter_plan),
+        )
+        for index, packet in enumerate(packets):
+            scenes = packet.get("scenes")
+            if not isinstance(scenes, list):
+                raise ValueError(f"OpenAI response for scene_cards[{index}].scenes must be a list.")
+        return validate_scene_cards(packets)
+
     def generate_chapter_draft(
         self,
         story_input: StoryInput,
         logline: dict[str, Any],
         characters: list[dict[str, Any]],
         chapter_plan: list[dict[str, Any]],
+        chapter_briefs: list[dict[str, Any]] | None = None,
+        scene_cards: list[dict[str, Any]] | None = None,
         chapter_index: int = 0,
     ) -> dict[str, Any]:
         data = self._generate_json(
@@ -236,6 +314,8 @@ class OpenAIClient(BaseLLMClient):
                 f"story={story_input.to_dict()}, logline={json.dumps(logline, ensure_ascii=False)}, "
                 f"characters={json.dumps(characters, ensure_ascii=False)}, "
                 f"chapter_plan={json.dumps(chapter_plan, ensure_ascii=False)}, "
+                f"chapter_briefs={json.dumps(chapter_briefs, ensure_ascii=False)}, "
+                f"scene_cards={json.dumps(scene_cards, ensure_ascii=False)}, "
                 f"chapter_index={chapter_index}"
             ),
         )
