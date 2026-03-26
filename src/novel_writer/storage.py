@@ -11,6 +11,7 @@ from novel_writer.schema import (
     validate_chapter_handoff_packet,
     validate_chapter_briefs,
     validate_progress_report,
+    validate_replan_entry,
     validate_replan_history,
     project_manifest_contract,
     validate_scene_cards,
@@ -140,6 +141,34 @@ def load_replan_history(output_dir: Path, file_format: str | None = None) -> dic
     payload = load_artifact(output_dir, "replan_history", file_format)
     validate_replan_history(payload)
     return payload
+
+
+def upsert_replan_history_entry(
+    output_dir: Path,
+    replan_payload: Any,
+    file_format: str = "json",
+) -> Path:
+    validated_replan = validate_replan_entry(replan_payload, "replan_payload")
+    try:
+        history_payload = load_replan_history(output_dir, file_format)
+    except FileNotFoundError:
+        history_payload = {
+            "schema_name": "replan_history",
+            "schema_version": "1.0",
+            "replans": [],
+        }
+
+    replans = list(history_payload["replans"])
+    target_replan_id = validated_replan["replan_id"]
+    for index, existing_replan in enumerate(replans):
+        if existing_replan.get("replan_id") == target_replan_id:
+            replans[index] = validated_replan
+            history_payload["replans"] = replans
+            return save_replan_history(output_dir, history_payload, file_format)
+
+    replans.append(validated_replan)
+    history_payload["replans"] = replans
+    return save_replan_history(output_dir, history_payload, file_format)
 
 
 def save_canon_ledger(output_dir: Path, payload: Any, file_format: str = "json") -> Path:

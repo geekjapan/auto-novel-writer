@@ -34,6 +34,7 @@ from novel_writer.storage import (
     save_story_bible,
     save_thread_registry,
     upsert_canon_ledger_chapter,
+    upsert_replan_history_entry,
     upsert_thread_registry_entry,
 )
 
@@ -774,6 +775,100 @@ class SaveArtifactTest(unittest.TestCase):
                 "Invalid replan_history: replans\\[0\\].impact_scope is missing required fields: to_chapter",
             ):
                 load_replan_history(Path(tmp_dir))
+
+    def test_upsert_replan_history_entry_creates_new_history_when_missing(self) -> None:
+        entry = {
+            "replan_id": "replan-001",
+            "trigger_chapter_number": 5,
+            "reason": "理由",
+            "issue_codes": ["code-1"],
+            "impact_scope": {"from_chapter": 6, "to_chapter": 7, "chapter_numbers": [6, 7]},
+            "updated_artifacts": ["chapter_briefs"],
+            "change_summary": ["差分"],
+        }
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            upsert_replan_history_entry(Path(tmp_dir), entry)
+            loaded = load_replan_history(Path(tmp_dir))
+
+            self.assertEqual(len(loaded["replans"]), 1)
+            self.assertEqual(loaded["replans"][0]["replan_id"], "replan-001")
+
+    def test_upsert_replan_history_entry_appends_new_replan(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            save_replan_history(
+                Path(tmp_dir),
+                {
+                    "schema_name": "replan_history",
+                    "schema_version": "1.0",
+                    "replans": [
+                        {
+                            "replan_id": "replan-001",
+                            "trigger_chapter_number": 5,
+                            "reason": "理由1",
+                            "issue_codes": ["code-1"],
+                            "impact_scope": {"from_chapter": 6, "to_chapter": 7, "chapter_numbers": [6, 7]},
+                            "updated_artifacts": ["chapter_briefs"],
+                            "change_summary": ["差分1"],
+                        }
+                    ],
+                },
+            )
+
+            upsert_replan_history_entry(
+                Path(tmp_dir),
+                {
+                    "replan_id": "replan-002",
+                    "trigger_chapter_number": 7,
+                    "reason": "理由2",
+                    "issue_codes": ["code-2"],
+                    "impact_scope": {"from_chapter": 8, "to_chapter": 9, "chapter_numbers": [8, 9]},
+                    "updated_artifacts": ["scene_cards"],
+                    "change_summary": ["差分2"],
+                },
+            )
+            loaded = load_replan_history(Path(tmp_dir))
+
+            self.assertEqual([entry["replan_id"] for entry in loaded["replans"]], ["replan-001", "replan-002"])
+
+    def test_upsert_replan_history_entry_replaces_existing_replan(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            save_replan_history(
+                Path(tmp_dir),
+                {
+                    "schema_name": "replan_history",
+                    "schema_version": "1.0",
+                    "replans": [
+                        {
+                            "replan_id": "replan-001",
+                            "trigger_chapter_number": 5,
+                            "reason": "古い理由",
+                            "issue_codes": ["code-1"],
+                            "impact_scope": {"from_chapter": 6, "to_chapter": 7, "chapter_numbers": [6, 7]},
+                            "updated_artifacts": ["chapter_briefs"],
+                            "change_summary": ["古い差分"],
+                        }
+                    ],
+                },
+            )
+
+            upsert_replan_history_entry(
+                Path(tmp_dir),
+                {
+                    "replan_id": "replan-001",
+                    "trigger_chapter_number": 5,
+                    "reason": "新しい理由",
+                    "issue_codes": ["code-1", "code-2"],
+                    "impact_scope": {"from_chapter": 6, "to_chapter": 8, "chapter_numbers": [6, 7, 8]},
+                    "updated_artifacts": ["chapter_briefs", "scene_cards"],
+                    "change_summary": ["新しい差分"],
+                },
+            )
+            loaded = load_replan_history(Path(tmp_dir))
+
+            self.assertEqual(len(loaded["replans"]), 1)
+            self.assertEqual(loaded["replans"][0]["reason"], "新しい理由")
+            self.assertEqual(loaded["replans"][0]["impact_scope"]["to_chapter"], 8)
 
     def test_save_chapter_handoff_packet_round_trips_valid_payload(self) -> None:
         payload = {
