@@ -240,28 +240,17 @@ class OpenAIClient(BaseLLMClient):
             (
                 "Return JSON with key 'chapter_briefs' as an array. "
                 f"story={story_input.to_dict()}, "
+                f"logline={json.dumps(logline, ensure_ascii=False)}, "
+                f"characters={json.dumps(characters, ensure_ascii=False)}, "
+                f"three_act_plot={json.dumps(three_act_plot, ensure_ascii=False)}, "
                 f"chapter_plan={json.dumps(chapter_plan, ensure_ascii=False)}, "
                 f"story_bible={json.dumps(story_bible, ensure_ascii=False)}"
             ),
         )
         root = self._require_dict(data, "chapter_briefs root")
-        chapter_briefs = self._require_object_list(
-            root.get("chapter_briefs"),
-            "chapter_briefs",
-            (
-                "chapter_number",
-                "purpose",
-                "goal",
-                "conflict",
-                "turn",
-                "must_include",
-                "continuity_dependencies",
-                "foreshadowing_targets",
-                "arc_progress",
-                "target_length_guidance",
-            ),
-            expected_length=len(chapter_plan),
-        )
+        chapter_briefs = self._require_list(root.get("chapter_briefs"), "chapter_briefs")
+        if len(chapter_briefs) != len(chapter_plan):
+            raise ValueError(f"OpenAI response for chapter_briefs must contain {len(chapter_plan)} items.")
         return validate_chapter_briefs(chapter_briefs)
 
     def generate_scene_cards(
@@ -279,6 +268,9 @@ class OpenAIClient(BaseLLMClient):
             (
                 "Return JSON with key 'scene_cards' as an array. "
                 f"story={story_input.to_dict()}, "
+                f"logline={json.dumps(logline, ensure_ascii=False)}, "
+                f"characters={json.dumps(characters, ensure_ascii=False)}, "
+                f"three_act_plot={json.dumps(three_act_plot, ensure_ascii=False)}, "
                 f"chapter_plan={json.dumps(chapter_plan, ensure_ascii=False)}, "
                 f"chapter_briefs={json.dumps(chapter_briefs, ensure_ascii=False)}, "
                 f"story_bible={json.dumps(story_bible, ensure_ascii=False)}"
@@ -303,10 +295,17 @@ class OpenAIClient(BaseLLMClient):
         logline: dict[str, Any],
         characters: list[dict[str, Any]],
         chapter_plan: list[dict[str, Any]],
-        chapter_briefs: list[dict[str, Any]] | None = None,
-        scene_cards: list[dict[str, Any]] | None = None,
+        chapter_briefs: list[dict[str, Any]],
+        scene_cards: list[dict[str, Any]],
         chapter_index: int = 0,
     ) -> dict[str, Any]:
+        if chapter_index < 0 or chapter_index >= len(chapter_plan):
+            raise ValueError(f"chapter_plan must contain an entry for chapter_index={chapter_index}.")
+        if chapter_index >= len(chapter_briefs):
+            raise ValueError(f"chapter_briefs must contain an entry for chapter_index={chapter_index}.")
+        if chapter_index >= len(scene_cards):
+            raise ValueError(f"scene_cards must contain an entry for chapter_index={chapter_index}.")
+
         data = self._generate_json(
             "You generate a chapter draft in Japanese.",
             (

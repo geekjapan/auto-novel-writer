@@ -256,29 +256,25 @@ class MockLLMClient(BaseLLMClient):
         logline: dict[str, Any],
         characters: list[dict[str, Any]],
         chapter_plan: list[dict[str, Any]],
-        chapter_briefs: list[dict[str, Any]] | None = None,
-        scene_cards: list[dict[str, Any]] | None = None,
+        chapter_briefs: list[dict[str, Any]],
+        scene_cards: list[dict[str, Any]],
         chapter_index: int = 0,
     ) -> dict[str, Any]:
+        if chapter_index < 0 or chapter_index >= len(chapter_plan):
+            raise ValueError(f"chapter_plan must contain an entry for chapter_index={chapter_index}.")
+        if chapter_index >= len(chapter_briefs):
+            raise ValueError(f"chapter_briefs must contain an entry for chapter_index={chapter_index}.")
+        if chapter_index >= len(scene_cards):
+            raise ValueError(f"scene_cards must contain an entry for chapter_index={chapter_index}.")
+
         chapter = chapter_plan[chapter_index]
-        protagonist = characters[0]["name"]
-        brief = chapter_briefs[chapter_index] if chapter_briefs else None
-        packet = scene_cards[chapter_index] if scene_cards else None
+        brief = chapter_briefs[chapter_index]
+        packet = scene_cards[chapter_index]
         return {
             "chapter_number": chapter["chapter_number"],
             "title": chapter["title"],
-            "summary": brief["goal"] if brief else chapter["purpose"],
-            "text": (
-                f"{brief['purpose']}。{packet['scenes'][0]['exit_state']}へ向かう本文。"
-                if brief and packet
-                else (
-                    f"{protagonist}はまだ夜の静けさに慣れずにいた。"
-                    f"{story_input.theme}の気配は、窓を叩く風よりも近くで息をしている。"
-                    f"目の前の選択は小さく見えて、その実、これから失うものすべてを量っていた。"
-                    f"『{logline['title']}』の始まりとして、"
-                    f"{story_input.tone}な空気と不穏な予感を前景に置いた導入を書く。"
-                )
-            ),
+            "summary": brief["goal"],
+            "text": f"{brief['purpose']}。{packet['scenes'][0]['exit_state']}へ向かう本文。",
         }
 
     def revise_chapter_draft(

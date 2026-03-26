@@ -77,8 +77,8 @@ class BaseLLMClient(ABC):
         logline: dict[str, Any],
         characters: list[dict[str, Any]],
         chapter_plan: list[dict[str, Any]],
-        chapter_briefs: list[dict[str, Any]] | None = None,
-        scene_cards: list[dict[str, Any]] | None = None,
+        chapter_briefs: list[dict[str, Any]],
+        scene_cards: list[dict[str, Any]],
         chapter_index: int = 0,
     ) -> dict[str, Any]:
         raise NotImplementedError
