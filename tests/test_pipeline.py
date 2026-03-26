@@ -120,6 +120,23 @@ class NoRerunContinuityChecker:
             "issues": [],
         }
 
+    def build_progress_report(self, artifacts, thread_registry):
+        return {
+            "schema_name": "progress_report",
+            "schema_version": "1.0",
+            "evaluated_through_chapter": len(artifacts.chapter_plan),
+            "checks": {
+                "chapter_role_coverage": {"status": "ok", "summary": "ok", "evidence": []},
+                "escalation_pace": {"status": "ok", "summary": "ok", "evidence": []},
+                "emotional_progression": {"status": "ok", "summary": "ok", "evidence": []},
+                "foreshadowing_coverage": {"status": "ok", "summary": "ok", "evidence": []},
+                "unresolved_thread_load": {"status": "ok", "summary": "ok", "evidence": []},
+                "climax_readiness": {"status": "ok", "summary": "ok", "evidence": []},
+            },
+            "issue_codes": [],
+            "recommended_action": "continue",
+        }
+
 
 class StopBeforeRevisionContinuityChecker(NoRerunContinuityChecker):
     def build_report(self, artifacts, chapter_index=0):
@@ -174,6 +191,7 @@ class StoryPipelineTest(unittest.TestCase):
                 "revised_chapter_3_draft.json",
                 "story_summary.json",
                 "project_quality_report.json",
+                "progress_report.json",
                 "publish_ready_bundle.json",
                 "manifest.json",
             ]
@@ -190,6 +208,7 @@ class StoryPipelineTest(unittest.TestCase):
             project_quality_report = json.loads(
                 (output_dir / "project_quality_report.json").read_text(encoding="utf-8")
             )
+            progress_report = json.loads((output_dir / "progress_report.json").read_text(encoding="utf-8"))
             publish_ready_bundle = json.loads(
                 (output_dir / "publish_ready_bundle.json").read_text(encoding="utf-8")
             )
@@ -237,6 +256,8 @@ class StoryPipelineTest(unittest.TestCase):
             self.assertEqual(artifacts.project_quality_report, project_quality_report)
             self.assertEqual(manifest["artifacts"]["project_quality_report"], project_quality_report)
             self.assertIn("checks", project_quality_report)
+            self.assertEqual(progress_report["schema_name"], "progress_report")
+            self.assertEqual(manifest["artifacts"]["progress_report"], progress_report)
             self.assertEqual(artifacts.publish_ready_bundle, publish_ready_bundle)
             self.assertEqual(manifest["artifacts"]["publish_ready_bundle"], publish_ready_bundle)
             self.assertEqual(publish_ready_bundle["schema_version"], "1.0")
@@ -365,6 +386,7 @@ class StoryPipelineTest(unittest.TestCase):
             "revised_chapter_drafts",
             "story_summary",
             "project_quality_report",
+            "progress_report",
             "publish_ready_bundle",
         ]
 

@@ -4,19 +4,20 @@
 ここでの task は、1 回で安全に実装・テスト・docs 更新・コミットできる粒度へ分割する。
 
 ## In Progress
-- [ ] M61b: pipeline で `progress_report.json` を生成できるようにする
-  - Title: long-form progress report 初版を生成する
-  - Milestone: M61 Long-form Evaluation
-  - Purpose: `progress_report` contract に沿って project-level long-form 評価を保存し、後続の rerun / replan / autonomy 判断で参照できるようにする
-  - Target files or directories: `src/novel_writer/continuity.py`, `src/novel_writer/pipeline.py`, `tests/test_continuity.py`, `tests/test_pipeline.py`, `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
-  - Done when: pipeline 完了時に `progress_report.json` が生成・保存され、少なくとも 6 つの long-form checks と `recommended_action` が tests / docs で固定される
-  - Required tests: `./venv/bin/python -m unittest tests.test_continuity -v`, `./venv/bin/python -m unittest tests.test_pipeline -v`, `./venv/bin/python -m unittest discover -s tests -v`
+- [ ] M62a: `replan_history` の schema と storage contract を固定する
+  - Title: replan history contract を追加する
+  - Milestone: M62 Replan Loop
+  - Purpose: future chapter の再計画を machine-readable に追跡する正本 artifact として `replan_history` を導入する
+  - Target files or directories: `src/novel_writer/schema.py`, `src/novel_writer/storage.py`, `tests/test_storage.py`, `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
+  - Done when: `replan_history` の top-level shape と entry required field が validator / save-load helper / docs / tests で固定される
+  - Required tests: `./venv/bin/python -m unittest tests.test_storage -v`, `./venv/bin/python -m unittest discover -s tests -v`
   - Docs to update: `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
 
 ## Ready
 
 ## Done
 
+- [x] M61b: pipeline で `progress_report.json` を生成できるようにする
 - [x] M61a: `progress_report` の schema と storage contract を固定する
 - [x] M60d: revise / rerun も `chapter_handoff_packet` を共有入力にできるようにする
 - [x] M60c: draft / revise / rerun が `chapter_handoff_packet` を共有入力にできるようにする

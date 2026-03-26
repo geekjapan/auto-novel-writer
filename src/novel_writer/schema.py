@@ -1173,6 +1173,7 @@ class StoryArtifacts:
     revised_chapter_1_draft: dict = field(default_factory=dict)
     story_summary: dict = field(default_factory=dict)
     project_quality_report: dict = field(default_factory=dict)
+    progress_report: dict = field(default_factory=dict)
     publish_ready_bundle: dict = field(default_factory=dict)
     rerun_history: list[dict] = field(default_factory=list)
     revise_history: list[dict] = field(default_factory=list)
@@ -1195,6 +1196,7 @@ class StoryArtifacts:
                 "revised_chapter_drafts",
                 "story_summary",
                 "project_quality_report",
+                "progress_report",
                 "publish_ready_bundle",
             ],
             "counts": {

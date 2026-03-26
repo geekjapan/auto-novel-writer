@@ -604,6 +604,7 @@ class SaveArtifactTest(unittest.TestCase):
                 "revised_chapter_drafts",
                 "story_summary",
                 "project_quality_report",
+                "progress_report",
                 "publish_ready_bundle",
             ],
         )

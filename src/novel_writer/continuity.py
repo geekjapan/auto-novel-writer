@@ -156,12 +156,195 @@ class ContinuityChecker:
             "issues": issues,
         }
 
+    def build_progress_report(self, artifacts: StoryArtifacts, thread_registry: dict[str, Any]) -> dict[str, Any]:
+        checks = {
+            "chapter_role_coverage": self._evaluate_chapter_role_coverage(artifacts),
+            "escalation_pace": self._evaluate_escalation_pace(artifacts),
+            "emotional_progression": self._evaluate_emotional_progression(artifacts),
+            "foreshadowing_coverage": self._evaluate_progress_foreshadowing_coverage(artifacts, thread_registry),
+            "unresolved_thread_load": self._evaluate_unresolved_thread_load(artifacts, thread_registry),
+            "climax_readiness": self._evaluate_climax_readiness(artifacts),
+        }
+        issue_codes = [
+            payload["code"]
+            for payload in checks.values()
+            if payload.get("status") != "ok" and payload.get("code")
+        ]
+        return {
+            "schema_name": "progress_report",
+            "schema_version": "1.0",
+            "evaluated_through_chapter": len(artifacts.revised_chapter_drafts) or len(artifacts.chapter_plan),
+            "checks": checks,
+            "issue_codes": issue_codes,
+            "recommended_action": self._recommend_progress_action(issue_codes, checks),
+        }
+
     def _recommend_action_for_category(self, category: str) -> str:
         if category in REGENERATE_CATEGORIES:
             return "regenerate"
         if category in REVISE_CATEGORIES:
             return "revise"
         return "inspect"
+
+    def _recommend_progress_action(self, issue_codes: list[str], checks: dict[str, dict[str, Any]]) -> str:
+        if not issue_codes:
+            return "continue"
+        if any(payload.get("status") == "critical" for payload in checks.values()):
+            return "stop_for_review"
+        if any(code in {"chapter_role_coverage_gap", "foreshadowing_coverage_gap", "climax_readiness_low"} for code in issue_codes):
+            return "replan"
+        if any(code in {"unresolved_thread_load_high", "escalation_pace_flat"} for code in issue_codes):
+            return "rerun"
+        return "revise"
+
+    def _evaluate_chapter_role_coverage(self, artifacts: StoryArtifacts) -> dict[str, Any]:
+        chapter_count = len(artifacts.chapter_plan)
+        evidence = [str(chapter.get("purpose", "")) for chapter in artifacts.chapter_plan]
+        if chapter_count == 0:
+            return {
+                "status": "critical",
+                "summary": "章計画が存在しないため章役割を評価できない。",
+                "evidence": evidence,
+                "code": "chapter_role_coverage_gap",
+            }
+        unique_purposes = {purpose for purpose in evidence if purpose}
+        if len(unique_purposes) < chapter_count:
+            return {
+                "status": "warning",
+                "summary": "章の役割が重複しており、長編の役割分担が弱い。",
+                "evidence": evidence,
+                "code": "chapter_role_coverage_gap",
+            }
+        return {
+            "status": "ok",
+            "summary": "章ごとの役割は重複せずに分散している。",
+            "evidence": evidence,
+            "code": "chapter_role_coverage_ok",
+        }
+
+    def _evaluate_escalation_pace(self, artifacts: StoryArtifacts) -> dict[str, Any]:
+        summaries = [str(draft.get("summary", "")).strip() for draft in artifacts.revised_chapter_drafts if draft]
+        evidence = summaries
+        if len(summaries) < 3:
+            return {
+                "status": "warning",
+                "summary": "章数が少なく、長編向けの加速感をまだ評価しきれない。",
+                "evidence": evidence,
+                "code": "escalation_pace_flat",
+            }
+        if len(set(summaries)) < len(summaries):
+            return {
+                "status": "warning",
+                "summary": "章 summary の変化が少なく、進行の加速が鈍い。",
+                "evidence": evidence,
+                "code": "escalation_pace_flat",
+            }
+        return {
+            "status": "ok",
+            "summary": "章 summary の推移に変化があり、進行の加速感を保てている。",
+            "evidence": evidence,
+            "code": "escalation_pace_ok",
+        }
+
+    def _evaluate_emotional_progression(self, artifacts: StoryArtifacts) -> dict[str, Any]:
+        arc_points = [str(brief.get("arc_progress", "")).strip() for brief in artifacts.chapter_briefs if brief]
+        if not arc_points:
+            return {
+                "status": "warning",
+                "summary": "人物アークの進行点が不足しており、感情線を評価できない。",
+                "evidence": arc_points,
+                "code": "emotional_progression_missing",
+            }
+        if len(set(arc_points)) < len(arc_points):
+            return {
+                "status": "warning",
+                "summary": "人物アークの進み方が単調で、感情線の停滞が見える。",
+                "evidence": arc_points,
+                "code": "emotional_progression_flat",
+            }
+        return {
+            "status": "ok",
+            "summary": "人物アークの進行点に変化があり、感情線が前進している。",
+            "evidence": arc_points,
+            "code": "emotional_progression_ok",
+        }
+
+    def _evaluate_progress_foreshadowing_coverage(
+        self,
+        artifacts: StoryArtifacts,
+        thread_registry: dict[str, Any],
+    ) -> dict[str, Any]:
+        threads = thread_registry.get("threads", [])
+        evidence = [str(thread.get("thread_id", "")) for thread in threads]
+        if not threads:
+            return {
+                "status": "warning",
+                "summary": "伏線 thread が存在せず、回収状況を追跡できない。",
+                "evidence": evidence,
+                "code": "foreshadowing_coverage_gap",
+            }
+        if all(thread.get("status") == "seeded" for thread in threads):
+            return {
+                "status": "warning",
+                "summary": "伏線が seed のままで、進展や回収が見えにくい。",
+                "evidence": evidence,
+                "code": "foreshadowing_coverage_gap",
+            }
+        return {
+            "status": "ok",
+            "summary": "伏線 thread に進展があり、回収導線が維持されている。",
+            "evidence": evidence,
+            "code": "foreshadowing_coverage_ok",
+        }
+
+    def _evaluate_unresolved_thread_load(
+        self,
+        artifacts: StoryArtifacts,
+        thread_registry: dict[str, Any],
+    ) -> dict[str, Any]:
+        unresolved = [
+            str(thread.get("thread_id", ""))
+            for thread in thread_registry.get("threads", [])
+            if thread.get("status") not in {"resolved", "dropped"}
+        ]
+        limit = max(3, len(artifacts.chapter_plan))
+        if len(unresolved) > limit:
+            return {
+                "status": "warning",
+                "summary": "未解決 thread が多く、長編後半の負荷が高い。",
+                "evidence": unresolved,
+                "code": "unresolved_thread_load_high",
+            }
+        return {
+            "status": "ok",
+            "summary": "未解決 thread の量は許容範囲に収まっている。",
+            "evidence": unresolved,
+            "code": "unresolved_thread_load_ok",
+        }
+
+    def _evaluate_climax_readiness(self, artifacts: StoryArtifacts) -> dict[str, Any]:
+        if not artifacts.revised_chapter_drafts:
+            return {
+                "status": "critical",
+                "summary": "改稿済み本文がないため、クライマックス準備を評価できない。",
+                "evidence": [],
+                "code": "climax_readiness_low",
+            }
+        final_summary = str(artifacts.revised_chapter_drafts[-1].get("summary", "")).lower()
+        evidence = [final_summary]
+        if any(keyword in final_summary for keyword in ("核心", "climax", "決着", "真相", "終盤")):
+            return {
+                "status": "ok",
+                "summary": "最終章側の summary に終盤準備の兆候が見える。",
+                "evidence": evidence,
+                "code": "climax_readiness_ok",
+            }
+        return {
+            "status": "warning",
+            "summary": "最終章側の summary から終盤準備が読み取りにくい。",
+            "evidence": evidence,
+            "code": "climax_readiness_low",
+        }
 
     def _evaluate_theme_coherence(self, artifacts: StoryArtifacts) -> dict[str, Any]:
         theme = artifacts.story_input.theme.strip().lower()

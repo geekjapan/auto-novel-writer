@@ -39,6 +39,23 @@ class SequencedContinuityChecker:
             "issues": [],
         }
 
+    def build_progress_report(self, artifacts, thread_registry) -> dict:
+        return {
+            "schema_name": "progress_report",
+            "schema_version": "1.0",
+            "evaluated_through_chapter": len(artifacts.chapter_plan),
+            "checks": {
+                "chapter_role_coverage": {"status": "ok", "summary": "ok", "evidence": []},
+                "escalation_pace": {"status": "ok", "summary": "ok", "evidence": []},
+                "emotional_progression": {"status": "ok", "summary": "ok", "evidence": []},
+                "foreshadowing_coverage": {"status": "ok", "summary": "ok", "evidence": []},
+                "unresolved_thread_load": {"status": "ok", "summary": "ok", "evidence": []},
+                "climax_readiness": {"status": "ok", "summary": "ok", "evidence": []},
+            },
+            "issue_codes": [],
+            "recommended_action": "continue",
+        }
+
 
 class CountingLLMClient:
     def __init__(self) -> None:

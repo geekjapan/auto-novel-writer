@@ -19,6 +19,7 @@ from novel_writer.storage import (
     save_artifact,
     save_chapter_handoff_packet,
     save_chapter_briefs,
+    save_progress_report,
     save_publish_ready_bundle,
     save_scene_cards,
     save_story_bible,
@@ -42,6 +43,7 @@ PIPELINE_STEP_ORDER = [
     "revised_chapter_drafts",
     "story_summary",
     "project_quality_report",
+    "progress_report",
     "publish_ready_bundle",
 ]
 
@@ -211,6 +213,13 @@ class StoryPipeline:
 
         artifacts.project_quality_report = self.continuity_checker.build_project_quality_report(artifacts)
         save_artifact(self.output_dir, "project_quality_report", artifacts.project_quality_report, "json")
+
+        _canon_ledger, thread_registry = self._load_memory_context(self.output_dir)
+        artifacts.progress_report = self.continuity_checker.build_progress_report(
+            artifacts,
+            thread_registry,
+        )
+        save_progress_report(self.output_dir, artifacts.progress_report, "json")
 
         artifacts.publish_ready_bundle = {
             "title": artifacts.story_summary.get("title") or selected_logline.get("title"),
@@ -510,6 +519,9 @@ class StoryPipeline:
         if step_name == "project_quality_report":
             self._run_project_quality_report_step(artifacts, checkpoints, selected_logline)
             return selected_logline
+        if step_name == "progress_report":
+            self._run_progress_report_step(artifacts, checkpoints, selected_logline)
+            return selected_logline
         if step_name == "publish_ready_bundle":
             self._run_publish_ready_bundle_step(artifacts, checkpoints, selected_logline)
             return selected_logline
@@ -537,6 +549,7 @@ class StoryPipeline:
             "revised_chapter_1_draft",
             "story_summary",
             "project_quality_report",
+            "progress_report",
             "publish_ready_bundle",
             "rerun_history",
             "revise_history",
@@ -617,6 +630,9 @@ class StoryPipeline:
         if rerun_from == "project_quality_report":
             self._reset_from_project_quality_report(artifacts)
             return
+        if rerun_from == "progress_report":
+            self._reset_from_progress_report(artifacts)
+            return
         if rerun_from == "publish_ready_bundle":
             self._reset_from_publish_ready_bundle(artifacts)
 
@@ -678,6 +694,10 @@ class StoryPipeline:
 
     def _reset_from_project_quality_report(self, artifacts: StoryArtifacts) -> None:
         artifacts.project_quality_report = {}
+        self._reset_from_progress_report(artifacts)
+
+    def _reset_from_progress_report(self, artifacts: StoryArtifacts) -> None:
+        artifacts.progress_report = {}
         self._reset_from_publish_ready_bundle(artifacts)
 
     def _reset_from_publish_ready_bundle(self, artifacts: StoryArtifacts) -> None:
@@ -909,6 +929,20 @@ class StoryPipeline:
         artifacts.project_quality_report = self.continuity_checker.build_project_quality_report(artifacts)
         save_artifact(self.output_dir, "project_quality_report", artifacts.project_quality_report, "json")
         self._mark_checkpoint("project_quality_report", checkpoints, artifacts, selected_logline)
+
+    def _run_progress_report_step(
+        self,
+        artifacts: StoryArtifacts,
+        checkpoints: list[dict],
+        selected_logline: dict,
+    ) -> None:
+        _canon_ledger, thread_registry = self._load_memory_context(self.output_dir)
+        artifacts.progress_report = self.continuity_checker.build_progress_report(
+            artifacts,
+            thread_registry,
+        )
+        save_progress_report(self.output_dir, artifacts.progress_report, "json")
+        self._mark_checkpoint("progress_report", checkpoints, artifacts, selected_logline)
 
     def _run_publish_ready_bundle_step(
         self,
