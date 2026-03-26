@@ -6,6 +6,7 @@ from pathlib import Path
 from novel_writer.llm_client import MockLLMClient
 from novel_writer.pipeline import PIPELINE_STEP_ORDER, StoryPipeline
 from novel_writer.schema import StoryInput
+from novel_writer.storage import save_canon_ledger, save_thread_registry
 
 
 class RecordingDraftContextLLMClient(MockLLMClient):
@@ -21,6 +22,8 @@ class RecordingDraftContextLLMClient(MockLLMClient):
         chapter_plan,
         chapter_briefs,
         scene_cards,
+        canon_ledger,
+        thread_registry,
         chapter_index=0,
     ):
         self.draft_calls.append(
@@ -29,6 +32,8 @@ class RecordingDraftContextLLMClient(MockLLMClient):
                 "chapter_plan": chapter_plan,
                 "chapter_briefs": chapter_briefs,
                 "scene_cards": scene_cards,
+                "canon_ledger": canon_ledger,
+                "thread_registry": thread_registry,
                 "chapter_index": chapter_index,
             }
         )
@@ -40,6 +45,8 @@ class RecordingDraftContextLLMClient(MockLLMClient):
             chapter_plan,
             chapter_briefs,
             scene_cards,
+            canon_ledger,
+            thread_registry,
             chapter_index=chapter_index,
         )
 
@@ -358,7 +365,68 @@ class StoryPipelineTest(unittest.TestCase):
                 self.assertEqual(call["chapter_plan"], artifacts.chapter_plan)
                 self.assertEqual(call["chapter_briefs"], artifacts.chapter_briefs)
                 self.assertEqual(call["scene_cards"], artifacts.scene_cards)
+                self.assertEqual(
+                    call["canon_ledger"],
+                    {"schema_name": "canon_ledger", "schema_version": "1.0", "chapters": []},
+                )
+                self.assertEqual(
+                    call["thread_registry"],
+                    {"schema_name": "thread_registry", "schema_version": "1.0", "threads": []},
+                )
                 self.assertEqual(call["chapter_index"], chapter_index)
+
+    def test_pipeline_passes_saved_memory_artifacts_to_chapter_drafts(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            output_dir = Path(tmp_dir)
+            client = RecordingDraftContextLLMClient()
+            save_canon_ledger(
+                output_dir,
+                {
+                    "schema_name": "canon_ledger",
+                    "schema_version": "1.0",
+                    "chapters": [
+                        {
+                            "chapter_number": 1,
+                            "new_facts": ["主人公は腕時計の逆回転を見た。"],
+                            "changed_facts": [],
+                            "open_questions": ["なぜ時計が逆回転したのか。"],
+                            "timeline_events": ["駅前で異変が起きた。"],
+                        }
+                    ],
+                },
+            )
+            save_thread_registry(
+                output_dir,
+                {
+                    "schema_name": "thread_registry",
+                    "schema_version": "1.0",
+                    "threads": [
+                        {
+                            "thread_id": "watch-mystery",
+                            "label": "壊れた腕時計の謎",
+                            "status": "seeded",
+                            "introduced_in_chapter": 1,
+                            "last_updated_in_chapter": 1,
+                            "related_characters": ["篠崎 遥"],
+                            "notes": ["駅前で逆回転が初登場した。"],
+                        }
+                    ],
+                },
+            )
+
+            StoryPipeline(
+                client,
+                output_dir,
+                "json",
+                continuity_checker=NoRerunContinuityChecker(),
+            ).run(
+                StoryInput(theme="記憶", genre="SF", tone="ビター", target_length=8000)
+            )
+
+            self.assertTrue(client.draft_calls)
+            for call in client.draft_calls:
+                self.assertEqual(call["canon_ledger"]["chapters"][0]["chapter_number"], 1)
+                self.assertEqual(call["thread_registry"]["threads"][0]["thread_id"], "watch-mystery")
 
     def test_resume_normalizes_compatibility_only_manifest_to_chapter_arrays(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

@@ -174,7 +174,8 @@ CLI から小説プロジェクトを作成し、長編小説を
 - chapter 単位 upsert helper により、同章置換と次章追記ができる
 - `thread_registry` は top-level を `schema_name` / `schema_version` / `threads` に固定し、各 thread entry は `thread_id`, `label`, `status`, `introduced_in_chapter`, `last_updated_in_chapter`, `related_characters`, `notes` を required field として validation する
 - thread 単位 upsert helper により、同じ `thread_id` の置換と新規 thread 追加ができる
-- 次は draft / revise / rerun から memory layer へ配線する段階である
+- chapter draft 生成と `rerun-chapter` は memory artifact を読める場合に prompt context として参照し、欠落時は空 ledger / empty thread registry を互換用 default として渡す
+- 次は revise 経路や chapter 結果の自動反映まで広げる段階である
 
 完了条件:
 
@@ -284,7 +285,7 @@ M59 の実装順は次のとおりに進める。
 4. draft / revise / rerun で関連 ledger / thread を参照する導線を用意する
 5. README / tests / TASKS を memory layer 前提へ同期する
 
-現在は 1 から 4 の前半までが入り、次は draft / revise / rerun から memory layer を参照する導線を足す段階である。
+現在は 1 から 4 の最小導線までが入り、次は revise 経路と memory artifact の自動更新へ進む段階である。
 
 ## Roadmap Notes
 

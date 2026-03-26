@@ -189,6 +189,8 @@ class CountingLLMClient:
         chapter_plan,
         chapter_briefs,
         scene_cards,
+        canon_ledger,
+        thread_registry,
         chapter_index=0,
     ):
         self.chapter_draft_calls += 1

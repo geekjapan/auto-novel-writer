@@ -298,6 +298,8 @@ class OpenAIClient(BaseLLMClient):
         chapter_plan: list[dict[str, Any]],
         chapter_briefs: list[dict[str, Any]],
         scene_cards: list[dict[str, Any]],
+        canon_ledger: dict[str, Any],
+        thread_registry: dict[str, Any],
         chapter_index: int = 0,
     ) -> dict[str, Any]:
         if chapter_index < 0 or chapter_index >= len(chapter_plan):
@@ -317,6 +319,8 @@ class OpenAIClient(BaseLLMClient):
                 f"chapter_plan={json.dumps(chapter_plan, ensure_ascii=False)}, "
                 f"chapter_briefs={json.dumps(chapter_briefs, ensure_ascii=False)}, "
                 f"scene_cards={json.dumps(scene_cards, ensure_ascii=False)}, "
+                f"canon_ledger={json.dumps(canon_ledger, ensure_ascii=False)}, "
+                f"thread_registry={json.dumps(thread_registry, ensure_ascii=False)}, "
                 f"chapter_index={chapter_index}"
             ),
         )

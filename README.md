@@ -159,7 +159,7 @@
 - `open_questions`
 - `timeline_events`
 
-`canon_ledger.json` は保存時と読込時の両方で validation され、required field 欠落や `schema_version` 不整合は fail fast で停止します。storage helper では chapter 単位 upsert もでき、同じ `chapter_number` は置換、連番の次章は追記、番号が飛ぶ append は fail fast で停止します。まだ draft pipeline から自動生成・追記はしておらず、次段階で chapter 結果を ledger へ反映する導線を追加します。
+`canon_ledger.json` は保存時と読込時の両方で validation され、required field 欠落や `schema_version` 不整合は fail fast で停止します。storage helper では chapter 単位 upsert もでき、同じ `chapter_number` は置換、連番の次章は追記、番号が飛ぶ append は fail fast で停止します。現在は chapter draft 生成と `rerun-chapter` の文脈入力でも参照し、artifact が存在しない場合は空の `canon_ledger` を互換用 default として渡します。まだ chapter 結果を ledger へ自動反映する導線は入れていません。
 
 `thread_registry` も save/load helper と validator まで導入済みです。現在の contract は top-level に `schema_name`, `schema_version`, `threads` を持ち、各 thread entry に最低限次を要求します。
 
@@ -171,7 +171,7 @@
 - `related_characters`
 - `notes`
 
-`status` は `seeded`, `progressed`, `resolved`, `dropped` の列挙型に固定しています。`thread_registry.json` も保存時と読込時の両方で validation され、required field 欠落、unsupported `schema_version`、不正な status、`last_updated_in_chapter < introduced_in_chapter` は fail fast で停止します。storage helper では thread 単位 upsert もでき、同じ `thread_id` は置換、未登録の `thread_id` は追加します。まだ pipeline からの自動更新は入れていません。
+`status` は `seeded`, `progressed`, `resolved`, `dropped` の列挙型に固定しています。`thread_registry.json` も保存時と読込時の両方で validation され、required field 欠落、unsupported `schema_version`、不正な status、`last_updated_in_chapter < introduced_in_chapter` は fail fast で停止します。storage helper では thread 単位 upsert もでき、同じ `thread_id` は置換、未登録の `thread_id` は追加します。現在は chapter draft 生成と `rerun-chapter` の文脈入力でも参照し、artifact が存在しない場合は空の `thread_registry` を互換用 default として渡します。まだ pipeline からの自動更新は入れていません。
 
 ## chapter 1 互換 artifact と全章状態
 

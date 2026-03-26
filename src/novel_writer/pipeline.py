@@ -9,11 +9,13 @@ from novel_writer.llm_client import BaseLLMClient
 from novel_writer.rerun_policy import ContinuityRerunPolicy
 from novel_writer.schema import StoryArtifacts, StoryInput
 from novel_writer.storage import (
+    load_canon_ledger,
     load_artifact,
     load_chapter_briefs,
     load_publish_ready_bundle,
     load_scene_cards,
     load_story_bible,
+    load_thread_registry,
     save_artifact,
     save_chapter_briefs,
     save_publish_ready_bundle,
@@ -58,6 +60,23 @@ class StoryPipeline:
         self.continuity_checker = continuity_checker or ContinuityChecker()
         self.rerun_policy = rerun_policy or ContinuityRerunPolicy()
         self.long_run_status = self._default_long_run_status()
+
+    def _default_canon_ledger(self) -> dict:
+        return {"schema_name": "canon_ledger", "schema_version": "1.0", "chapters": []}
+
+    def _default_thread_registry(self) -> dict:
+        return {"schema_name": "thread_registry", "schema_version": "1.0", "threads": []}
+
+    def _load_memory_context(self, output_dir: Path) -> tuple[dict, dict]:
+        try:
+            canon_ledger = load_canon_ledger(output_dir)
+        except FileNotFoundError:
+            canon_ledger = self._default_canon_ledger()
+        try:
+            thread_registry = load_thread_registry(output_dir)
+        except FileNotFoundError:
+            thread_registry = self._default_thread_registry()
+        return canon_ledger, thread_registry
 
     def run(
         self,
@@ -113,6 +132,7 @@ class StoryPipeline:
 
         artifacts.normalize_chapter_artifacts()
         self._require_chapter_generation_inputs(artifacts, chapter_index)
+        canon_ledger, thread_registry = self._load_memory_context(resume_from)
         chapter_draft = self.llm_client.generate_chapter_draft(
             artifacts.story_input,
             selected_logline,
@@ -121,6 +141,8 @@ class StoryPipeline:
             artifacts.chapter_plan,
             artifacts.chapter_briefs,
             artifacts.scene_cards,
+            canon_ledger,
+            thread_registry,
             chapter_index=chapter_index,
         )
         artifacts.set_chapter_draft(chapter_index, chapter_draft)
@@ -312,6 +334,7 @@ class StoryPipeline:
         artifacts: StoryArtifacts,
         checkpoints: list[dict],
     ) -> None:
+        canon_ledger, thread_registry = self._load_memory_context(self.output_dir)
         for chapter_index, _chapter in enumerate(artifacts.chapter_plan):
             self._require_chapter_generation_inputs(artifacts, chapter_index)
             chapter_draft = self.llm_client.generate_chapter_draft(
@@ -322,6 +345,8 @@ class StoryPipeline:
                 artifacts.chapter_plan,
                 artifacts.chapter_briefs,
                 artifacts.scene_cards,
+                canon_ledger,
+                thread_registry,
                 chapter_index=chapter_index,
             )
             artifacts.set_chapter_draft(chapter_index, chapter_draft)
@@ -801,6 +826,7 @@ class StoryPipeline:
 
         if decision.severity == "medium":
             self._require_chapter_generation_inputs(artifacts, chapter_index)
+            canon_ledger, thread_registry = self._load_memory_context(self.output_dir)
             chapter_draft = self.llm_client.generate_chapter_draft(
                 story_input,
                 selected_logline,
@@ -809,6 +835,8 @@ class StoryPipeline:
                 artifacts.chapter_plan,
                 artifacts.chapter_briefs,
                 artifacts.scene_cards,
+                canon_ledger,
+                thread_registry,
                 chapter_index=chapter_index,
             )
             artifacts.set_chapter_draft(chapter_index, chapter_draft)
@@ -856,6 +884,7 @@ class StoryPipeline:
                 artifacts.chapter_briefs,
             )
             save_scene_cards(self.output_dir, artifacts.scene_cards, self.file_format)
+            canon_ledger, thread_registry = self._load_memory_context(self.output_dir)
 
             for rerun_chapter_index, _chapter in enumerate(artifacts.chapter_plan):
                 self._require_chapter_generation_inputs(artifacts, rerun_chapter_index)
@@ -867,6 +896,8 @@ class StoryPipeline:
                     artifacts.chapter_plan,
                     artifacts.chapter_briefs,
                     artifacts.scene_cards,
+                    canon_ledger,
+                    thread_registry,
                     chapter_index=rerun_chapter_index,
                 )
                 artifacts.set_chapter_draft(rerun_chapter_index, chapter_draft)

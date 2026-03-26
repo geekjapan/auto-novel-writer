@@ -259,6 +259,8 @@ class MockLLMClient(BaseLLMClient):
         chapter_plan: list[dict[str, Any]],
         chapter_briefs: list[dict[str, Any]],
         scene_cards: list[dict[str, Any]],
+        canon_ledger: dict[str, Any],
+        thread_registry: dict[str, Any],
         chapter_index: int = 0,
     ) -> dict[str, Any]:
         if chapter_index < 0 or chapter_index >= len(chapter_plan):
@@ -271,11 +273,26 @@ class MockLLMClient(BaseLLMClient):
         chapter = chapter_plan[chapter_index]
         brief = chapter_briefs[chapter_index]
         packet = scene_cards[chapter_index]
+        relevant_fact = ""
+        if canon_ledger.get("chapters"):
+            relevant_fact = str(canon_ledger["chapters"][0].get("new_facts", [""])[0]).strip()
+        relevant_thread = ""
+        if thread_registry.get("threads"):
+            relevant_thread = str(thread_registry["threads"][0].get("label", "")).strip()
+        memory_context = " ".join(part for part in [relevant_fact, relevant_thread] if part).strip()
         return {
             "chapter_number": chapter["chapter_number"],
             "title": chapter["title"],
             "summary": brief["goal"],
-            "text": f"{brief['purpose']}。{packet['scenes'][0]['exit_state']}へ向かう本文。",
+            "text": " ".join(
+                part
+                for part in [
+                    f"{brief['purpose']}。",
+                    memory_context,
+                    f"{packet['scenes'][0]['exit_state']}へ向かう本文。",
+                ]
+                if part
+            ).strip(),
         }
 
     def revise_chapter_draft(

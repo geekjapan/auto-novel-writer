@@ -276,6 +276,8 @@ class MockLLMClientTest(unittest.TestCase):
                     },
                 ],
             }],
+            {"schema_name": "canon_ledger", "schema_version": "1.0", "chapters": []},
+            {"schema_name": "thread_registry", "schema_version": "1.0", "threads": []},
             chapter_index=0,
         )
 
@@ -286,6 +288,8 @@ class MockLLMClientTest(unittest.TestCase):
         self.assertIn("chapter_plan=", prompt)
         self.assertIn("chapter_briefs=", prompt)
         self.assertIn("scene_cards=", prompt)
+        self.assertIn("canon_ledger=", prompt)
+        self.assertIn("thread_registry=", prompt)
         self.assertIn("chapter_index=0", prompt)
 
     def test_openai_client_accepts_markdown_fenced_json_from_lmstudio(self) -> None:
@@ -334,6 +338,8 @@ class MockLLMClientTest(unittest.TestCase):
             chapter_plan,
             chapter_briefs,
             scene_cards,
+            {"schema_name": "canon_ledger", "schema_version": "1.0", "chapters": []},
+            {"schema_name": "thread_registry", "schema_version": "1.0", "threads": []},
         )
         revised = client.revise_chapter_draft(
             story_input,
@@ -406,6 +412,8 @@ class MockLLMClientTest(unittest.TestCase):
                 chapter_plan,
                 [],
                 scene_cards,
+                {"schema_name": "canon_ledger", "schema_version": "1.0", "chapters": []},
+                {"schema_name": "thread_registry", "schema_version": "1.0", "threads": []},
                 chapter_index=0,
             )
 
@@ -433,6 +441,8 @@ class MockLLMClientTest(unittest.TestCase):
                 chapter_plan,
                 chapter_briefs,
                 [],
+                {"schema_name": "canon_ledger", "schema_version": "1.0", "chapters": []},
+                {"schema_name": "thread_registry", "schema_version": "1.0", "threads": []},
                 chapter_index=0,
             )
 
@@ -445,6 +455,8 @@ class MockLLMClientTest(unittest.TestCase):
                 chapter_plan,
                 chapter_briefs,
                 scene_cards[:1],
+                {"schema_name": "canon_ledger", "schema_version": "1.0", "chapters": []},
+                {"schema_name": "thread_registry", "schema_version": "1.0", "threads": []},
                 chapter_index=1,
             )
 
@@ -533,6 +545,8 @@ class MockLLMClientTest(unittest.TestCase):
                     },
                 ],
             }],
+            {"schema_name": "canon_ledger", "schema_version": "1.0", "chapters": []},
+            {"schema_name": "thread_registry", "schema_version": "1.0", "threads": []},
             chapter_index=0,
         )
 

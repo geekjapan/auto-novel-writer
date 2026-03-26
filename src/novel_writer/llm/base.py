@@ -80,6 +80,8 @@ class BaseLLMClient(ABC):
         chapter_plan: list[dict[str, Any]],
         chapter_briefs: list[dict[str, Any]],
         scene_cards: list[dict[str, Any]],
+        canon_ledger: dict[str, Any],
+        thread_registry: dict[str, Any],
         chapter_index: int = 0,
     ) -> dict[str, Any]:
         raise NotImplementedError
