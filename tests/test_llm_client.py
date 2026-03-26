@@ -196,6 +196,8 @@ class MockLLMClientTest(unittest.TestCase):
         self.assertIn("logline=", prompt)
         self.assertIn("characters=", prompt)
         self.assertIn("three_act_plot=", prompt)
+        self.assertIn("story_bible=", prompt)
+        self.assertIn("chapter_plan=", prompt)
 
     def test_openai_client_chapter_draft_prompt_includes_required_context(self) -> None:
         completions = RecordingCompletions(
@@ -213,6 +215,7 @@ class MockLLMClientTest(unittest.TestCase):
             story_input,
             {"id": "logline-1", "title": "鏡", "premise": "p", "hook": "h"},
             [{"name": "篠崎 遥", "role": "protagonist", "goal": "g", "conflict": "c", "arc": "a"}],
+            {"act_1": {"setup": "s"}, "act_2": {"midpoint": "m"}, "act_3": {"resolution": "r"}},
             [{"chapter_number": 1, "title": "第1章", "purpose": "導入", "point_of_view": "篠崎 遥", "target_words": 5000}],
             [{
                 "chapter_number": 1,
@@ -273,7 +276,6 @@ class MockLLMClientTest(unittest.TestCase):
                     },
                 ],
             }],
-            {"act_1": {"setup": "s"}, "act_2": {"midpoint": "m"}, "act_3": {"resolution": "r"}},
             chapter_index=0,
         )
 
@@ -281,8 +283,10 @@ class MockLLMClientTest(unittest.TestCase):
         self.assertIn("logline=", prompt)
         self.assertIn("characters=", prompt)
         self.assertIn("three_act_plot=", prompt)
+        self.assertIn("chapter_plan=", prompt)
         self.assertIn("chapter_briefs=", prompt)
         self.assertIn("scene_cards=", prompt)
+        self.assertIn("chapter_index=0", prompt)
 
     def test_openai_client_accepts_markdown_fenced_json_from_lmstudio(self) -> None:
         completions = RecordingCompletions('```json\n{"loglines": []}\n```')
@@ -326,6 +330,7 @@ class MockLLMClientTest(unittest.TestCase):
             story_input,
             loglines[0],
             characters,
+            plot,
             chapter_plan,
             chapter_briefs,
             scene_cards,
@@ -397,6 +402,7 @@ class MockLLMClientTest(unittest.TestCase):
                 story_input,
                 loglines[0],
                 characters,
+                plot,
                 chapter_plan,
                 [],
                 scene_cards,
@@ -423,6 +429,7 @@ class MockLLMClientTest(unittest.TestCase):
                 story_input,
                 loglines[0],
                 characters,
+                plot,
                 chapter_plan,
                 chapter_briefs,
                 [],
@@ -434,6 +441,7 @@ class MockLLMClientTest(unittest.TestCase):
                 story_input,
                 loglines[0],
                 characters,
+                plot,
                 chapter_plan,
                 chapter_briefs,
                 scene_cards[:1],
@@ -464,6 +472,7 @@ class MockLLMClientTest(unittest.TestCase):
             story_input,
             {"id": "logline-1", "title": "鏡", "premise": "p", "hook": "h"},
             [{"name": "篠崎 遥"}],
+            {"act_1": {"setup": "s"}, "act_2": {"midpoint": "m"}, "act_3": {"resolution": "r"}},
             [{"chapter_number": 1, "title": "第1章 導入", "purpose": "導入", "point_of_view": "篠崎 遥", "target_words": 1000}],
             [{
                 "chapter_number": 1,
@@ -524,7 +533,6 @@ class MockLLMClientTest(unittest.TestCase):
                     },
                 ],
             }],
-            {"act_1": {"setup": "s"}, "act_2": {"midpoint": "m"}, "act_3": {"resolution": "r"}},
             chapter_index=0,
         )
 
