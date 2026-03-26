@@ -4,19 +4,20 @@
 ここでの task は、1 回で安全に実装・テスト・docs 更新・コミットできる粒度へ分割する。
 
 ## In Progress
-- [ ] M59f: memory artifact を chapter 結果から自動更新できるようにする
-  - Title: canon ledger と thread registry の自動反映導線を追加する
+- [ ] M59g: revised chapter 結果も memory artifact へ反映できるようにする
+  - Title: chapter revise 後の memory artifact 自動更新導線を追加する
   - Milestone: M59 Canon Ledger And Thread Registry
-  - Purpose: 参照だけ入った `canon_ledger` / `thread_registry` を、chapter draft や revise の結果から更新して保存できる最小導線を追加する
-  - Target files or directories: `src/novel_writer/pipeline.py`, `src/novel_writer/storage.py`, `tests/test_pipeline.py`, `tests/test_storage.py`, `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
-  - Done when: chapter 結果から memory artifact を更新保存する少なくとも 1 経路が追加され、欠落・不整合時の扱いが docs / tests で固定される
-  - Required tests: `./venv/bin/python -m unittest tests.test_pipeline -v`, `./venv/bin/python -m unittest tests.test_storage -v`, `./venv/bin/python -m unittest discover -s tests -v`
+  - Purpose: `chapter_drafts` に続いて `revised_chapter_drafts` の結果でも `canon_ledger` / `thread_registry` を更新し、改稿後の本文要約を memory layer へ反映できるようにする
+  - Target files or directories: `src/novel_writer/pipeline.py`, `tests/test_pipeline.py`, `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
+  - Done when: revised chapter 保存後にも memory artifact が更新され、draft-only 更新との差分方針が docs / tests で固定される
+  - Required tests: `./venv/bin/python -m unittest tests.test_pipeline -v`, `./venv/bin/python -m unittest discover -s tests -v`
   - Docs to update: `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
 
 ## Ready
 
 ## Done
 
+- [x] M59f: memory artifact を chapter 結果から自動更新できるようにする
 - [x] M59e: memory layer を draft / revise / rerun から参照できるようにする
 - [x] M59d: thread 単位の registry 更新 helper を追加する
 - [x] M59c: `thread_registry` の schema と storage contract を固定する
