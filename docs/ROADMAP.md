@@ -267,7 +267,9 @@ CLI から小説プロジェクトを作成し、長編小説を
 - 各 replan entry は `replan_id`, `trigger_chapter_number`, `reason`, `issue_codes`, `impact_scope`, `updated_artifacts`, `change_summary` を required field に固定した
 - `impact_scope` は `from_chapter`, `to_chapter`, `chapter_numbers` を持ち、future chapter への影響範囲を machine-readable に表現する
 - `replan_id` を主キーにした upsert helper で、未作成 history からの新規生成、既存 entry の置換、新規 entry の追記ができる
-- 次は progress report の `recommended_action=replan` を受けて、pipeline が `replan_history` へ decision を保存できるようにする段階である
+- pipeline は `progress_report.recommended_action=replan` を検出すると `replan_history` へ decision trace を保存できる
+- 初版では `chapter_briefs` / `scene_cards` を更新対象 artifact として記録し、trigger chapter と impact scope を残す
+- 次は実際に future chapter の `chapter_briefs` / `scene_cards` を更新する helper を導入する段階である
 
 ### M63. 自律実行ポリシーを導入する
 

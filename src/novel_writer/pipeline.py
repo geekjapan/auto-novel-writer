@@ -24,6 +24,7 @@ from novel_writer.storage import (
     save_scene_cards,
     save_story_bible,
     upsert_canon_ledger_chapter,
+    upsert_replan_history_entry,
     upsert_thread_registry_entry,
 )
 
@@ -220,6 +221,7 @@ class StoryPipeline:
             thread_registry,
         )
         save_progress_report(self.output_dir, artifacts.progress_report, "json")
+        self._record_replan_decision(artifacts.progress_report, artifacts)
 
         artifacts.publish_ready_bundle = {
             "title": artifacts.story_summary.get("title") or selected_logline.get("title"),
@@ -942,7 +944,44 @@ class StoryPipeline:
             thread_registry,
         )
         save_progress_report(self.output_dir, artifacts.progress_report, "json")
+        self._record_replan_decision(artifacts.progress_report, artifacts)
         self._mark_checkpoint("progress_report", checkpoints, artifacts, selected_logline)
+
+    def _record_replan_decision(self, progress_report: dict, artifacts: StoryArtifacts) -> None:
+        if progress_report.get("recommended_action") != "replan":
+            return
+
+        trigger_chapter_number = int(progress_report.get("evaluated_through_chapter", 0))
+        total_chapters = len(artifacts.chapter_plan)
+        from_chapter = min(trigger_chapter_number + 1, total_chapters) if total_chapters else trigger_chapter_number
+        if from_chapter <= 0:
+            from_chapter = 1
+        to_chapter = total_chapters if total_chapters else from_chapter
+        chapter_numbers = list(range(from_chapter, to_chapter + 1))
+        if not chapter_numbers:
+            chapter_numbers = [trigger_chapter_number]
+            from_chapter = trigger_chapter_number
+            to_chapter = trigger_chapter_number
+
+        upsert_replan_history_entry(
+            self.output_dir,
+            {
+                "replan_id": f"replan-after-chapter-{trigger_chapter_number}",
+                "trigger_chapter_number": trigger_chapter_number,
+                "reason": "progress_report recommended replan",
+                "issue_codes": list(progress_report.get("issue_codes", [])),
+                "impact_scope": {
+                    "from_chapter": from_chapter,
+                    "to_chapter": to_chapter,
+                    "chapter_numbers": chapter_numbers,
+                },
+                "updated_artifacts": ["chapter_briefs", "scene_cards"],
+                "change_summary": [
+                    f"chapter {trigger_chapter_number} の progress_report が replan を推奨した",
+                ],
+            },
+            self.file_format,
+        )
 
     def _run_publish_ready_bundle_step(
         self,

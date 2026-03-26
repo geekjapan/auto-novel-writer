@@ -7,7 +7,7 @@ from novel_writer.llm_client import MockLLMClient
 from novel_writer.pipeline import PIPELINE_STEP_ORDER, StoryPipeline
 from novel_writer.rerun_policy import ContinuityRerunPolicy
 from novel_writer.schema import StoryInput
-from novel_writer.storage import save_canon_ledger, save_thread_registry
+from novel_writer.storage import load_replan_history, save_canon_ledger, save_thread_registry
 
 
 class RecordingDraftContextLLMClient(MockLLMClient):
@@ -156,6 +156,19 @@ class StopBeforeRevisionContinuityChecker(NoRerunContinuityChecker):
                 "length_warnings": 0,
             },
         }
+
+
+class ReplanTriggerContinuityChecker(NoRerunContinuityChecker):
+    def build_progress_report(self, artifacts, thread_registry):
+        report = super().build_progress_report(artifacts, thread_registry)
+        report["issue_codes"] = ["climax_readiness_low"]
+        report["recommended_action"] = "replan"
+        report["checks"]["climax_readiness"] = {
+            "status": "warning",
+            "summary": "終盤準備が不足している",
+            "evidence": ["chapter-3"],
+        }
+        return report
 
 
 class StoryPipelineTest(unittest.TestCase):
@@ -651,6 +664,32 @@ class StoryPipelineTest(unittest.TestCase):
             self.assertEqual(
                 thread_registry["threads"][0]["last_updated_in_chapter"],
                 len(artifacts.chapter_plan),
+            )
+
+    def test_pipeline_records_replan_history_when_progress_report_recommends_replan(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            output_dir = Path(tmp_dir)
+
+            artifacts = StoryPipeline(
+                MockLLMClient(),
+                output_dir,
+                "json",
+                continuity_checker=ReplanTriggerContinuityChecker(),
+            ).run(
+                StoryInput(theme="記憶", genre="SF", tone="ビター", target_length=8000)
+            )
+
+            replan_history = load_replan_history(output_dir)
+
+            self.assertEqual(replan_history["schema_name"], "replan_history")
+            self.assertEqual(len(replan_history["replans"]), 1)
+            self.assertEqual(
+                replan_history["replans"][0]["trigger_chapter_number"],
+                len(artifacts.chapter_plan),
+            )
+            self.assertEqual(
+                replan_history["replans"][0]["updated_artifacts"],
+                ["chapter_briefs", "scene_cards"],
             )
 
     def test_rerun_chapter_updates_memory_artifacts_for_target_chapter(self) -> None:

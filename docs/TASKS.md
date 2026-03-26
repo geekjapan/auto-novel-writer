@@ -4,19 +4,20 @@
 ここでの task は、1 回で安全に実装・テスト・docs 更新・コミットできる粒度へ分割する。
 
 ## In Progress
-- [ ] M62c: `recommended_action=replan` を `replan_history` へ保存できるようにする
-  - Title: replan decision を history へ保存する
+- [ ] M62d: future chapter の `chapter_briefs` / `scene_cards` を更新する helper を追加する
+  - Title: replan apply helper を追加する
   - Milestone: M62 Replan Loop
-  - Purpose: progress report が `replan` を推奨したときに、future chapter 再計画の decision trace を machine-readable に残せるようにする
-  - Target files or directories: `src/novel_writer/pipeline.py`, `src/novel_writer/continuity.py`, `src/novel_writer/storage.py`, `tests/test_pipeline.py`, `tests/test_continuity.py`, `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
-  - Done when: pipeline が `recommended_action=replan` を検出した際に `replan_history.json` へ 1 entry を保存し、trigger chapter / impact scope / change summary の初期記録が tests / docs で固定される
-  - Required tests: `./venv/bin/python -m unittest tests.test_pipeline -v`, `./venv/bin/python -m unittest discover -s tests -v`
+  - Purpose: decision trace だけでなく、future chapter の実際の planning artifact を安全に更新できる helper を整える
+  - Target files or directories: `src/novel_writer/storage.py`, `src/novel_writer/schema.py`, `tests/test_storage.py`, `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
+  - Done when: 指定 chapter 以降の `chapter_briefs` / `scene_cards` を fail-fast に差し替える helper が tests / docs で固定される
+  - Required tests: `./venv/bin/python -m unittest tests.test_storage -v`, `./venv/bin/python -m unittest discover -s tests -v`
   - Docs to update: `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
 
 ## Ready
 
 ## Done
 
+- [x] M62c: `recommended_action=replan` を `replan_history` へ保存できるようにする
 - [x] M62b: `replan_history` へ entry を追記できる helper を追加する
 - [x] M62a: `replan_history` の schema と storage contract を固定する
 - [x] M61b: pipeline で `progress_report.json` を生成できるようにする
