@@ -3,7 +3,7 @@
 `auto-novel-writer` は、CLI ベースの小説制作パイプラインです。  
 目指すのは「一発で完成原稿を出す本文生成器」ではなく、**小説制作を工程分解し、章単位・作品単位で再開可能に回せる制御基盤**です。
 
-現在は、CLI 入力から `story_input`、`loglines`、`characters`、`three_act_plot`、`story_bible`、`chapter_plan`、`chapter_briefs`、`scene_cards`、全章 draft、全章 revised draft、quality 系 artifact、project/run 管理用 manifest、comparison artifact までを順に生成できます。加えて、次段階の story state layer に向けて `canon_ledger` と `thread_registry` の schema / storage contract、chapter draft 結果からの最小自動反映導線も導入済みです。
+現在は、CLI 入力から `story_input`、`loglines`、`characters`、`three_act_plot`、`story_bible`、`chapter_plan`、`chapter_briefs`、`scene_cards`、全章 draft、全章 revised draft、quality 系 artifact、project/run 管理用 manifest、comparison artifact までを順に生成できます。加えて、次段階の story state layer に向けて `canon_ledger` と `thread_registry` の schema / storage contract、chapter draft / revised draft 結果からの最小自動反映導線も導入済みです。
 
 ## ソフトウェアの目的
 
@@ -159,7 +159,7 @@
 - `open_questions`
 - `timeline_events`
 
-`canon_ledger.json` は保存時と読込時の両方で validation され、required field 欠落や `schema_version` 不整合は fail fast で停止します。storage helper では chapter 単位 upsert もでき、同じ `chapter_number` は置換、連番の次章は追記、番号が飛ぶ append は fail fast で停止します。chapter draft 生成と `rerun-chapter` の文脈入力でも参照し、artifact が存在しない場合は空の `canon_ledger` を互換用 default として渡します。さらに chapter draft 保存直後には最小の決め打ちルールで自動更新し、`new_facts` には draft `summary`、`open_questions` には `chapter_briefs.foreshadowing_targets`、`timeline_events` には scene 1 の `exit_state` を保存します。
+`canon_ledger.json` は保存時と読込時の両方で validation され、required field 欠落や `schema_version` 不整合は fail fast で停止します。storage helper では chapter 単位 upsert もでき、同じ `chapter_number` は置換、連番の次章は追記、番号が飛ぶ append は fail fast で停止します。chapter draft 生成と `rerun-chapter` の文脈入力でも参照し、artifact が存在しない場合は空の `canon_ledger` を互換用 default として渡します。さらに chapter draft 保存直後と revised draft 保存直後には最小の決め打ちルールで自動更新し、`new_facts` にはその時点の draft `summary`、`open_questions` には `chapter_briefs.foreshadowing_targets`、`timeline_events` には scene 1 の `exit_state` を保存します。full pipeline を最後まで進めた場合、各 chapter entry は revised draft の `summary` で上書きされます。
 
 `thread_registry` も save/load helper と validator まで導入済みです。現在の contract は top-level に `schema_name`, `schema_version`, `threads` を持ち、各 thread entry に最低限次を要求します。
 
@@ -171,7 +171,7 @@
 - `related_characters`
 - `notes`
 
-`status` は `seeded`, `progressed`, `resolved`, `dropped` の列挙型に固定しています。`thread_registry.json` も保存時と読込時の両方で validation され、required field 欠落、unsupported `schema_version`、不正な status、`last_updated_in_chapter < introduced_in_chapter` は fail fast で停止します。storage helper では thread 単位 upsert もでき、同じ `thread_id` は置換、未登録の `thread_id` は追加します。chapter draft 生成と `rerun-chapter` の文脈入力でも参照し、artifact が存在しない場合は空の `thread_registry` を互換用 default として渡します。さらに chapter draft 保存直後には `chapter_briefs.foreshadowing_targets` から初期 thread entry を自動反映し、`last_updated_in_chapter` は当該章、`introduced_in_chapter` は既存 thread があれば最初の導入章を保持します。
+`status` は `seeded`, `progressed`, `resolved`, `dropped` の列挙型に固定しています。`thread_registry.json` も保存時と読込時の両方で validation され、required field 欠落、unsupported `schema_version`、不正な status、`last_updated_in_chapter < introduced_in_chapter` は fail fast で停止します。storage helper では thread 単位 upsert もでき、同じ `thread_id` は置換、未登録の `thread_id` は追加します。chapter draft 生成と `rerun-chapter` の文脈入力でも参照し、artifact が存在しない場合は空の `thread_registry` を互換用 default として渡します。さらに chapter draft 保存直後と revised draft 保存直後には `chapter_briefs.foreshadowing_targets` から thread entry を自動反映し、`last_updated_in_chapter` は当該章、`introduced_in_chapter` は既存 thread があれば最初の導入章を保持します。full pipeline を最後まで進めた場合、各 thread の `notes` は最後に更新した章の revised draft `summary` になります。
 
 ## chapter 1 互換 artifact と全章状態
 

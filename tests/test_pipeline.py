@@ -5,6 +5,7 @@ from pathlib import Path
 
 from novel_writer.llm_client import MockLLMClient
 from novel_writer.pipeline import PIPELINE_STEP_ORDER, StoryPipeline
+from novel_writer.rerun_policy import ContinuityRerunPolicy
 from novel_writer.schema import StoryInput
 from novel_writer.storage import save_canon_ledger, save_thread_registry
 
@@ -86,6 +87,26 @@ class NoRerunContinuityChecker:
             "checks": {},
             "issue_count": 0,
             "issues": [],
+        }
+
+
+class StopBeforeRevisionContinuityChecker(NoRerunContinuityChecker):
+    def build_report(self, artifacts, chapter_index=0):
+        return {
+            "chapter_index": chapter_index,
+            "severity": "high",
+            "missing_fields": [{"reason": "missing"}],
+            "character_name_mismatches": [],
+            "plot_to_plan_gaps": [],
+            "plan_to_draft_gaps": [],
+            "length_warnings": [],
+            "issue_counts": {
+                "missing_fields": 1,
+                "character_name_mismatches": 0,
+                "plot_to_plan_gaps": 0,
+                "plan_to_draft_gaps": 0,
+                "length_warnings": 0,
+            },
         }
 
 
@@ -436,7 +457,16 @@ class StoryPipelineTest(unittest.TestCase):
                 MockLLMClient(),
                 output_dir,
                 "json",
-                continuity_checker=NoRerunContinuityChecker(),
+                continuity_checker=StopBeforeRevisionContinuityChecker(),
+                rerun_policy=ContinuityRerunPolicy(
+                    {
+                        **ContinuityRerunPolicy().config,
+                        "long_run": {
+                            "max_high_severity_chapters": 1,
+                            "max_total_rerun_attempts": 99,
+                        },
+                    }
+                ),
             ).run(
                 StoryInput(theme="記憶", genre="SF", tone="ビター", target_length=8000)
             )
@@ -452,6 +482,7 @@ class StoryPipelineTest(unittest.TestCase):
                 canon_ledger["chapters"][0]["timeline_events"],
                 [artifacts.scene_cards[0]["scenes"][0]["exit_state"]],
             )
+            self.assertFalse(artifacts.revised_chapter_drafts)
 
             self.assertEqual(thread_registry["schema_name"], "thread_registry")
             self.assertTrue(thread_registry["threads"])
@@ -461,6 +492,36 @@ class StoryPipelineTest(unittest.TestCase):
             )
             self.assertEqual(thread_registry["threads"][0]["status"], "seeded")
             self.assertEqual(thread_registry["threads"][0]["introduced_in_chapter"], 1)
+
+    def test_pipeline_updates_memory_artifacts_after_revised_chapter_drafts(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            output_dir = Path(tmp_dir)
+
+            artifacts = StoryPipeline(
+                MockLLMClient(),
+                output_dir,
+                "json",
+                continuity_checker=NoRerunContinuityChecker(),
+            ).run(
+                StoryInput(theme="記憶", genre="SF", tone="ビター", target_length=8000)
+            )
+
+            canon_ledger = json.loads((output_dir / "canon_ledger.json").read_text(encoding="utf-8"))
+            thread_registry = json.loads((output_dir / "thread_registry.json").read_text(encoding="utf-8"))
+
+            self.assertEqual(
+                canon_ledger["chapters"][0]["new_facts"],
+                [artifacts.revised_chapter_drafts[0]["summary"]],
+            )
+            self.assertEqual(
+                thread_registry["threads"][0]["notes"],
+                [artifacts.revised_chapter_drafts[-1]["summary"]],
+            )
+            self.assertEqual(thread_registry["threads"][0]["introduced_in_chapter"], 1)
+            self.assertEqual(
+                thread_registry["threads"][0]["last_updated_in_chapter"],
+                len(artifacts.chapter_plan),
+            )
 
     def test_resume_normalizes_compatibility_only_manifest_to_chapter_arrays(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

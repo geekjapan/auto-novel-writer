@@ -427,7 +427,13 @@ class StoryPipeline:
                 continuity_report=chapter_report,
                 quality_report=chapter_quality_report,
             )
-            self._save_revised_chapter_draft_artifact(chapter_index, artifacts.get_revised_chapter_draft(chapter_index))
+            revised_chapter_draft = artifacts.get_revised_chapter_draft(chapter_index)
+            self._save_revised_chapter_draft_artifact(chapter_index, revised_chapter_draft)
+            self._update_memory_artifacts_from_chapter_draft(
+                artifacts,
+                chapter_index,
+                revised_chapter_draft,
+            )
         save_artifact(self.output_dir, "revised_chapter_1_draft", artifacts.revised_chapter_1_draft, self.file_format)
         self._mark_checkpoint("revised_chapter_drafts", checkpoints, artifacts, selected_logline)
 
