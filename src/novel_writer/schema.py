@@ -152,28 +152,7 @@ def validate_canon_ledger(payload: dict) -> dict:
         raise ValueError("Invalid canon_ledger: chapters must be a non-empty list.")
 
     for index, chapter in enumerate(chapters):
-        if not isinstance(chapter, dict):
-            raise ValueError(f"Invalid canon_ledger: chapters[{index}] must be an object.")
-
-        missing_fields = [field for field in contract["chapter_required_fields"] if field not in chapter]
-        if missing_fields:
-            missing = ", ".join(sorted(missing_fields))
-            raise ValueError(
-                "Invalid canon_ledger: "
-                f"chapters[{index}] is missing required fields: {missing}."
-            )
-
-        _validate_int_field(
-            chapter.get("chapter_number"),
-            "canon_ledger",
-            f"chapters[{index}].chapter_number",
-        )
-        for field_name in ["new_facts", "changed_facts", "open_questions", "timeline_events"]:
-            _validate_list_field(
-                chapter.get(field_name),
-                "canon_ledger",
-                f"chapters[{index}].{field_name}",
-            )
+        validate_canon_ledger_chapter(chapter, f"chapters[{index}]")
 
     _validate_sequential_numbers(
         [chapter["chapter_number"] for chapter in chapters],
@@ -181,6 +160,34 @@ def validate_canon_ledger(payload: dict) -> dict:
         "chapters",
         "chapters",
     )
+
+    return payload
+
+
+def validate_canon_ledger_chapter(payload: dict, field_name: str = "chapter") -> dict:
+    contract = canon_ledger_contract()
+    if not isinstance(payload, dict):
+        raise ValueError(f"Invalid canon_ledger: {field_name} must be an object.")
+
+    missing_fields = [field for field in contract["chapter_required_fields"] if field not in payload]
+    if missing_fields:
+        missing = ", ".join(sorted(missing_fields))
+        raise ValueError(
+            "Invalid canon_ledger: "
+            f"{field_name} is missing required fields: {missing}."
+        )
+
+    _validate_int_field(
+        payload.get("chapter_number"),
+        "canon_ledger",
+        f"{field_name}.chapter_number",
+    )
+    for list_field in ["new_facts", "changed_facts", "open_questions", "timeline_events"]:
+        _validate_list_field(
+            payload.get(list_field),
+            "canon_ledger",
+            f"{field_name}.{list_field}",
+        )
 
     return payload
 

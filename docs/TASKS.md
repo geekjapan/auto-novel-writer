@@ -4,12 +4,12 @@
 ここでの task は、1 回で安全に実装・テスト・docs 更新・コミットできる粒度へ分割する。
 
 ## In Progress
-- [ ] M59b: chapter 単位の ledger 追記 helper を追加する
-  - Title: canon ledger へ章結果を追記できるようにする
+- [ ] M59c: `thread_registry` の schema と storage contract を固定する
+  - Title: thread registry の保存契約を先に固定する
   - Milestone: M59 Canon Ledger And Thread Registry
-  - Purpose: `canon_ledger` の保存契約の上に、chapter ごとの新事実・変更事実・未解決事項・時系列イベントを安全に追加更新できる操作を定義する
+  - Purpose: 伏線や約束の状態を `seeded / progressed / resolved / dropped` で追跡する正本 artifact を、pipeline 配線前に schema / storage / tests で固定する
   - Target files or directories: `src/novel_writer/schema.py`, `src/novel_writer/storage.py`, `tests/test_storage.py`, `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
-  - Done when: chapter 単位 entry を append / replace できる helper が追加され、章番号不整合や必須 field 欠落で fail fast に停止する
+  - Done when: `thread_registry.json` の required field と validation が定義され、save/load helper で fail fast に保存・読込できる
   - Required tests: `./venv/bin/python -m unittest tests.test_storage -v`, `./venv/bin/python -m unittest discover -s tests -v`
   - Docs to update: `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
 
@@ -17,6 +17,7 @@
 
 ## Done
 
+- [x] M59b: chapter 単位の ledger 追記 helper を追加する
 - [x] M59a: `canon_ledger` の schema と storage contract を固定する
 - [x] Scaffold CLI-based short-story pipeline MVP
 - [x] M56: `show-run-comparison` の minimal artifact ケースで compact long-run stop 行を固定する

@@ -126,6 +126,7 @@
 - `show-project-status` / `show-run-comparison` の read-only 表示
 - `story_bible` の schema / storage contract
 - `canon_ledger` の schema / storage contract
+- `canon_ledger` の chapter 単位 upsert helper
 
 ## 長編設計 artifact の現状
 
@@ -155,7 +156,7 @@
 - `open_questions`
 - `timeline_events`
 
-`canon_ledger.json` は保存時と読込時の両方で validation され、required field 欠落や `schema_version` 不整合は fail fast で停止します。まだ pipeline から自動生成・追記はしておらず、次段階で chapter 結果を ledger へ反映する導線を追加します。
+`canon_ledger.json` は保存時と読込時の両方で validation され、required field 欠落や `schema_version` 不整合は fail fast で停止します。storage helper では chapter 単位 upsert もでき、同じ `chapter_number` は置換、連番の次章は追記、番号が飛ぶ append は fail fast で停止します。まだ draft pipeline から自動生成・追記はしておらず、次段階で chapter 結果を ledger へ反映する導線を追加します。
 
 ## chapter 1 互換 artifact と全章状態
 

@@ -7,6 +7,7 @@ from typing import Any
 
 from novel_writer.schema import (
     validate_canon_ledger,
+    validate_canon_ledger_chapter,
     validate_chapter_briefs,
     project_manifest_contract,
     validate_scene_cards,
@@ -112,6 +113,39 @@ def load_canon_ledger(output_dir: Path, file_format: str | None = None) -> dict[
     payload = load_artifact(output_dir, "canon_ledger", file_format)
     validate_canon_ledger(payload)
     return payload
+
+
+def upsert_canon_ledger_chapter(
+    output_dir: Path,
+    chapter_payload: Any,
+    file_format: str = "json",
+) -> Path:
+    validated_chapter = validate_canon_ledger_chapter(chapter_payload, "chapter_payload")
+    try:
+        ledger_payload = load_canon_ledger(output_dir, file_format)
+    except FileNotFoundError:
+        ledger_payload = {
+            "schema_name": "canon_ledger",
+            "schema_version": "1.0",
+            "chapters": [],
+        }
+
+    chapters = list(ledger_payload["chapters"])
+    target_number = validated_chapter["chapter_number"]
+    for index, existing_chapter in enumerate(chapters):
+        if existing_chapter.get("chapter_number") == target_number:
+            chapters[index] = validated_chapter
+            ledger_payload["chapters"] = chapters
+            return save_canon_ledger(output_dir, ledger_payload, file_format)
+
+    if chapters and target_number != len(chapters) + 1:
+        raise ValueError(
+            f"Invalid canon_ledger: chapter_number {target_number} cannot be appended after existing chapter {len(chapters)}."
+        )
+
+    chapters.append(validated_chapter)
+    ledger_payload["chapters"] = chapters
+    return save_canon_ledger(output_dir, ledger_payload, file_format)
 
 
 def load_story_bible(output_dir: Path, file_format: str | None = None) -> dict[str, Any]:

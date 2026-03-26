@@ -25,6 +25,7 @@ from novel_writer.storage import (
     save_project_manifest,
     save_run_comparison_summary,
     save_story_bible,
+    upsert_canon_ledger_chapter,
 )
 
 
@@ -276,6 +277,120 @@ class SaveArtifactTest(unittest.TestCase):
 
             self.assertEqual(target.name, "canon_ledger.json")
             self.assertEqual(loaded, payload)
+
+    def test_upsert_canon_ledger_chapter_creates_new_ledger_when_missing(self) -> None:
+        chapter_payload = {
+            "chapter_number": 1,
+            "new_facts": ["主人公は腕時計の逆回転を見た。"],
+            "changed_facts": [],
+            "open_questions": ["なぜ時計が逆回転したのか。"],
+            "timeline_events": ["放課後の駅前で異変が発生した。"],
+        }
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            target = upsert_canon_ledger_chapter(Path(tmp_dir), chapter_payload)
+            loaded = load_canon_ledger(Path(tmp_dir))
+
+            self.assertEqual(target.name, "canon_ledger.json")
+            self.assertEqual(
+                loaded,
+                {
+                    "schema_name": "canon_ledger",
+                    "schema_version": "1.0",
+                    "chapters": [chapter_payload],
+                },
+            )
+
+    def test_upsert_canon_ledger_chapter_appends_next_chapter(self) -> None:
+        first_chapter = {
+            "chapter_number": 1,
+            "new_facts": ["主人公は腕時計の逆回転を見た。"],
+            "changed_facts": [],
+            "open_questions": ["なぜ時計が逆回転したのか。"],
+            "timeline_events": ["放課後の駅前で異変が発生した。"],
+        }
+        second_chapter = {
+            "chapter_number": 2,
+            "new_facts": ["相棒が逆回転を目撃していないと判明した。"],
+            "changed_facts": ["主人公は相棒を疑い始めた。"],
+            "open_questions": ["相棒は何を隠しているのか。"],
+            "timeline_events": ["翌朝の教室で食い違いが表面化した。"],
+        }
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            save_canon_ledger(
+                Path(tmp_dir),
+                {
+                    "schema_name": "canon_ledger",
+                    "schema_version": "1.0",
+                    "chapters": [first_chapter],
+                },
+            )
+
+            upsert_canon_ledger_chapter(Path(tmp_dir), second_chapter)
+            loaded = load_canon_ledger(Path(tmp_dir))
+
+            self.assertEqual(loaded["chapters"], [first_chapter, second_chapter])
+
+    def test_upsert_canon_ledger_chapter_replaces_existing_chapter(self) -> None:
+        original_chapter = {
+            "chapter_number": 1,
+            "new_facts": ["主人公は腕時計の逆回転を見た。"],
+            "changed_facts": [],
+            "open_questions": ["なぜ時計が逆回転したのか。"],
+            "timeline_events": ["放課後の駅前で異変が発生した。"],
+        }
+        updated_chapter = {
+            "chapter_number": 1,
+            "new_facts": ["主人公は腕時計の逆回転と停止を見た。"],
+            "changed_facts": ["主人公は異変を偶然ではないと判断した。"],
+            "open_questions": ["誰が時計を止めたのか。"],
+            "timeline_events": ["放課後の駅前で時計が一度停止した。"],
+        }
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            save_canon_ledger(
+                Path(tmp_dir),
+                {
+                    "schema_name": "canon_ledger",
+                    "schema_version": "1.0",
+                    "chapters": [original_chapter],
+                },
+            )
+
+            upsert_canon_ledger_chapter(Path(tmp_dir), updated_chapter)
+            loaded = load_canon_ledger(Path(tmp_dir))
+
+            self.assertEqual(loaded["chapters"], [updated_chapter])
+
+    def test_upsert_canon_ledger_chapter_rejects_non_sequential_append(self) -> None:
+        first_chapter = {
+            "chapter_number": 1,
+            "new_facts": ["主人公は腕時計の逆回転を見た。"],
+            "changed_facts": [],
+            "open_questions": ["なぜ時計が逆回転したのか。"],
+            "timeline_events": ["放課後の駅前で異変が発生した。"],
+        }
+        skipped_chapter = {
+            "chapter_number": 3,
+            "new_facts": ["相棒が沈黙した。"],
+            "changed_facts": [],
+            "open_questions": ["第2章で何が起きたのか。"],
+            "timeline_events": ["深夜の屋上で対話が途切れた。"],
+        }
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            save_canon_ledger(
+                Path(tmp_dir),
+                {
+                    "schema_name": "canon_ledger",
+                    "schema_version": "1.0",
+                    "chapters": [first_chapter],
+                },
+            )
+
+            with self.assertRaisesRegex(ValueError, "chapter_number 3 cannot be appended after existing chapter 1"):
+                upsert_canon_ledger_chapter(Path(tmp_dir), skipped_chapter)
 
     def test_story_artifacts_summary_includes_chapter_briefs_and_scene_cards(self) -> None:
         artifacts = StoryArtifacts(
