@@ -25,6 +25,8 @@ class StoryPipelineTest(unittest.TestCase):
                 "03_three_act_plot.json",
                 "story_bible.json",
                 "04_chapter_plan.json",
+                "chapter_briefs.json",
+                "scene_cards.json",
                 "05_chapter_1_draft.json",
                 "chapter_1_draft.json",
                 "chapter_2_draft.json",
@@ -211,6 +213,38 @@ class StoryPipelineTest(unittest.TestCase):
             )
             self.assertFalse(manifest["long_run_status"]["should_stop"])
 
+    def test_pipeline_writes_chapter_briefs_and_scene_cards_before_drafts(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            output_dir = Path(tmp_dir)
+            artifacts = StoryPipeline(MockLLMClient(), output_dir, "json").run(
+                StoryInput(theme="記憶", genre="SF", tone="ビター", target_length=120000)
+            )
+
+            self.assertTrue((output_dir / "chapter_briefs.json").exists())
+            self.assertTrue((output_dir / "scene_cards.json").exists())
+            self.assertEqual(
+                PIPELINE_STEP_ORDER[6:9],
+                ["chapter_briefs", "scene_cards", "chapter_drafts"],
+            )
+            self.assertEqual(len(artifacts.chapter_briefs), len(artifacts.chapter_plan))
+            self.assertEqual(len(artifacts.scene_cards), len(artifacts.chapter_plan))
+
+    def test_pipeline_resume_fails_fast_when_scene_cards_missing_before_chapter_drafts(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            output_dir = Path(tmp_dir)
+            pipeline = StoryPipeline(MockLLMClient(), output_dir, "json")
+            pipeline.run(StoryInput(theme="秘密", genre="ミステリ", tone="静謐", target_length=120000))
+            (output_dir / "scene_cards.json").unlink()
+
+            with self.assertRaisesRegex(
+                ValueError,
+                "scene_cards is required before chapter_drafts",
+            ):
+                StoryPipeline(MockLLMClient(), output_dir, "json").run(
+                    resume_from=output_dir,
+                    rerun_from="chapter_drafts",
+                )
+
     def test_resume_normalizes_compatibility_only_manifest_to_chapter_arrays(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             output_dir = Path(tmp_dir)
@@ -231,14 +265,14 @@ class StoryPipelineTest(unittest.TestCase):
             manifest["revise_history"] = []
             manifest["chapter_histories"] = []
             manifest["current_step"] = "chapter_drafts"
-            manifest["completed_steps"] = PIPELINE_STEP_ORDER[:7]
+            manifest["completed_steps"] = PIPELINE_STEP_ORDER[:9]
             manifest["checkpoints"] = [
                 {
                     "step": step_name,
                     "status": "completed",
                     "completed_steps": PIPELINE_STEP_ORDER[: index + 1],
                 }
-                for index, step_name in enumerate(PIPELINE_STEP_ORDER[:7])
+                for index, step_name in enumerate(PIPELINE_STEP_ORDER[:9])
             ]
             manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
 
