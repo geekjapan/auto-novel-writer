@@ -136,6 +136,13 @@ class StoryPipeline:
         artifacts.normalize_chapter_artifacts()
         self._require_chapter_generation_inputs(artifacts, chapter_index)
         canon_ledger, thread_registry = self._load_memory_context(resume_from)
+        handoff_packet = self._build_chapter_handoff_packet(
+            artifacts.story_input,
+            artifacts,
+            canon_ledger,
+            thread_registry,
+            chapter_index,
+        )
         chapter_draft = self.llm_client.generate_chapter_draft(
             artifacts.story_input,
             selected_logline,
@@ -147,6 +154,7 @@ class StoryPipeline:
             canon_ledger,
             thread_registry,
             chapter_index=chapter_index,
+            chapter_handoff_packet=handoff_packet,
         )
         artifacts.set_chapter_draft(chapter_index, chapter_draft)
         self._save_chapter_draft_artifact(chapter_index, chapter_draft)
@@ -365,6 +373,7 @@ class StoryPipeline:
                 canon_ledger,
                 thread_registry,
                 chapter_index=chapter_index,
+                chapter_handoff_packet=handoff_packet,
             )
             artifacts.set_chapter_draft(chapter_index, chapter_draft)
             self._save_chapter_draft_artifact(chapter_index, chapter_draft)
@@ -948,6 +957,13 @@ class StoryPipeline:
         if decision.severity == "medium":
             self._require_chapter_generation_inputs(artifacts, chapter_index)
             canon_ledger, thread_registry = self._load_memory_context(self.output_dir)
+            handoff_packet = self._build_chapter_handoff_packet(
+                story_input,
+                artifacts,
+                canon_ledger,
+                thread_registry,
+                chapter_index,
+            )
             chapter_draft = self.llm_client.generate_chapter_draft(
                 story_input,
                 selected_logline,
@@ -959,6 +975,7 @@ class StoryPipeline:
                 canon_ledger,
                 thread_registry,
                 chapter_index=chapter_index,
+                chapter_handoff_packet=handoff_packet,
             )
             artifacts.set_chapter_draft(chapter_index, chapter_draft)
             self._save_chapter_draft_artifact(chapter_index, chapter_draft)
@@ -1010,6 +1027,13 @@ class StoryPipeline:
 
             for rerun_chapter_index, _chapter in enumerate(artifacts.chapter_plan):
                 self._require_chapter_generation_inputs(artifacts, rerun_chapter_index)
+                handoff_packet = self._build_chapter_handoff_packet(
+                    story_input,
+                    artifacts,
+                    canon_ledger,
+                    thread_registry,
+                    rerun_chapter_index,
+                )
                 chapter_draft = self.llm_client.generate_chapter_draft(
                     story_input,
                     selected_logline,
@@ -1021,6 +1045,7 @@ class StoryPipeline:
                     canon_ledger,
                     thread_registry,
                     chapter_index=rerun_chapter_index,
+                    chapter_handoff_packet=handoff_packet,
                 )
                 artifacts.set_chapter_draft(rerun_chapter_index, chapter_draft)
                 self._save_chapter_draft_artifact(rerun_chapter_index, chapter_draft)

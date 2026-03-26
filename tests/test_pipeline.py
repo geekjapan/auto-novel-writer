@@ -26,10 +26,12 @@ class RecordingDraftContextLLMClient(MockLLMClient):
         canon_ledger,
         thread_registry,
         chapter_index=0,
+        chapter_handoff_packet=None,
     ):
         self.draft_calls.append(
             {
                 "three_act_plot": three_act_plot,
+                "chapter_handoff_packet": chapter_handoff_packet,
                 "chapter_plan": chapter_plan,
                 "chapter_briefs": chapter_briefs,
                 "scene_cards": scene_cards,
@@ -49,6 +51,7 @@ class RecordingDraftContextLLMClient(MockLLMClient):
             canon_ledger,
             thread_registry,
             chapter_index=chapter_index,
+            chapter_handoff_packet=chapter_handoff_packet,
         )
 
 
@@ -429,6 +432,10 @@ class StoryPipelineTest(unittest.TestCase):
             self.assertEqual(len(client.draft_calls), len(artifacts.chapter_plan))
             for chapter_index, call in enumerate(client.draft_calls):
                 self.assertEqual(call["three_act_plot"], artifacts.three_act_plot)
+                self.assertEqual(
+                    call["chapter_handoff_packet"]["chapter_number"],
+                    chapter_index + 1,
+                )
                 self.assertEqual(call["chapter_plan"], artifacts.chapter_plan)
                 self.assertEqual(call["chapter_briefs"], artifacts.chapter_briefs)
                 self.assertEqual(call["scene_cards"], artifacts.scene_cards)

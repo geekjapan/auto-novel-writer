@@ -4,12 +4,12 @@
 ここでの task は、1 回で安全に実装・テスト・docs 更新・コミットできる粒度へ分割する。
 
 ## In Progress
-- [ ] M60c: draft / revise / rerun が `chapter_handoff_packet` を共有入力にできるようにする
-  - Title: chapter handoff packet を LLM 入力へ接続する
+- [ ] M60d: revise / rerun も `chapter_handoff_packet` を共有入力にできるようにする
+  - Title: chapter handoff packet を revise / rerun へ接続する
   - Milestone: M60 Chapter Handoff Packet
-  - Purpose: `chapter_draft` / `revise` / `rerun` の入力を chapter handoff packet に寄せ、将来の long-form 制御で同じ章入力 contract を再利用できるようにする
-  - Target files or directories: `src/novel_writer/pipeline.py`, `src/novel_writer/llm/base.py`, `src/novel_writer/llm/mock.py`, `src/novel_writer/llm/openai_client.py`, `tests/test_pipeline.py`, `tests/test_llm_client.py`, `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
-  - Done when: 少なくとも draft 生成が `chapter_handoff_packet` を直接受け取り、revise / rerun への拡張方針が docs / tests で固定される
+  - Purpose: draft に続いて revise / rerun の入力も chapter handoff packet に寄せ、章入力 contract を 1 本化する
+  - Target files or directories: `src/novel_writer/pipeline.py`, `src/novel_writer/llm/base.py`, `src/novel_writer/llm/mock.py`, `src/novel_writer/llm/openai_client.py`, `tests/test_pipeline.py`, `tests/test_llm_client.py`, `tests/test_rerun_policy.py`, `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
+  - Done when: revise / rerun でも `chapter_handoff_packet` が渡され、draft と同じ章入力 contract を共有することが docs / tests で固定される
   - Required tests: `./venv/bin/python -m unittest tests.test_pipeline -v`, `./venv/bin/python -m unittest discover -s tests -v`
   - Docs to update: `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
 
@@ -17,6 +17,7 @@
 
 ## Done
 
+- [x] M60c: draft / revise / rerun が `chapter_handoff_packet` を共有入力にできるようにする
 - [x] M60b: `chapter_handoff_packet` を構築して保存できるようにする
 - [x] M60a: `chapter_handoff_packet` の schema を固定する
 - [x] M59i: continuity policy の内部 rerun 結果も memory artifact へ反映できるようにする

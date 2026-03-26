@@ -279,6 +279,21 @@ class MockLLMClientTest(unittest.TestCase):
             {"schema_name": "canon_ledger", "schema_version": "1.0", "chapters": []},
             {"schema_name": "thread_registry", "schema_version": "1.0", "threads": []},
             chapter_index=0,
+            chapter_handoff_packet={
+                "schema_name": "chapter_handoff_packet",
+                "schema_version": "1.0",
+                "chapter_number": 1,
+                "current_chapter_brief": {"chapter_number": 1},
+                "relevant_scene_cards": [],
+                "relevant_canon_facts": [],
+                "unresolved_threads": [],
+                "previous_chapter_summary": "",
+                "style_constraints": {
+                    "tone": "静謐",
+                    "point_of_view": "篠崎 遥",
+                    "tense": "past",
+                },
+            },
         )
 
         prompt = completions.last_kwargs["messages"][1]["content"]
@@ -288,6 +303,7 @@ class MockLLMClientTest(unittest.TestCase):
         self.assertIn("chapter_plan=", prompt)
         self.assertIn("chapter_briefs=", prompt)
         self.assertIn("scene_cards=", prompt)
+        self.assertIn("chapter_handoff_packet=", prompt)
         self.assertIn("canon_ledger=", prompt)
         self.assertIn("thread_registry=", prompt)
         self.assertIn("chapter_index=0", prompt)
@@ -340,6 +356,21 @@ class MockLLMClientTest(unittest.TestCase):
             scene_cards,
             {"schema_name": "canon_ledger", "schema_version": "1.0", "chapters": []},
             {"schema_name": "thread_registry", "schema_version": "1.0", "threads": []},
+            chapter_handoff_packet={
+                "schema_name": "chapter_handoff_packet",
+                "schema_version": "1.0",
+                "chapter_number": 1,
+                "current_chapter_brief": chapter_briefs[0],
+                "relevant_scene_cards": scene_cards[0]["scenes"],
+                "relevant_canon_facts": [],
+                "unresolved_threads": [],
+                "previous_chapter_summary": "",
+                "style_constraints": {
+                    "tone": story_input.tone,
+                    "point_of_view": chapter_plan[0]["point_of_view"],
+                    "tense": "past",
+                },
+            },
         )
         revised = client.revise_chapter_draft(
             story_input,

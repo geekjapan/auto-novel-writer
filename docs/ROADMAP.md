@@ -215,7 +215,8 @@ CLI から小説プロジェクトを作成し、長編小説を
 - top-level は `schema_name`, `schema_version`, `chapter_number`, `current_chapter_brief`, `relevant_scene_cards`, `relevant_canon_facts`, `unresolved_threads`, `previous_chapter_summary`, `style_constraints` に固定した
 - `style_constraints` は `tone`, `point_of_view`, `tense` を required field として validation する
 - `chapter_drafts` step の直前には `chapter_{n}_handoff_packet.json` を構築して保存できる
-- 次は draft / revise / rerun が同じ packet を直接入力として共有する段階である
+- draft 生成は `chapter_handoff_packet` を直接受け取るようになった
+- 次は revise / rerun も同じ packet を直接入力として共有する段階である
 
 ### M61. Long-form 評価を強化する
 
@@ -301,7 +302,7 @@ M59 の実装順は次のとおりに進める。
 5. chapter draft 結果から memory artifact を自動更新する
 6. README / tests / TASKS を memory layer 前提へ同期する
 
-現在は 1 から 5 の最小導線と memory artifact 自動反映の主要経路、chapter handoff packet の contract / build 導線までが入り、次は M60 の shared-input 化へ進む段階である。
+現在は 1 から 5 の最小導線と memory artifact 自動反映の主要経路、chapter handoff packet の contract / build 導線、draft の shared-input 化までが入り、次は M60 の revise / rerun shared-input 化へ進む段階である。
 
 ## Roadmap Notes
 

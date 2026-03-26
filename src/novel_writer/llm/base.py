@@ -83,6 +83,7 @@ class BaseLLMClient(ABC):
         canon_ledger: dict[str, Any],
         thread_registry: dict[str, Any],
         chapter_index: int = 0,
+        chapter_handoff_packet: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         raise NotImplementedError
 

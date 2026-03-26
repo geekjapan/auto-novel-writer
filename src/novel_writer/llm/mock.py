@@ -262,6 +262,7 @@ class MockLLMClient(BaseLLMClient):
         canon_ledger: dict[str, Any],
         thread_registry: dict[str, Any],
         chapter_index: int = 0,
+        chapter_handoff_packet: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         if chapter_index < 0 or chapter_index >= len(chapter_plan):
             raise ValueError(f"chapter_plan must contain an entry for chapter_index={chapter_index}.")
@@ -273,6 +274,9 @@ class MockLLMClient(BaseLLMClient):
         chapter = chapter_plan[chapter_index]
         brief = chapter_briefs[chapter_index]
         packet = scene_cards[chapter_index]
+        if chapter_handoff_packet:
+            brief = chapter_handoff_packet.get("current_chapter_brief", brief)
+            packet = {"scenes": chapter_handoff_packet.get("relevant_scene_cards", packet["scenes"])}
         relevant_fact = ""
         if canon_ledger.get("chapters"):
             relevant_fact = str(canon_ledger["chapters"][0].get("new_facts", [""])[0]).strip()

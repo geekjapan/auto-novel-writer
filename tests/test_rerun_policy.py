@@ -193,6 +193,7 @@ class CountingLLMClient:
         canon_ledger,
         thread_registry,
         chapter_index=0,
+        chapter_handoff_packet=None,
     ):
         self.chapter_draft_calls += 1
         chapter = chapter_plan[chapter_index]
