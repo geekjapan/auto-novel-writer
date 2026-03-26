@@ -129,6 +129,9 @@ class StoryPipelineTest(unittest.TestCase):
                 "04_chapter_plan.json",
                 "chapter_briefs.json",
                 "scene_cards.json",
+                "chapter_1_handoff_packet.json",
+                "chapter_2_handoff_packet.json",
+                "chapter_3_handoff_packet.json",
                 "05_chapter_1_draft.json",
                 "chapter_1_draft.json",
                 "chapter_2_draft.json",
@@ -349,6 +352,49 @@ class StoryPipelineTest(unittest.TestCase):
             self.assertEqual([checkpoint["step"] for checkpoint in manifest["checkpoints"]], expected_step_order)
             self.assertEqual(len(artifacts.chapter_briefs), len(artifacts.chapter_plan))
             self.assertEqual(len(artifacts.scene_cards), len(artifacts.chapter_plan))
+
+    def test_pipeline_builds_chapter_handoff_packets_before_drafts(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            output_dir = Path(tmp_dir)
+
+            artifacts = StoryPipeline(
+                MockLLMClient(),
+                output_dir,
+                "json",
+                continuity_checker=StopBeforeRevisionContinuityChecker(),
+                rerun_policy=ContinuityRerunPolicy(
+                    {
+                        **ContinuityRerunPolicy().config,
+                        "long_run": {
+                            "max_high_severity_chapters": 1,
+                            "max_total_rerun_attempts": 99,
+                        },
+                    }
+                ),
+            ).run(
+                StoryInput(theme="記憶", genre="SF", tone="ビター", target_length=8000)
+            )
+
+            chapter_1_packet = json.loads((output_dir / "chapter_1_handoff_packet.json").read_text(encoding="utf-8"))
+            chapter_2_packet = json.loads((output_dir / "chapter_2_handoff_packet.json").read_text(encoding="utf-8"))
+
+            self.assertEqual(chapter_1_packet["schema_name"], "chapter_handoff_packet")
+            self.assertEqual(chapter_1_packet["chapter_number"], 1)
+            self.assertEqual(chapter_1_packet["current_chapter_brief"], artifacts.chapter_briefs[0])
+            self.assertEqual(chapter_1_packet["relevant_scene_cards"], artifacts.scene_cards[0]["scenes"])
+            self.assertEqual(chapter_1_packet["previous_chapter_summary"], "")
+            self.assertEqual(chapter_1_packet["style_constraints"]["tone"], "ビター")
+            self.assertEqual(
+                chapter_1_packet["style_constraints"]["point_of_view"],
+                artifacts.chapter_plan[0]["point_of_view"],
+            )
+            self.assertEqual(chapter_1_packet["style_constraints"]["tense"], "past")
+
+            self.assertEqual(chapter_2_packet["chapter_number"], 2)
+            self.assertEqual(
+                chapter_2_packet["previous_chapter_summary"],
+                artifacts.chapter_drafts[0]["summary"],
+            )
 
     def test_pipeline_resume_fails_fast_when_scene_cards_missing_before_chapter_drafts(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

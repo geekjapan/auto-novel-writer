@@ -17,6 +17,7 @@ from novel_writer.storage import (
     load_story_bible,
     load_thread_registry,
     save_artifact,
+    save_chapter_handoff_packet,
     save_chapter_briefs,
     save_publish_ready_bundle,
     save_scene_cards,
@@ -345,6 +346,14 @@ class StoryPipeline:
         canon_ledger, thread_registry = self._load_memory_context(self.output_dir)
         for chapter_index, _chapter in enumerate(artifacts.chapter_plan):
             self._require_chapter_generation_inputs(artifacts, chapter_index)
+            handoff_packet = self._build_chapter_handoff_packet(
+                story_input,
+                artifacts,
+                canon_ledger,
+                thread_registry,
+                chapter_index,
+            )
+            self._save_chapter_handoff_packet_artifact(chapter_index, handoff_packet)
             chapter_draft = self.llm_client.generate_chapter_draft(
                 story_input,
                 selected_logline,
@@ -768,6 +777,56 @@ class StoryPipeline:
             revised_chapter_draft,
             self.file_format,
         )
+
+    def _save_chapter_handoff_packet_artifact(self, chapter_index: int, handoff_packet: dict) -> None:
+        save_chapter_handoff_packet(self.output_dir, handoff_packet, self.file_format)
+        save_artifact(
+            self.output_dir,
+            f"chapter_{chapter_index + 1}_handoff_packet",
+            handoff_packet,
+            self.file_format,
+        )
+
+    def _build_chapter_handoff_packet(
+        self,
+        story_input: StoryInput,
+        artifacts: StoryArtifacts,
+        canon_ledger: dict,
+        thread_registry: dict,
+        chapter_index: int,
+    ) -> dict:
+        chapter = artifacts.chapter_plan[chapter_index]
+        brief = artifacts.chapter_briefs[chapter_index]
+        scene_packet = artifacts.scene_cards[chapter_index]
+        previous_summary = ""
+        if chapter_index > 0 and chapter_index - 1 < len(artifacts.chapter_drafts):
+            previous_summary = str(artifacts.chapter_drafts[chapter_index - 1].get("summary", ""))
+
+        relevant_canon_facts = []
+        for chapter_entry in canon_ledger.get("chapters", []):
+            if chapter_entry.get("chapter_number", 0) < brief["chapter_number"]:
+                relevant_canon_facts.extend(chapter_entry.get("new_facts", []))
+
+        unresolved_threads = []
+        for thread in thread_registry.get("threads", []):
+            if thread.get("status") not in {"resolved", "dropped"}:
+                unresolved_threads.append(str(thread.get("thread_id", "")))
+
+        return {
+            "schema_name": "chapter_handoff_packet",
+            "schema_version": "1.0",
+            "chapter_number": brief["chapter_number"],
+            "current_chapter_brief": brief,
+            "relevant_scene_cards": list(scene_packet.get("scenes", [])),
+            "relevant_canon_facts": relevant_canon_facts,
+            "unresolved_threads": unresolved_threads,
+            "previous_chapter_summary": previous_summary,
+            "style_constraints": {
+                "tone": story_input.tone,
+                "point_of_view": str(chapter.get("point_of_view", "")),
+                "tense": "past",
+            },
+        }
 
     def _update_memory_artifacts_from_chapter_draft(
         self,
