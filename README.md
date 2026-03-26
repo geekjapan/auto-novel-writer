@@ -3,7 +3,7 @@
 `auto-novel-writer` は、CLI ベースの小説制作パイプラインです。  
 目指すのは「一発で完成原稿を出す本文生成器」ではなく、**小説制作を工程分解し、章単位・作品単位で再開可能に回せる制御基盤**です。
 
-現在は、CLI 入力から `story_input`、`loglines`、`characters`、`three_act_plot`、`story_bible`、`chapter_plan`、`chapter_briefs`、`scene_cards`、全章 draft、全章 revised draft、quality 系 artifact、project/run 管理用 manifest、comparison artifact までを順に生成できます。加えて、次段階の story state layer に向けて `canon_ledger` と `thread_registry` の schema / storage contract、chapter draft / revised draft / `rerun-chapter` / policy 駆動 rerun 結果からの最小自動反映導線も導入済みです。
+現在は、CLI 入力から `story_input`、`loglines`、`characters`、`three_act_plot`、`story_bible`、`chapter_plan`、`chapter_briefs`、`scene_cards`、全章 draft、全章 revised draft、quality 系 artifact、project/run 管理用 manifest、comparison artifact までを順に生成できます。加えて、次段階の story state layer に向けて `canon_ledger` と `thread_registry` の schema / storage contract、chapter draft / revised draft / `rerun-chapter` / policy 駆動 rerun 結果からの最小自動反映導線、`chapter_handoff_packet` の schema / storage contract も導入済みです。
 
 ## ソフトウェアの目的
 
@@ -130,6 +130,7 @@
 - `canon_ledger` の chapter 単位 upsert helper
 - `thread_registry` の schema / storage contract
 - `thread_registry` の thread 単位 upsert helper
+- `chapter_handoff_packet` の schema / storage contract
 
 ## 長編設計 artifact の現状
 
@@ -172,6 +173,8 @@
 - `notes`
 
 `status` は `seeded`, `progressed`, `resolved`, `dropped` の列挙型に固定しています。`thread_registry.json` も保存時と読込時の両方で validation され、required field 欠落、unsupported `schema_version`、不正な status、`last_updated_in_chapter < introduced_in_chapter` は fail fast で停止します。storage helper では thread 単位 upsert もでき、同じ `thread_id` は置換、未登録の `thread_id` は追加します。chapter draft 生成と `rerun-chapter` の文脈入力でも参照し、artifact が存在しない場合は空の `thread_registry` を互換用 default として渡します。さらに chapter draft 保存直後、revised draft 保存直後、`rerun-chapter` の対象章保存直後、continuity policy による内部 rerun 保存直後には `chapter_briefs.foreshadowing_targets` から thread entry を自動反映し、`last_updated_in_chapter` は当該章、`introduced_in_chapter` は既存 thread があれば最初の導入章を保持します。full pipeline や `rerun-chapter` が revised まで進んだ場合、各 thread の `notes` は最後に更新した章の revised draft `summary` になります。
+
+`chapter_handoff_packet` は、今後 draft / revise / rerun が共有する章入力 packet の contract として先に導入しました。現在の contract は top-level に `schema_name`, `schema_version`, `chapter_number`, `current_chapter_brief`, `relevant_scene_cards`, `relevant_canon_facts`, `unresolved_threads`, `previous_chapter_summary`, `style_constraints` を持ちます。`style_constraints` は `tone`, `point_of_view`, `tense` を required field に固定しています。現時点では schema / storage contract のみ先行導入で、packet の自動生成と LLM 利用導線は次段階で追加します。
 
 ## chapter 1 互換 artifact と全章状態
 

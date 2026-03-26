@@ -8,6 +8,7 @@ from typing import Any
 from novel_writer.schema import (
     validate_canon_ledger,
     validate_canon_ledger_chapter,
+    validate_chapter_handoff_packet,
     validate_chapter_briefs,
     project_manifest_contract,
     validate_scene_cards,
@@ -104,6 +105,17 @@ def save_project_manifest(
 def save_story_bible(output_dir: Path, payload: Any, file_format: str = "json") -> Path:
     validate_story_bible(payload)
     return save_artifact(output_dir, "story_bible", payload, file_format)
+
+
+def save_chapter_handoff_packet(output_dir: Path, payload: Any, file_format: str = "json") -> Path:
+    validate_chapter_handoff_packet(payload)
+    return save_artifact(output_dir, "chapter_handoff_packet", payload, file_format)
+
+
+def load_chapter_handoff_packet(output_dir: Path, file_format: str | None = None) -> dict[str, Any]:
+    payload = load_artifact(output_dir, "chapter_handoff_packet", file_format)
+    validate_chapter_handoff_packet(payload)
+    return payload
 
 
 def save_canon_ledger(output_dir: Path, payload: Any, file_format: str = "json") -> Path:

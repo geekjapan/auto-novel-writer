@@ -39,6 +39,7 @@ CLI から小説プロジェクトを作成し、長編小説を
 - `thread_registry` の schema / storage contract は導入済みで、status 列挙型と chapter 参照の基本整合性を save/load 時に validation できる
 - `thread_registry` には thread 単位 upsert helper が入り、同じ `thread_id` の置換と新規 thread 追加を fail-fast 制約つきで扱える
 - `chapter_drafts` / `revised_chapter_drafts` step、`rerun-chapter`、continuity policy の内部 rerun は保存直後に `canon_ledger` / `thread_registry` を最小ルールで自動更新できる
+- `chapter_handoff_packet` の schema / storage contract は導入済みで、`style_constraints.tone / point_of_view / tense` を required field として固定した
 - `story_summary.json`、`project_quality_report.json`、`publish_ready_bundle.json` を出力できる
 
 ## Gap To Goal
@@ -181,7 +182,7 @@ CLI から小説プロジェクトを作成し、長編小説を
 - `rerun-chapter` でも対象章の draft / revised draft 保存直後に同じ章 entry / thread entry を更新する
 - continuity policy による medium / high rerun でも再生成 draft 保存直後に同じ章 entry / thread entry を更新する
 - `chapter_drafts` / `revised_chapter_drafts` step、`rerun-chapter`、continuity policy の内部 rerun では `foreshadowing_targets` ごとに `thread_registry` を自動更新し、同じ `thread_id` の `introduced_in_chapter` は最初の導入章を保持する
-- 次は M60 として chapter handoff packet の contract 固定へ進む段階である
+- 次は M60 として chapter handoff packet の生成導線へ進む段階である
 
 完了条件:
 
@@ -207,6 +208,13 @@ CLI から小説プロジェクトを作成し、長編小説を
   - previous chapter summary
   - style / POV / tense constraints
 - draft / revise / rerun が同じ packet contract を共有する
+
+進捗:
+
+- `chapter_handoff_packet` の schema / storage contract は導入済み
+- top-level は `schema_name`, `schema_version`, `chapter_number`, `current_chapter_brief`, `relevant_scene_cards`, `relevant_canon_facts`, `unresolved_threads`, `previous_chapter_summary`, `style_constraints` に固定した
+- `style_constraints` は `tone`, `point_of_view`, `tense` を required field として validation する
+- 次は packet を chapter ごとに構築し、draft / revise / rerun で同じ入力 contract を共有する段階である
 
 ### M61. Long-form 評価を強化する
 
@@ -292,7 +300,7 @@ M59 の実装順は次のとおりに進める。
 5. chapter draft 結果から memory artifact を自動更新する
 6. README / tests / TASKS を memory layer 前提へ同期する
 
-現在は 1 から 5 の最小導線と memory artifact 自動反映の主要経路が入り、次は M60 の chapter handoff packet contract 固定へ進む段階である。
+現在は 1 から 5 の最小導線と memory artifact 自動反映の主要経路が入り、次は M60 の chapter handoff packet 生成導線へ進む段階である。
 
 ## Roadmap Notes
 

@@ -9,6 +9,7 @@ from novel_writer.storage import (
     build_project_layout,
     load_artifact,
     load_canon_ledger,
+    load_chapter_handoff_packet,
     load_chapter_briefs,
     load_scene_cards,
     load_project_manifest,
@@ -20,6 +21,7 @@ from novel_writer.storage import (
     resolve_artifact_path,
     save_artifact,
     save_canon_ledger,
+    save_chapter_handoff_packet,
     save_chapter_briefs,
     save_scene_cards,
     save_publish_ready_bundle,
@@ -618,8 +620,120 @@ class SaveArtifactTest(unittest.TestCase):
 
         self.assertEqual(contract["canon_ledger"]["schema_name"], "canon_ledger")
         self.assertEqual(contract["canon_ledger"]["schema_version"], "1.0")
+        self.assertEqual(contract["chapter_handoff_packet"]["schema_name"], "chapter_handoff_packet")
+        self.assertEqual(contract["chapter_handoff_packet"]["schema_version"], "1.0")
         self.assertEqual(contract["thread_registry"]["schema_name"], "thread_registry")
         self.assertEqual(contract["thread_registry"]["schema_version"], "1.0")
+
+    def test_save_chapter_handoff_packet_round_trips_valid_payload(self) -> None:
+        payload = {
+            "schema_name": "chapter_handoff_packet",
+            "schema_version": "1.0",
+            "chapter_number": 2,
+            "current_chapter_brief": {
+                "chapter_number": 2,
+                "purpose": "転機",
+                "goal": "秘密の扉を開く",
+                "conflict": "仲間を信じ切れない",
+                "turn": "鍵の正体に気づく",
+                "must_include": ["壊れた鍵"],
+                "continuity_dependencies": ["ミナト"],
+                "foreshadowing_targets": ["seed-1"],
+                "arc_progress": "疑いから決意へ進む",
+                "target_length_guidance": "standard",
+            },
+            "relevant_scene_cards": [
+                {
+                    "chapter_number": 2,
+                    "scene_number": 1,
+                    "scene_goal": "地下書庫へ入る",
+                    "scene_conflict": "警報が鳴る",
+                    "scene_turn": "鍵が反応する",
+                    "pov_character": "ミナト",
+                    "participants": ["ミナト", "相棒"],
+                    "setting": "地下書庫",
+                    "must_include": ["壊れた鍵"],
+                    "continuity_refs": ["chapter_briefs[1]"],
+                    "foreshadowing_action": "鍵穴を調べる",
+                    "exit_state": "真相に一歩近づく",
+                }
+            ],
+            "relevant_canon_facts": ["第1章で鍵を拾っている"],
+            "unresolved_threads": ["seed-1"],
+            "previous_chapter_summary": "主人公は鍵を拾い、異変の始まりを知った。",
+            "style_constraints": {
+                "tone": "静謐",
+                "point_of_view": "ミナト",
+                "tense": "past",
+            },
+        }
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            target = save_chapter_handoff_packet(Path(tmp_dir), payload, "json")
+            loaded = load_chapter_handoff_packet(Path(tmp_dir))
+
+            self.assertEqual(target.name, "chapter_handoff_packet.json")
+            self.assertEqual(loaded, payload)
+
+    def test_save_chapter_handoff_packet_validates_required_fields(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            with self.assertRaisesRegex(
+                ValueError,
+                "Invalid chapter_handoff_packet: missing required fields: style_constraints",
+            ):
+                save_chapter_handoff_packet(
+                    Path(tmp_dir),
+                    {
+                        "schema_name": "chapter_handoff_packet",
+                        "schema_version": "1.0",
+                        "chapter_number": 1,
+                        "current_chapter_brief": {},
+                        "relevant_scene_cards": [],
+                        "relevant_canon_facts": [],
+                        "unresolved_threads": [],
+                        "previous_chapter_summary": "",
+                    },
+                    "json",
+                )
+
+    def test_load_chapter_handoff_packet_rejects_missing_style_constraint_field(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            save_artifact(
+                Path(tmp_dir),
+                "chapter_handoff_packet",
+                {
+                    "schema_name": "chapter_handoff_packet",
+                    "schema_version": "1.0",
+                    "chapter_number": 1,
+                    "current_chapter_brief": {
+                        "chapter_number": 1,
+                        "purpose": "導入",
+                        "goal": "異変に気づく",
+                        "conflict": "状況が飲み込めない",
+                        "turn": "時計が逆回転する",
+                        "must_include": ["壊れた時計"],
+                        "continuity_dependencies": ["ミナト"],
+                        "foreshadowing_targets": ["seed-1"],
+                        "arc_progress": "平穏から不安へ移る",
+                        "target_length_guidance": "standard",
+                    },
+                    "relevant_scene_cards": [],
+                    "relevant_canon_facts": [],
+                    "unresolved_threads": [],
+                    "previous_chapter_summary": "",
+                    "style_constraints": {
+                        "tone": "静謐",
+                        "point_of_view": "ミナト",
+                    },
+                },
+                "json",
+            )
+
+            with self.assertRaisesRegex(
+                ValueError,
+                "Invalid chapter_handoff_packet: style_constraints is missing required fields: tense",
+            ):
+                load_chapter_handoff_packet(Path(tmp_dir))
 
     def test_save_story_bible_writes_story_design_contract(self) -> None:
         payload = {

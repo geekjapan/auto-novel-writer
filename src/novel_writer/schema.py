@@ -49,6 +49,29 @@ def chapter_briefs_contract() -> dict:
     }
 
 
+def chapter_handoff_packet_contract() -> dict:
+    return {
+        "schema_name": "chapter_handoff_packet",
+        "schema_version": "1.0",
+        "required_fields": [
+            "schema_name",
+            "schema_version",
+            "chapter_number",
+            "current_chapter_brief",
+            "relevant_scene_cards",
+            "relevant_canon_facts",
+            "unresolved_threads",
+            "previous_chapter_summary",
+            "style_constraints",
+        ],
+        "style_constraints_required_fields": [
+            "tone",
+            "point_of_view",
+            "tense",
+        ],
+    }
+
+
 def canon_ledger_contract() -> dict:
     return {
         "schema_name": "canon_ledger",
@@ -290,6 +313,70 @@ def validate_thread_registry_entry(payload: dict, field_name: str = "thread") ->
     return payload
 
 
+def validate_chapter_handoff_packet(payload: dict) -> dict:
+    contract = chapter_handoff_packet_contract()
+    if not isinstance(payload, dict):
+        raise ValueError("Invalid chapter_handoff_packet: payload must be an object.")
+
+    missing_fields = [field for field in contract["required_fields"] if field not in payload]
+    if missing_fields:
+        missing = ", ".join(sorted(missing_fields))
+        raise ValueError(
+            "Invalid chapter_handoff_packet: missing required fields: "
+            f"{missing}. Regenerate the chapter handoff packet from the pipeline."
+        )
+
+    if payload.get("schema_name") != contract["schema_name"]:
+        raise ValueError(
+            "Invalid chapter_handoff_packet: "
+            f"schema_name={payload.get('schema_name')!r} is not supported; expected {contract['schema_name']!r}."
+        )
+
+    if payload.get("schema_version") != contract["schema_version"]:
+        raise ValueError(
+            "Invalid chapter_handoff_packet: "
+            f"schema_version={payload.get('schema_version')!r} is not supported; expected {contract['schema_version']!r}."
+        )
+
+    _validate_int_field(payload.get("chapter_number"), "chapter_handoff_packet", "chapter_number")
+    validate_chapter_brief_entry(payload.get("current_chapter_brief"), "current_chapter_brief")
+
+    relevant_scene_cards = payload.get("relevant_scene_cards")
+    _validate_list_field(relevant_scene_cards, "chapter_handoff_packet", "relevant_scene_cards")
+    for index, scene in enumerate(relevant_scene_cards):
+        validate_scene_card_entry(scene, f"relevant_scene_cards[{index}]")
+
+    for field_name in ["relevant_canon_facts", "unresolved_threads"]:
+        _validate_list_field(payload.get(field_name), "chapter_handoff_packet", field_name)
+
+    _validate_str_field(
+        payload.get("previous_chapter_summary"),
+        "chapter_handoff_packet",
+        "previous_chapter_summary",
+    )
+
+    style_constraints = payload.get("style_constraints")
+    if not isinstance(style_constraints, dict):
+        raise ValueError("Invalid chapter_handoff_packet: style_constraints must be an object.")
+    missing_style_fields = [
+        field for field in contract["style_constraints_required_fields"] if field not in style_constraints
+    ]
+    if missing_style_fields:
+        missing = ", ".join(sorted(missing_style_fields))
+        raise ValueError(
+            "Invalid chapter_handoff_packet: "
+            f"style_constraints is missing required fields: {missing}."
+        )
+    for field_name in contract["style_constraints_required_fields"]:
+        _validate_str_field(
+            style_constraints.get(field_name),
+            "chapter_handoff_packet",
+            f"style_constraints.{field_name}",
+        )
+
+    return payload
+
+
 def validate_chapter_briefs(payload: list[dict]) -> list[dict]:
     if not isinstance(payload, list) or not payload:
         raise ValueError("Invalid chapter_briefs: payload must be a non-empty list.")
@@ -323,6 +410,32 @@ def validate_chapter_briefs(payload: list[dict]) -> list[dict]:
         "chapter_number",
         "payload",
     )
+
+    return payload
+
+
+def validate_chapter_brief_entry(payload: dict, field_name: str) -> dict:
+    contract = chapter_briefs_contract()
+    if not isinstance(payload, dict):
+        raise ValueError(f"Invalid chapter_briefs: {field_name} must be an object.")
+
+    missing_fields = [field for field in contract["required_fields"] if field not in payload]
+    if missing_fields:
+        missing = ", ".join(sorted(missing_fields))
+        raise ValueError(
+            "Invalid chapter_briefs: "
+            f"{field_name} is missing required fields: {missing}."
+        )
+
+    _validate_int_field(
+        payload.get("chapter_number"),
+        "chapter_briefs",
+        f"{field_name}.chapter_number",
+    )
+    for entry_field in ["purpose", "goal", "conflict", "turn", "arc_progress", "target_length_guidance"]:
+        _validate_str_field(payload.get(entry_field), "chapter_briefs", f"{field_name}.{entry_field}")
+    for entry_field in ["must_include", "continuity_dependencies", "foreshadowing_targets"]:
+        _validate_list_field(payload.get(entry_field), "chapter_briefs", f"{field_name}.{entry_field}")
 
     return payload
 
@@ -388,31 +501,7 @@ def validate_scene_cards(payload: list[dict]) -> list[dict]:
             )
 
         for scene_index, scene in enumerate(scenes):
-            if not isinstance(scene, dict):
-                raise ValueError(
-                    f"Invalid scene_cards: scene_cards[{index}].scenes[{scene_index}] must be an object."
-                )
-
-            missing_scene_fields = [
-                field for field in contract["scene_required_fields"] if field not in scene
-            ]
-            if missing_scene_fields:
-                missing = ", ".join(sorted(missing_scene_fields))
-                raise ValueError(
-                    "Invalid scene_cards: "
-                    f"scene_cards[{index}].scenes[{scene_index}] is missing required fields: {missing}."
-                )
-
-            _validate_int_field(
-                scene.get("scene_number"),
-                "scene_cards",
-                f"scene_cards[{index}].scenes[{scene_index}].scene_number",
-            )
-            _validate_int_field(
-                scene.get("chapter_number"),
-                "scene_cards",
-                f"scene_cards[{index}].scenes[{scene_index}].chapter_number",
-            )
+            validate_scene_card_entry(scene, f"scene_cards[{index}].scenes[{scene_index}]")
             if scene.get("chapter_number") != chapter_packet.get("chapter_number"):
                 raise ValueError(
                     "Invalid scene_cards: "
@@ -444,6 +533,55 @@ def validate_scene_cards(payload: list[dict]) -> list[dict]:
             "scene_cards",
             f"scene_cards[{index}].scenes",
             "scenes",
+        )
+
+    return payload
+
+
+def validate_scene_card_entry(payload: dict, field_name: str) -> dict:
+    contract = scene_cards_contract()
+    if not isinstance(payload, dict):
+        raise ValueError(f"Invalid scene_cards: {field_name} must be an object.")
+
+    missing_scene_fields = [
+        field for field in contract["scene_required_fields"] if field not in payload
+    ]
+    if missing_scene_fields:
+        missing = ", ".join(sorted(missing_scene_fields))
+        raise ValueError(
+            "Invalid scene_cards: "
+            f"{field_name} is missing required fields: {missing}."
+        )
+
+    _validate_int_field(
+        payload.get("scene_number"),
+        "scene_cards",
+        f"{field_name}.scene_number",
+    )
+    _validate_int_field(
+        payload.get("chapter_number"),
+        "scene_cards",
+        f"{field_name}.chapter_number",
+    )
+    for field_name_part in [
+        "scene_goal",
+        "scene_conflict",
+        "scene_turn",
+        "pov_character",
+        "setting",
+        "foreshadowing_action",
+        "exit_state",
+    ]:
+        _validate_str_field(
+            payload.get(field_name_part),
+            "scene_cards",
+            f"{field_name}.{field_name_part}",
+        )
+    for field_name_part in ["participants", "must_include", "continuity_refs"]:
+        _validate_list_field(
+            payload.get(field_name_part),
+            "scene_cards",
+            f"{field_name}.{field_name_part}",
         )
 
     return payload
@@ -994,6 +1132,7 @@ class StoryArtifacts:
     def artifact_contract(self) -> dict:
         return {
             "chapter_artifacts": chapter_artifact_contract(),
+            "chapter_handoff_packet": chapter_handoff_packet_contract(),
             "canon_ledger": canon_ledger_contract(),
             "chapter_briefs": chapter_briefs_contract(),
             "scene_cards": scene_cards_contract(),
