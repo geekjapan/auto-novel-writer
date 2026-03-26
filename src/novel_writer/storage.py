@@ -12,6 +12,7 @@ from novel_writer.schema import (
     project_manifest_contract,
     validate_scene_cards,
     validate_story_bible,
+    validate_thread_registry_entry,
     validate_thread_registry,
     validate_project_manifest,
     validate_publish_ready_bundle,
@@ -125,6 +126,34 @@ def load_thread_registry(output_dir: Path, file_format: str | None = None) -> di
     payload = load_artifact(output_dir, "thread_registry", file_format)
     validate_thread_registry(payload)
     return payload
+
+
+def upsert_thread_registry_entry(
+    output_dir: Path,
+    thread_payload: Any,
+    file_format: str = "json",
+) -> Path:
+    validated_thread = validate_thread_registry_entry(thread_payload, "thread_payload")
+    try:
+        registry_payload = load_thread_registry(output_dir, file_format)
+    except FileNotFoundError:
+        registry_payload = {
+            "schema_name": "thread_registry",
+            "schema_version": "1.0",
+            "threads": [],
+        }
+
+    threads = list(registry_payload["threads"])
+    target_thread_id = validated_thread["thread_id"]
+    for index, existing_thread in enumerate(threads):
+        if existing_thread.get("thread_id") == target_thread_id:
+            threads[index] = validated_thread
+            registry_payload["threads"] = threads
+            return save_thread_registry(output_dir, registry_payload, file_format)
+
+    threads.append(validated_thread)
+    registry_payload["threads"] = threads
+    return save_thread_registry(output_dir, registry_payload, file_format)
 
 
 def upsert_canon_ledger_chapter(

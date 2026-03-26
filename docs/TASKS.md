@@ -4,19 +4,20 @@
 ここでの task は、1 回で安全に実装・テスト・docs 更新・コミットできる粒度へ分割する。
 
 ## In Progress
-- [ ] M59d: thread 単位の registry 更新 helper を追加する
-  - Title: thread registry を thread 単位で更新できるようにする
+- [ ] M59e: memory layer を draft / revise / rerun から参照できるようにする
+  - Title: canon ledger と thread registry の参照導線を追加する
   - Milestone: M59 Canon Ledger And Thread Registry
-  - Purpose: `thread_registry` の保存契約の上に、thread ごとの状態変更を安全に追加更新できる操作を定義する
-  - Target files or directories: `src/novel_writer/schema.py`, `src/novel_writer/storage.py`, `tests/test_storage.py`, `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
-  - Done when: thread 単位 entry を append / replace できる helper が追加され、unknown status や chapter 整合性違反で fail fast に停止する
-  - Required tests: `./venv/bin/python -m unittest tests.test_storage -v`, `./venv/bin/python -m unittest discover -s tests -v`
+  - Purpose: 追加済みの `canon_ledger` / `thread_registry` を、本文生成や rerun の前提 context として扱える最小導線を pipeline / tests / docs に追加する
+  - Target files or directories: `src/novel_writer/pipeline.py`, `src/novel_writer/llm/`, `tests/test_pipeline.py`, `tests/test_llm_client.py`, `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
+  - Done when: draft / revise / rerun の少なくとも 1 経路が memory artifact を読み取り、欠落時の扱いが docs / tests で固定される
+  - Required tests: `./venv/bin/python -m unittest tests.test_pipeline -v`, `./venv/bin/python -m unittest tests.test_llm_client -v`, `./venv/bin/python -m unittest discover -s tests -v`
   - Docs to update: `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
 
 ## Ready
 
 ## Done
 
+- [x] M59d: thread 単位の registry 更新 helper を追加する
 - [x] M59c: `thread_registry` の schema と storage contract を固定する
 - [x] M59b: chapter 単位の ledger 追記 helper を追加する
 - [x] M59a: `canon_ledger` の schema と storage contract を固定する

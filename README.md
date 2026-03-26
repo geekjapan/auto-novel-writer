@@ -129,6 +129,7 @@
 - `canon_ledger` の schema / storage contract
 - `canon_ledger` の chapter 単位 upsert helper
 - `thread_registry` の schema / storage contract
+- `thread_registry` の thread 単位 upsert helper
 
 ## 長編設計 artifact の現状
 
@@ -170,7 +171,7 @@
 - `related_characters`
 - `notes`
 
-`status` は `seeded`, `progressed`, `resolved`, `dropped` の列挙型に固定しています。`thread_registry.json` も保存時と読込時の両方で validation され、required field 欠落、unsupported `schema_version`、不正な status、`last_updated_in_chapter < introduced_in_chapter` は fail fast で停止します。まだ thread 単位更新 helper や pipeline からの自動更新は入れていません。
+`status` は `seeded`, `progressed`, `resolved`, `dropped` の列挙型に固定しています。`thread_registry.json` も保存時と読込時の両方で validation され、required field 欠落、unsupported `schema_version`、不正な status、`last_updated_in_chapter < introduced_in_chapter` は fail fast で停止します。storage helper では thread 単位 upsert もでき、同じ `thread_id` は置換、未登録の `thread_id` は追加します。まだ pipeline からの自動更新は入れていません。
 
 ## chapter 1 互換 artifact と全章状態
 

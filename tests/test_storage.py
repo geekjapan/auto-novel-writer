@@ -28,6 +28,7 @@ from novel_writer.storage import (
     save_story_bible,
     save_thread_registry,
     upsert_canon_ledger_chapter,
+    upsert_thread_registry_entry,
 )
 
 
@@ -324,6 +325,137 @@ class SaveArtifactTest(unittest.TestCase):
 
             self.assertEqual(target.name, "thread_registry.json")
             self.assertEqual(loaded, payload)
+
+    def test_upsert_thread_registry_entry_creates_new_registry_when_missing(self) -> None:
+        thread_payload = {
+            "thread_id": "watch-mystery",
+            "label": "壊れた腕時計の謎",
+            "status": "seeded",
+            "introduced_in_chapter": 1,
+            "last_updated_in_chapter": 1,
+            "related_characters": ["ミナト"],
+            "notes": ["駅前で逆回転が初登場した。"],
+        }
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            target = upsert_thread_registry_entry(Path(tmp_dir), thread_payload)
+            loaded = load_thread_registry(Path(tmp_dir))
+
+            self.assertEqual(target.name, "thread_registry.json")
+            self.assertEqual(
+                loaded,
+                {
+                    "schema_name": "thread_registry",
+                    "schema_version": "1.0",
+                    "threads": [thread_payload],
+                },
+            )
+
+    def test_upsert_thread_registry_entry_appends_new_thread(self) -> None:
+        first_thread = {
+            "thread_id": "watch-mystery",
+            "label": "壊れた腕時計の謎",
+            "status": "seeded",
+            "introduced_in_chapter": 1,
+            "last_updated_in_chapter": 1,
+            "related_characters": ["ミナト"],
+            "notes": ["駅前で逆回転が初登場した。"],
+        }
+        second_thread = {
+            "thread_id": "partner-secret",
+            "label": "相棒の沈黙",
+            "status": "progressed",
+            "introduced_in_chapter": 2,
+            "last_updated_in_chapter": 2,
+            "related_characters": ["ミナト", "相棒"],
+            "notes": ["教室で証言が食い違った。"],
+        }
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            save_thread_registry(
+                Path(tmp_dir),
+                {
+                    "schema_name": "thread_registry",
+                    "schema_version": "1.0",
+                    "threads": [first_thread],
+                },
+            )
+
+            upsert_thread_registry_entry(Path(tmp_dir), second_thread)
+            loaded = load_thread_registry(Path(tmp_dir))
+
+            self.assertEqual(loaded["threads"], [first_thread, second_thread])
+
+    def test_upsert_thread_registry_entry_replaces_existing_thread(self) -> None:
+        original_thread = {
+            "thread_id": "watch-mystery",
+            "label": "壊れた腕時計の謎",
+            "status": "seeded",
+            "introduced_in_chapter": 1,
+            "last_updated_in_chapter": 1,
+            "related_characters": ["ミナト"],
+            "notes": ["駅前で逆回転が初登場した。"],
+        }
+        updated_thread = {
+            "thread_id": "watch-mystery",
+            "label": "壊れた腕時計の謎",
+            "status": "progressed",
+            "introduced_in_chapter": 1,
+            "last_updated_in_chapter": 3,
+            "related_characters": ["ミナト", "相棒"],
+            "notes": ["教室の会話で矛盾が増えた。"],
+        }
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            save_thread_registry(
+                Path(tmp_dir),
+                {
+                    "schema_name": "thread_registry",
+                    "schema_version": "1.0",
+                    "threads": [original_thread],
+                },
+            )
+
+            upsert_thread_registry_entry(Path(tmp_dir), updated_thread)
+            loaded = load_thread_registry(Path(tmp_dir))
+
+            self.assertEqual(loaded["threads"], [updated_thread])
+
+    def test_upsert_thread_registry_entry_rejects_invalid_chapter_order(self) -> None:
+        original_thread = {
+            "thread_id": "watch-mystery",
+            "label": "壊れた腕時計の謎",
+            "status": "progressed",
+            "introduced_in_chapter": 1,
+            "last_updated_in_chapter": 3,
+            "related_characters": ["ミナト", "相棒"],
+            "notes": ["教室の会話で矛盾が増えた。"],
+        }
+        invalid_update = {
+            "thread_id": "watch-mystery",
+            "label": "壊れた腕時計の謎",
+            "status": "resolved",
+            "introduced_in_chapter": 1,
+            "last_updated_in_chapter": 0,
+            "related_characters": ["ミナト"],
+            "notes": ["真相が明かされた。"],
+        }
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            save_thread_registry(
+                Path(tmp_dir),
+                {
+                    "schema_name": "thread_registry",
+                    "schema_version": "1.0",
+                    "threads": [original_thread],
+                },
+            )
+
+            with self.assertRaisesRegex(
+                ValueError,
+                "thread_payload\\.last_updated_in_chapter must be greater than or equal to introduced_in_chapter",
+            ):
+                upsert_thread_registry_entry(Path(tmp_dir), invalid_update)
 
     def test_upsert_canon_ledger_chapter_creates_new_ledger_when_missing(self) -> None:
         chapter_payload = {
