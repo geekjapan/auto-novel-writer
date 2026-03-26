@@ -523,6 +523,81 @@ class StoryPipelineTest(unittest.TestCase):
                 len(artifacts.chapter_plan),
             )
 
+    def test_rerun_chapter_updates_memory_artifacts_for_target_chapter(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            output_dir = Path(tmp_dir)
+            pipeline = StoryPipeline(
+                MockLLMClient(),
+                output_dir,
+                "json",
+                continuity_checker=NoRerunContinuityChecker(),
+            )
+            pipeline.run(StoryInput(theme="記憶", genre="SF", tone="ビター", target_length=8000))
+
+            save_canon_ledger(
+                output_dir,
+                {
+                    "schema_name": "canon_ledger",
+                    "schema_version": "1.0",
+                    "chapters": [
+                        {
+                            "chapter_number": 1,
+                            "new_facts": ["古い要約 1"],
+                            "changed_facts": [],
+                            "open_questions": ["seed-1"],
+                            "timeline_events": ["古いイベント 1"],
+                        },
+                        {
+                            "chapter_number": 2,
+                            "new_facts": ["古い要約 2"],
+                            "changed_facts": [],
+                            "open_questions": ["seed-1"],
+                            "timeline_events": ["古いイベント 2"],
+                        },
+                        {
+                            "chapter_number": 3,
+                            "new_facts": ["古い要約 3"],
+                            "changed_facts": [],
+                            "open_questions": ["seed-1"],
+                            "timeline_events": ["古いイベント 3"],
+                        },
+                    ],
+                },
+            )
+            save_thread_registry(
+                output_dir,
+                {
+                    "schema_name": "thread_registry",
+                    "schema_version": "1.0",
+                    "threads": [
+                        {
+                            "thread_id": "seed-1",
+                            "label": "seed-1",
+                            "status": "seeded",
+                            "introduced_in_chapter": 1,
+                            "last_updated_in_chapter": 3,
+                            "related_characters": ["篠崎 遥"],
+                            "notes": ["古い thread note"],
+                        }
+                    ],
+                },
+            )
+
+            rerun_artifacts = pipeline.rerun_chapter(output_dir, 2)
+            canon_ledger = json.loads((output_dir / "canon_ledger.json").read_text(encoding="utf-8"))
+            thread_registry = json.loads((output_dir / "thread_registry.json").read_text(encoding="utf-8"))
+
+            self.assertEqual(
+                canon_ledger["chapters"][1]["new_facts"],
+                [rerun_artifacts.revised_chapter_drafts[1]["summary"]],
+            )
+            self.assertEqual(
+                thread_registry["threads"][0]["notes"],
+                [rerun_artifacts.revised_chapter_drafts[1]["summary"]],
+            )
+            self.assertEqual(thread_registry["threads"][0]["introduced_in_chapter"], 1)
+            self.assertEqual(thread_registry["threads"][0]["last_updated_in_chapter"], 2)
+
     def test_resume_normalizes_compatibility_only_manifest_to_chapter_arrays(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             output_dir = Path(tmp_dir)

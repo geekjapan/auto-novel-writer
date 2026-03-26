@@ -4,12 +4,12 @@
 ここでの task は、1 回で安全に実装・テスト・docs 更新・コミットできる粒度へ分割する。
 
 ## In Progress
-- [ ] M59h: `rerun-chapter` 結果も memory artifact へ反映できるようにする
-  - Title: chapter rerun 後の memory artifact 自動更新導線を追加する
+- [ ] M59i: continuity policy の内部 rerun 結果も memory artifact へ反映できるようにする
+  - Title: policy 駆動 rerun 後の memory artifact 自動更新導線を追加する
   - Milestone: M59 Canon Ledger And Thread Registry
-  - Purpose: `rerun-chapter` で再生成した章 draft も `canon_ledger` / `thread_registry` に反映し、章単位の再実行後に memory layer が古いまま残らないようにする
+  - Purpose: medium / high severity による内部 rerun でも `canon_ledger` / `thread_registry` を更新し、自動再生成後に memory layer が古いまま残らないようにする
   - Target files or directories: `src/novel_writer/pipeline.py`, `tests/test_pipeline.py`, `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
-  - Done when: `rerun-chapter` 実行後にも対象章の memory artifact が更新され、通常 run との差分方針が docs / tests で固定される
+  - Done when: continuity policy による rerun 後にも対象章または全章の memory artifact が更新され、手動 rerun との差分方針が docs / tests で固定される
   - Required tests: `./venv/bin/python -m unittest tests.test_pipeline -v`, `./venv/bin/python -m unittest discover -s tests -v`
   - Docs to update: `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
 
@@ -17,6 +17,7 @@
 
 ## Done
 
+- [x] M59h: `rerun-chapter` 結果も memory artifact へ反映できるようにする
 - [x] M59g: revised chapter 結果も memory artifact へ反映できるようにする
 - [x] M59f: memory artifact を chapter 結果から自動更新できるようにする
 - [x] M59e: memory layer を draft / revise / rerun から参照できるようにする

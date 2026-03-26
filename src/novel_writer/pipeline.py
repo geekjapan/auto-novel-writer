@@ -149,6 +149,7 @@ class StoryPipeline:
         )
         artifacts.set_chapter_draft(chapter_index, chapter_draft)
         self._save_chapter_draft_artifact(chapter_index, chapter_draft)
+        self._update_memory_artifacts_from_chapter_draft(artifacts, chapter_index, chapter_draft)
         if chapter_index == 0:
             save_artifact(self.output_dir, "05_chapter_1_draft", artifacts.get_chapter_draft(0), self.file_format)
 
@@ -183,6 +184,11 @@ class StoryPipeline:
         )
         revised_chapter_draft = artifacts.get_revised_chapter_draft(chapter_index)
         self._save_revised_chapter_draft_artifact(chapter_index, revised_chapter_draft)
+        self._update_memory_artifacts_from_chapter_draft(
+            artifacts,
+            chapter_index,
+            revised_chapter_draft,
+        )
         if chapter_index == 0:
             save_artifact(self.output_dir, "revised_chapter_1_draft", revised_chapter_draft, self.file_format)
 

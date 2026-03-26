@@ -38,7 +38,7 @@ CLI から小説プロジェクトを作成し、長編小説を
 - `canon_ledger` には chapter 単位 upsert helper が入り、同章置換と次章追記を fail-fast 制約つきで扱える
 - `thread_registry` の schema / storage contract は導入済みで、status 列挙型と chapter 参照の基本整合性を save/load 時に validation できる
 - `thread_registry` には thread 単位 upsert helper が入り、同じ `thread_id` の置換と新規 thread 追加を fail-fast 制約つきで扱える
-- `chapter_drafts` / `revised_chapter_drafts` step は保存直後に `canon_ledger` / `thread_registry` を最小ルールで自動更新できる
+- `chapter_drafts` / `revised_chapter_drafts` step と `rerun-chapter` は保存直後に `canon_ledger` / `thread_registry` を最小ルールで自動更新できる
 - `story_summary.json`、`project_quality_report.json`、`publish_ready_bundle.json` を出力できる
 
 ## Gap To Goal
@@ -178,8 +178,9 @@ CLI から小説プロジェクトを作成し、長編小説を
 - chapter draft 生成と `rerun-chapter` は memory artifact を読める場合に prompt context として参照し、欠落時は空 ledger / empty thread registry を互換用 default として渡す
 - `chapter_drafts` step では draft `summary`、`foreshadowing_targets`、scene 1 `exit_state` を使って `canon_ledger` を自動更新する
 - `revised_chapter_drafts` step でも同じ章 entry / thread entry を再更新し、full pipeline 完了時は revised draft の `summary` を memory layer へ反映する
-- `chapter_drafts` / `revised_chapter_drafts` step では `foreshadowing_targets` ごとに `thread_registry` を自動更新し、同じ `thread_id` の `introduced_in_chapter` は最初の導入章を保持する
-- 次は `rerun-chapter` 経路にも同じ memory artifact 自動反映を広げる段階である
+- `rerun-chapter` でも対象章の draft / revised draft 保存直後に同じ章 entry / thread entry を更新する
+- `chapter_drafts` / `revised_chapter_drafts` step と `rerun-chapter` では `foreshadowing_targets` ごとに `thread_registry` を自動更新し、同じ `thread_id` の `introduced_in_chapter` は最初の導入章を保持する
+- 次は continuity policy による内部 rerun 経路にも同じ memory artifact 自動反映を広げる段階である
 
 完了条件:
 
@@ -290,7 +291,7 @@ M59 の実装順は次のとおりに進める。
 5. chapter draft 結果から memory artifact を自動更新する
 6. README / tests / TASKS を memory layer 前提へ同期する
 
-現在は 1 から 5 の最小導線と revise 経路の自動更新までが入り、次は `rerun-chapter` 経路の自動更新へ進む段階である。
+現在は 1 から 5 の最小導線、revised draft、自動 `rerun-chapter` 反映までが入り、次は continuity policy による内部 rerun 経路の自動更新へ進む段階である。
 
 ## Roadmap Notes
 
