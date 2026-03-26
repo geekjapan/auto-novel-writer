@@ -297,6 +297,7 @@ class OpenAIClient(BaseLLMClient):
         chapter_plan: list[dict[str, Any]],
         chapter_briefs: list[dict[str, Any]],
         scene_cards: list[dict[str, Any]],
+        three_act_plot: dict[str, Any] | None = None,
         chapter_index: int = 0,
     ) -> dict[str, Any]:
         if chapter_index < 0 or chapter_index >= len(chapter_plan):
@@ -312,6 +313,7 @@ class OpenAIClient(BaseLLMClient):
                 "Return JSON with key 'chapter_draft' or 'chapter_1_draft'. "
                 f"story={story_input.to_dict()}, logline={json.dumps(logline, ensure_ascii=False)}, "
                 f"characters={json.dumps(characters, ensure_ascii=False)}, "
+                f"three_act_plot={json.dumps(three_act_plot, ensure_ascii=False)}, "
                 f"chapter_plan={json.dumps(chapter_plan, ensure_ascii=False)}, "
                 f"chapter_briefs={json.dumps(chapter_briefs, ensure_ascii=False)}, "
                 f"scene_cards={json.dumps(scene_cards, ensure_ascii=False)}, "

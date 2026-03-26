@@ -162,6 +162,128 @@ class MockLLMClientTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "LM Studio response was not valid JSON"):
             client._generate_json("system", "user")
 
+    def test_openai_client_chapter_briefs_prompt_includes_required_context(self) -> None:
+        completions = RecordingCompletions('{"chapter_briefs": []}')
+        client = object.__new__(OpenAIClient)
+        client._client = RecordingOpenAIBackend(completions)
+        client._model = "gpt-4.1-mini"
+        client._provider_label = "OpenAI"
+        client._response_format_type = "json_object"
+
+        story_input = StoryInput(theme="喪失", genre="ミステリ", tone="静謐", target_length=120000)
+
+        with self.assertRaisesRegex(ValueError, "chapter_briefs must contain 1 items"):
+            client.generate_chapter_briefs(
+                story_input,
+                {"id": "logline-1", "title": "鏡", "premise": "p", "hook": "h"},
+                [{"name": "篠崎 遥", "role": "protagonist", "goal": "g", "conflict": "c", "arc": "a"}],
+                {"act_1": {"setup": "s"}, "act_2": {"midpoint": "m"}, "act_3": {"resolution": "r"}},
+                {
+                    "schema_name": "story_bible",
+                    "schema_version": "1.0",
+                    "core_premise": "p",
+                    "ending_reveal": "r",
+                    "theme_statement": "t",
+                    "character_arcs": [],
+                    "world_rules": [],
+                    "forbidden_facts": [],
+                    "foreshadowing_seeds": [],
+                },
+                [{"chapter_number": 1, "title": "第1章", "purpose": "導入", "point_of_view": "篠崎 遥", "target_words": 5000}],
+            )
+
+        prompt = completions.last_kwargs["messages"][1]["content"]
+        self.assertIn("logline=", prompt)
+        self.assertIn("characters=", prompt)
+        self.assertIn("three_act_plot=", prompt)
+
+    def test_openai_client_chapter_draft_prompt_includes_required_context(self) -> None:
+        completions = RecordingCompletions(
+            '{"chapter_draft": {"chapter_number": 1, "title": "第1章", "summary": "導入", "text": "本文"}}'
+        )
+        client = object.__new__(OpenAIClient)
+        client._client = RecordingOpenAIBackend(completions)
+        client._model = "gpt-4.1-mini"
+        client._provider_label = "OpenAI"
+        client._response_format_type = "json_object"
+
+        story_input = StoryInput(theme="喪失", genre="ミステリ", tone="静謐", target_length=120000)
+
+        client.generate_chapter_draft(
+            story_input,
+            {"id": "logline-1", "title": "鏡", "premise": "p", "hook": "h"},
+            [{"name": "篠崎 遥", "role": "protagonist", "goal": "g", "conflict": "c", "arc": "a"}],
+            [{"chapter_number": 1, "title": "第1章", "purpose": "導入", "point_of_view": "篠崎 遥", "target_words": 5000}],
+            [{
+                "chapter_number": 1,
+                "purpose": "導入",
+                "goal": "g",
+                "conflict": "c",
+                "turn": "t",
+                "must_include": [],
+                "continuity_dependencies": [],
+                "foreshadowing_targets": [],
+                "arc_progress": "a",
+                "target_length_guidance": "標準",
+            }],
+            [{
+                "chapter_number": 1,
+                "scenes": [
+                    {
+                        "chapter_number": 1,
+                        "scene_number": 1,
+                        "scene_goal": "g1",
+                        "scene_conflict": "c1",
+                        "scene_turn": "t1",
+                        "pov_character": "篠崎 遥",
+                        "participants": ["篠崎 遥"],
+                        "setting": "s1",
+                        "must_include": [],
+                        "continuity_refs": [],
+                        "foreshadowing_action": "seed",
+                        "exit_state": "e1",
+                    },
+                    {
+                        "chapter_number": 1,
+                        "scene_number": 2,
+                        "scene_goal": "g2",
+                        "scene_conflict": "c2",
+                        "scene_turn": "t2",
+                        "pov_character": "篠崎 遥",
+                        "participants": ["篠崎 遥"],
+                        "setting": "s2",
+                        "must_include": [],
+                        "continuity_refs": [],
+                        "foreshadowing_action": "progress",
+                        "exit_state": "e2",
+                    },
+                    {
+                        "chapter_number": 1,
+                        "scene_number": 3,
+                        "scene_goal": "g3",
+                        "scene_conflict": "c3",
+                        "scene_turn": "t3",
+                        "pov_character": "篠崎 遥",
+                        "participants": ["篠崎 遥"],
+                        "setting": "s3",
+                        "must_include": [],
+                        "continuity_refs": [],
+                        "foreshadowing_action": "payoff_or_seed",
+                        "exit_state": "e3",
+                    },
+                ],
+            }],
+            {"act_1": {"setup": "s"}, "act_2": {"midpoint": "m"}, "act_3": {"resolution": "r"}},
+            chapter_index=0,
+        )
+
+        prompt = completions.last_kwargs["messages"][1]["content"]
+        self.assertIn("logline=", prompt)
+        self.assertIn("characters=", prompt)
+        self.assertIn("three_act_plot=", prompt)
+        self.assertIn("chapter_briefs=", prompt)
+        self.assertIn("scene_cards=", prompt)
+
     def test_openai_client_accepts_markdown_fenced_json_from_lmstudio(self) -> None:
         completions = RecordingCompletions('```json\n{"loglines": []}\n```')
         client = object.__new__(OpenAIClient)
@@ -402,6 +524,7 @@ class MockLLMClientTest(unittest.TestCase):
                     },
                 ],
             }],
+            {"act_1": {"setup": "s"}, "act_2": {"midpoint": "m"}, "act_3": {"resolution": "r"}},
             chapter_index=0,
         )
 
