@@ -442,7 +442,7 @@ run comparison summary field と artifact field の対応:
 minimal valid comparison artifact の read-only 境界:
 
 - `show-run-comparison` は `run_comparison_summary.json` の validator を通る最小 shape に対しても表示できる
-- 現在は `current_comparison_reason_codes`, `current_comparison_metrics`, `best_selection_source`, `best_selection_reason_codes`, `best_comparison_metrics`, `compact.issue_score`, `compact.completed_step_count`, `Run candidates: 0` まで tests で固定している
+- 現在は `current_comparison_reason_codes`, `current_comparison_metrics`, `best_selection_source`, `best_selection_reason_codes`, `best_comparison_metrics`, `compact.issue_score`, `compact.completed_step_count`, `compact.long_run_should_stop`, `Run candidates: 0` まで tests で固定している
 - `run_candidates=[]` の場合でも count 行は表示するが、`run_candidate_names` / `run_candidate_scores` / `run_candidate_output_dirs` は表示しない
 
 schema version の現方針:

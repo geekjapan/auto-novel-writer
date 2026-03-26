@@ -33,6 +33,7 @@ CLI から小説プロジェクトを作成し、長編小説を
 - chapter plan 全件に対して draft / revised draft を生成し、全章 artifact を保存できる
 - continuity check、quality report、rerun policy、bounded revise loop、resume / rerun、history / diff metadata 保存がある
 - `project_manifest.json` と comparison artifact により、current run / best run / run candidates を比較できる
+- `show-run-comparison` の minimal artifact read-only coverage では compact issue / step / long-run stop 行まで tests で固定している
 - `story_summary.json`、`project_quality_report.json`、`publish_ready_bundle.json` を出力できる
 
 ## Gap To Goal
