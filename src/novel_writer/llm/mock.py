@@ -161,27 +161,121 @@ class MockLLMClient(BaseLLMClient):
             )
         return chapters
 
+    def generate_chapter_briefs(
+        self,
+        story_input: StoryInput,
+        logline: dict[str, Any],
+        characters: list[dict[str, Any]],
+        three_act_plot: dict[str, Any],
+        story_bible: dict[str, Any],
+        chapter_plan: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        return [
+            {
+                "chapter_number": chapter["chapter_number"],
+                "purpose": chapter["purpose"],
+                "goal": f"{chapter['title']} で物語を前進させる",
+                "conflict": "主人公の望みと外部圧力が衝突する",
+                "turn": story_bible["ending_reveal"],
+                "must_include": [seed["setup"] for seed in story_bible["foreshadowing_seeds"][:1]],
+                "continuity_dependencies": [characters[0]["name"]],
+                "foreshadowing_targets": [seed["id"] for seed in story_bible["foreshadowing_seeds"]],
+                "arc_progress": characters[0]["arc"],
+                "target_length_guidance": "standard" if chapter["target_words"] < 12000 else "heavy",
+            }
+            for chapter in chapter_plan
+        ]
+
+    def generate_scene_cards(
+        self,
+        story_input: StoryInput,
+        logline: dict[str, Any],
+        characters: list[dict[str, Any]],
+        three_act_plot: dict[str, Any],
+        story_bible: dict[str, Any],
+        chapter_plan: list[dict[str, Any]],
+        chapter_briefs: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        packets = []
+        for brief in chapter_briefs:
+            chapter = chapter_plan[brief["chapter_number"] - 1]
+            packets.append(
+                {
+                    "chapter_number": brief["chapter_number"],
+                    "scenes": [
+                        {
+                            "chapter_number": brief["chapter_number"],
+                            "scene_number": 1,
+                            "scene_goal": brief["goal"],
+                            "scene_conflict": brief["conflict"],
+                            "scene_turn": "前提が崩れる",
+                            "pov_character": chapter["point_of_view"],
+                            "participants": [characters[0]["name"]],
+                            "setting": "導入地点",
+                            "must_include": brief["must_include"],
+                            "continuity_refs": brief["continuity_dependencies"],
+                            "foreshadowing_action": "seed",
+                            "exit_state": brief["turn"],
+                        },
+                        {
+                            "chapter_number": brief["chapter_number"],
+                            "scene_number": 2,
+                            "scene_goal": "対立を表面化させる",
+                            "scene_conflict": brief["conflict"],
+                            "scene_turn": "関係が不安定になる",
+                            "pov_character": chapter["point_of_view"],
+                            "participants": [characters[0]["name"], characters[1]["name"]],
+                            "setting": "対立地点",
+                            "must_include": brief["must_include"],
+                            "continuity_refs": brief["continuity_dependencies"],
+                            "foreshadowing_action": "progress",
+                            "exit_state": "協力関係にひびが入る",
+                        },
+                        {
+                            "chapter_number": brief["chapter_number"],
+                            "scene_number": 3,
+                            "scene_goal": "章の転換を確定する",
+                            "scene_conflict": brief["conflict"],
+                            "scene_turn": brief["turn"],
+                            "pov_character": chapter["point_of_view"],
+                            "participants": [characters[0]["name"]],
+                            "setting": "転換地点",
+                            "must_include": brief["must_include"],
+                            "continuity_refs": brief["continuity_dependencies"],
+                            "foreshadowing_action": "payoff_or_seed",
+                            "exit_state": brief["turn"],
+                        },
+                    ],
+                }
+            )
+        return packets
+
     def generate_chapter_draft(
         self,
         story_input: StoryInput,
         logline: dict[str, Any],
         characters: list[dict[str, Any]],
+        three_act_plot: dict[str, Any],
         chapter_plan: list[dict[str, Any]],
+        chapter_briefs: list[dict[str, Any]],
+        scene_cards: list[dict[str, Any]],
         chapter_index: int = 0,
     ) -> dict[str, Any]:
+        if chapter_index < 0 or chapter_index >= len(chapter_plan):
+            raise ValueError(f"chapter_plan must contain an entry for chapter_index={chapter_index}.")
+        if chapter_index >= len(chapter_briefs):
+            raise ValueError(f"chapter_briefs must contain an entry for chapter_index={chapter_index}.")
+        if chapter_index >= len(scene_cards):
+            raise ValueError(f"scene_cards must contain an entry for chapter_index={chapter_index}.")
+
         chapter = chapter_plan[chapter_index]
-        protagonist = characters[0]["name"]
+        brief = chapter_briefs[chapter_index]
+        packet = scene_cards[chapter_index]
         return {
             "chapter_number": chapter["chapter_number"],
             "title": chapter["title"],
-            "summary": chapter["purpose"],
-            "text": (
-                f"{protagonist}はまだ夜の静けさに慣れずにいた。"
-                f"{story_input.theme}の気配は、窓を叩く風よりも近くで息をしている。"
-                f"目の前の選択は小さく見えて、その実、これから失うものすべてを量っていた。"
-                f"『{logline['title']}』の始まりとして、"
-                f"{story_input.tone}な空気と不穏な予感を前景に置いた導入を書く。"
-            ),
+            "summary": brief["goal"],
+            "text": f"{brief['purpose']}。{packet['scenes'][0]['exit_state']}へ向かう本文。",
         }
 
     def revise_chapter_draft(

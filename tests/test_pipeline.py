@@ -8,6 +8,80 @@ from novel_writer.pipeline import PIPELINE_STEP_ORDER, StoryPipeline
 from novel_writer.schema import StoryInput
 
 
+class RecordingDraftContextLLMClient(MockLLMClient):
+    def __init__(self) -> None:
+        self.draft_calls: list[dict] = []
+
+    def generate_chapter_draft(
+        self,
+        story_input,
+        logline,
+        characters,
+        three_act_plot,
+        chapter_plan,
+        chapter_briefs,
+        scene_cards,
+        chapter_index=0,
+    ):
+        self.draft_calls.append(
+            {
+                "three_act_plot": three_act_plot,
+                "chapter_plan": chapter_plan,
+                "chapter_briefs": chapter_briefs,
+                "scene_cards": scene_cards,
+                "chapter_index": chapter_index,
+            }
+        )
+        return super().generate_chapter_draft(
+            story_input,
+            logline,
+            characters,
+            three_act_plot,
+            chapter_plan,
+            chapter_briefs,
+            scene_cards,
+            chapter_index=chapter_index,
+        )
+
+
+class NoRerunContinuityChecker:
+    def build_report(self, artifacts, chapter_index=0):
+        return {
+            "chapter_index": chapter_index,
+            "missing_fields": [],
+            "character_name_mismatches": [],
+            "plot_to_plan_gaps": [],
+            "plan_to_draft_gaps": [],
+            "length_warnings": [],
+            "issue_counts": {
+                "missing_fields": 0,
+                "character_name_mismatches": 0,
+                "plot_to_plan_gaps": 0,
+                "plan_to_draft_gaps": 0,
+                "length_warnings": 0,
+            },
+        }
+
+    def build_quality_report(self, continuity_report):
+        return {
+            "overall_recommendation": "accept",
+            "severity": continuity_report.get("severity", "low"),
+            "source_report": "continuity_report",
+            "recommendations": [],
+            "issue_counts": continuity_report.get("issue_counts", {}),
+            "total_issue_count": 0,
+        }
+
+    def build_project_quality_report(self, artifacts):
+        return {
+            "overall_recommendation": "accept",
+            "source_report": "project_quality_report",
+            "checks": {},
+            "issue_count": 0,
+            "issues": [],
+        }
+
+
 class StoryPipelineTest(unittest.TestCase):
     def test_pipeline_writes_all_phases(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -25,6 +99,8 @@ class StoryPipelineTest(unittest.TestCase):
                 "03_three_act_plot.json",
                 "story_bible.json",
                 "04_chapter_plan.json",
+                "chapter_briefs.json",
+                "scene_cards.json",
                 "05_chapter_1_draft.json",
                 "chapter_1_draft.json",
                 "chapter_2_draft.json",
@@ -211,6 +287,79 @@ class StoryPipelineTest(unittest.TestCase):
             )
             self.assertFalse(manifest["long_run_status"]["should_stop"])
 
+    def test_pipeline_keeps_documented_story_flow_order(self) -> None:
+        expected_step_order = [
+            "story_input",
+            "loglines",
+            "characters",
+            "three_act_plot",
+            "story_bible",
+            "chapter_plan",
+            "chapter_briefs",
+            "scene_cards",
+            "chapter_drafts",
+            "continuity_report",
+            "quality_report",
+            "revised_chapter_drafts",
+            "story_summary",
+            "project_quality_report",
+            "publish_ready_bundle",
+        ]
+
+        self.assertEqual(PIPELINE_STEP_ORDER, expected_step_order)
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            output_dir = Path(tmp_dir)
+            artifacts = StoryPipeline(MockLLMClient(), output_dir, "json").run(
+                StoryInput(theme="記憶", genre="SF", tone="ビター", target_length=120000)
+            )
+            manifest = json.loads((output_dir / "manifest.json").read_text(encoding="utf-8"))
+
+            self.assertTrue((output_dir / "chapter_briefs.json").exists())
+            self.assertTrue((output_dir / "scene_cards.json").exists())
+            self.assertEqual(manifest["completed_steps"], expected_step_order)
+            self.assertEqual([checkpoint["step"] for checkpoint in manifest["checkpoints"]], expected_step_order)
+            self.assertEqual(len(artifacts.chapter_briefs), len(artifacts.chapter_plan))
+            self.assertEqual(len(artifacts.scene_cards), len(artifacts.chapter_plan))
+
+    def test_pipeline_resume_fails_fast_when_scene_cards_missing_before_chapter_drafts(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            output_dir = Path(tmp_dir)
+            pipeline = StoryPipeline(MockLLMClient(), output_dir, "json")
+            pipeline.run(StoryInput(theme="秘密", genre="ミステリ", tone="静謐", target_length=120000))
+            (output_dir / "scene_cards.json").unlink()
+
+            with self.assertRaisesRegex(
+                ValueError,
+                "scene_cards is required before chapter_drafts",
+            ):
+                StoryPipeline(MockLLMClient(), output_dir, "json").run(
+                    resume_from=output_dir,
+                    rerun_from="chapter_drafts",
+                )
+
+    def test_pipeline_passes_three_act_plot_and_planning_context_to_chapter_drafts(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            output_dir = Path(tmp_dir)
+            client = RecordingDraftContextLLMClient()
+
+            artifacts = StoryPipeline(
+                client,
+                output_dir,
+                "json",
+                continuity_checker=NoRerunContinuityChecker(),
+            ).run(
+                StoryInput(theme="記憶", genre="SF", tone="ビター", target_length=8000)
+            )
+
+            self.assertEqual(len(client.draft_calls), len(artifacts.chapter_plan))
+            for chapter_index, call in enumerate(client.draft_calls):
+                self.assertEqual(call["three_act_plot"], artifacts.three_act_plot)
+                self.assertEqual(call["chapter_plan"], artifacts.chapter_plan)
+                self.assertEqual(call["chapter_briefs"], artifacts.chapter_briefs)
+                self.assertEqual(call["scene_cards"], artifacts.scene_cards)
+                self.assertEqual(call["chapter_index"], chapter_index)
+
     def test_resume_normalizes_compatibility_only_manifest_to_chapter_arrays(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             output_dir = Path(tmp_dir)
@@ -231,14 +380,14 @@ class StoryPipelineTest(unittest.TestCase):
             manifest["revise_history"] = []
             manifest["chapter_histories"] = []
             manifest["current_step"] = "chapter_drafts"
-            manifest["completed_steps"] = PIPELINE_STEP_ORDER[:7]
+            manifest["completed_steps"] = PIPELINE_STEP_ORDER[:9]
             manifest["checkpoints"] = [
                 {
                     "step": step_name,
                     "status": "completed",
                     "completed_steps": PIPELINE_STEP_ORDER[: index + 1],
                 }
-                for index, step_name in enumerate(PIPELINE_STEP_ORDER[:7])
+                for index, step_name in enumerate(PIPELINE_STEP_ORDER[:9])
             ]
             manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
 

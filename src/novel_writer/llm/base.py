@@ -46,12 +46,40 @@ class BaseLLMClient(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def generate_chapter_briefs(
+        self,
+        story_input: StoryInput,
+        logline: dict[str, Any],
+        characters: list[dict[str, Any]],
+        three_act_plot: dict[str, Any],
+        story_bible: dict[str, Any],
+        chapter_plan: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def generate_scene_cards(
+        self,
+        story_input: StoryInput,
+        logline: dict[str, Any],
+        characters: list[dict[str, Any]],
+        three_act_plot: dict[str, Any],
+        story_bible: dict[str, Any],
+        chapter_plan: list[dict[str, Any]],
+        chapter_briefs: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        raise NotImplementedError
+
+    @abstractmethod
     def generate_chapter_draft(
         self,
         story_input: StoryInput,
         logline: dict[str, Any],
         characters: list[dict[str, Any]],
+        three_act_plot: dict[str, Any],
         chapter_plan: list[dict[str, Any]],
+        chapter_briefs: list[dict[str, Any]],
+        scene_cards: list[dict[str, Any]],
         chapter_index: int = 0,
     ) -> dict[str, Any]:
         raise NotImplementedError

@@ -10,10 +10,14 @@ from novel_writer.rerun_policy import ContinuityRerunPolicy
 from novel_writer.schema import StoryArtifacts, StoryInput
 from novel_writer.storage import (
     load_artifact,
+    load_chapter_briefs,
     load_publish_ready_bundle,
+    load_scene_cards,
     load_story_bible,
     save_artifact,
+    save_chapter_briefs,
     save_publish_ready_bundle,
+    save_scene_cards,
     save_story_bible,
 )
 
@@ -25,6 +29,8 @@ PIPELINE_STEP_ORDER = [
     "three_act_plot",
     "story_bible",
     "chapter_plan",
+    "chapter_briefs",
+    "scene_cards",
     "chapter_drafts",
     "continuity_report",
     "quality_report",
@@ -106,11 +112,15 @@ class StoryPipeline:
             raise ValueError(f"chapter_number {chapter_number} is out of range.")
 
         artifacts.normalize_chapter_artifacts()
+        self._require_chapter_generation_inputs(artifacts, chapter_index)
         chapter_draft = self.llm_client.generate_chapter_draft(
             artifacts.story_input,
             selected_logline,
             artifacts.characters,
+            artifacts.three_act_plot,
             artifacts.chapter_plan,
+            artifacts.chapter_briefs,
+            artifacts.scene_cards,
             chapter_index=chapter_index,
         )
         artifacts.set_chapter_draft(chapter_index, chapter_draft)
@@ -242,6 +252,43 @@ class StoryPipeline:
         save_artifact(self.output_dir, "04_chapter_plan", artifacts.chapter_plan, self.file_format)
         self._mark_checkpoint("chapter_plan", checkpoints, artifacts, selected_logline)
 
+    def _run_chapter_briefs_step(
+        self,
+        story_input: StoryInput,
+        selected_logline: dict,
+        artifacts: StoryArtifacts,
+        checkpoints: list[dict],
+    ) -> None:
+        artifacts.chapter_briefs = self.llm_client.generate_chapter_briefs(
+            story_input,
+            selected_logline,
+            artifacts.characters,
+            artifacts.three_act_plot,
+            artifacts.story_bible,
+            artifacts.chapter_plan,
+        )
+        save_chapter_briefs(self.output_dir, artifacts.chapter_briefs, self.file_format)
+        self._mark_checkpoint("chapter_briefs", checkpoints, artifacts, selected_logline)
+
+    def _run_scene_cards_step(
+        self,
+        story_input: StoryInput,
+        selected_logline: dict,
+        artifacts: StoryArtifacts,
+        checkpoints: list[dict],
+    ) -> None:
+        artifacts.scene_cards = self.llm_client.generate_scene_cards(
+            story_input,
+            selected_logline,
+            artifacts.characters,
+            artifacts.three_act_plot,
+            artifacts.story_bible,
+            artifacts.chapter_plan,
+            artifacts.chapter_briefs,
+        )
+        save_scene_cards(self.output_dir, artifacts.scene_cards, self.file_format)
+        self._mark_checkpoint("scene_cards", checkpoints, artifacts, selected_logline)
+
     def _run_story_bible_step(
         self,
         story_input: StoryInput,
@@ -266,17 +313,35 @@ class StoryPipeline:
         checkpoints: list[dict],
     ) -> None:
         for chapter_index, _chapter in enumerate(artifacts.chapter_plan):
+            self._require_chapter_generation_inputs(artifacts, chapter_index)
             chapter_draft = self.llm_client.generate_chapter_draft(
                 story_input,
                 selected_logline,
                 artifacts.characters,
+                artifacts.three_act_plot,
                 artifacts.chapter_plan,
+                artifacts.chapter_briefs,
+                artifacts.scene_cards,
                 chapter_index=chapter_index,
             )
             artifacts.set_chapter_draft(chapter_index, chapter_draft)
             self._save_chapter_draft_artifact(chapter_index, chapter_draft)
         save_artifact(self.output_dir, "05_chapter_1_draft", artifacts.get_chapter_draft(0), self.file_format)
         self._mark_checkpoint("chapter_drafts", checkpoints, artifacts, selected_logline)
+
+    def _require_chapter_generation_inputs(self, artifacts: StoryArtifacts, chapter_index: int) -> None:
+        if not artifacts.chapter_briefs:
+            raise ValueError(
+                "chapter_briefs is required before chapter_drafts. Resume from chapter_briefs or regenerate it."
+            )
+        if not artifacts.scene_cards:
+            raise ValueError(
+                "scene_cards is required before chapter_drafts. Resume from scene_cards or regenerate it."
+            )
+        if chapter_index >= len(artifacts.chapter_briefs):
+            raise ValueError(f"chapter_briefs is missing chapter_index={chapter_index}.")
+        if chapter_index >= len(artifacts.scene_cards):
+            raise ValueError(f"scene_cards is missing chapter_index={chapter_index}.")
 
     def _run_continuity_report_step(
         self,
@@ -363,6 +428,12 @@ class StoryPipeline:
         if step_name == "chapter_plan":
             self._run_chapter_plan_step(story_input, selected_logline, artifacts, checkpoints)
             return selected_logline
+        if step_name == "chapter_briefs":
+            self._run_chapter_briefs_step(story_input, selected_logline, artifacts, checkpoints)
+            return selected_logline
+        if step_name == "scene_cards":
+            self._run_scene_cards_step(story_input, selected_logline, artifacts, checkpoints)
+            return selected_logline
         if step_name == "chapter_drafts":
             self._run_chapter_drafts_step(story_input, selected_logline, artifacts, checkpoints)
             return selected_logline
@@ -397,6 +468,8 @@ class StoryPipeline:
             "three_act_plot",
             "story_bible",
             "chapter_plan",
+            "chapter_briefs",
+            "scene_cards",
             "chapter_drafts",
             "chapter_1_draft",
             "continuity_report",
@@ -417,6 +490,14 @@ class StoryPipeline:
                 artifacts.story_bible = load_story_bible(resume_from)
             except FileNotFoundError:
                 pass
+        try:
+            artifacts.chapter_briefs = load_chapter_briefs(resume_from)
+        except FileNotFoundError:
+            artifacts.chapter_briefs = []
+        try:
+            artifacts.scene_cards = load_scene_cards(resume_from)
+        except FileNotFoundError:
+            artifacts.scene_cards = []
         if not artifacts.publish_ready_bundle:
             try:
                 artifacts.publish_ready_bundle = load_publish_ready_bundle(resume_from)
@@ -453,6 +534,12 @@ class StoryPipeline:
             return
         if rerun_from == "chapter_plan":
             self._reset_from_chapter_plan(artifacts)
+            return
+        if rerun_from == "chapter_briefs":
+            self._reset_from_chapter_briefs(artifacts)
+            return
+        if rerun_from == "scene_cards":
+            self._reset_from_scene_cards(artifacts)
             return
         if rerun_from == "chapter_drafts":
             self._reset_from_chapter_drafts(artifacts)
@@ -493,6 +580,16 @@ class StoryPipeline:
 
     def _reset_from_chapter_plan(self, artifacts: StoryArtifacts) -> None:
         artifacts.chapter_plan = []
+        artifacts.chapter_briefs = []
+        artifacts.scene_cards = []
+        self._reset_from_chapter_drafts(artifacts)
+
+    def _reset_from_chapter_briefs(self, artifacts: StoryArtifacts) -> None:
+        artifacts.chapter_briefs = []
+        self._reset_from_scene_cards(artifacts)
+
+    def _reset_from_scene_cards(self, artifacts: StoryArtifacts) -> None:
+        artifacts.scene_cards = []
         self._reset_from_chapter_drafts(artifacts)
 
     def _reset_from_chapter_drafts(self, artifacts: StoryArtifacts) -> None:
@@ -703,11 +800,15 @@ class StoryPipeline:
         )
 
         if decision.severity == "medium":
+            self._require_chapter_generation_inputs(artifacts, chapter_index)
             chapter_draft = self.llm_client.generate_chapter_draft(
                 story_input,
                 selected_logline,
                 artifacts.characters,
+                artifacts.three_act_plot,
                 artifacts.chapter_plan,
+                artifacts.chapter_briefs,
+                artifacts.scene_cards,
                 chapter_index=chapter_index,
             )
             artifacts.set_chapter_draft(chapter_index, chapter_draft)
@@ -736,13 +837,36 @@ class StoryPipeline:
                 artifacts.story_bible,
             )
             save_artifact(self.output_dir, "04_chapter_plan", artifacts.chapter_plan, self.file_format)
+            artifacts.chapter_briefs = self.llm_client.generate_chapter_briefs(
+                story_input,
+                selected_logline,
+                artifacts.characters,
+                artifacts.three_act_plot,
+                artifacts.story_bible,
+                artifacts.chapter_plan,
+            )
+            save_chapter_briefs(self.output_dir, artifacts.chapter_briefs, self.file_format)
+            artifacts.scene_cards = self.llm_client.generate_scene_cards(
+                story_input,
+                selected_logline,
+                artifacts.characters,
+                artifacts.three_act_plot,
+                artifacts.story_bible,
+                artifacts.chapter_plan,
+                artifacts.chapter_briefs,
+            )
+            save_scene_cards(self.output_dir, artifacts.scene_cards, self.file_format)
 
             for rerun_chapter_index, _chapter in enumerate(artifacts.chapter_plan):
+                self._require_chapter_generation_inputs(artifacts, rerun_chapter_index)
                 chapter_draft = self.llm_client.generate_chapter_draft(
                     story_input,
                     selected_logline,
                     artifacts.characters,
+                    artifacts.three_act_plot,
                     artifacts.chapter_plan,
+                    artifacts.chapter_briefs,
+                    artifacts.scene_cards,
                     chapter_index=rerun_chapter_index,
                 )
                 artifacts.set_chapter_draft(rerun_chapter_index, chapter_draft)

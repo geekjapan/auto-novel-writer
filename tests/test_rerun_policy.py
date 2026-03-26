@@ -42,6 +42,8 @@ class SequencedContinuityChecker:
 class CountingLLMClient:
     def __init__(self) -> None:
         self.chapter_plan_calls = 0
+        self.chapter_briefs_calls = 0
+        self.scene_cards_calls = 0
         self.chapter_draft_calls = 0
         self.revise_calls = 0
 
@@ -68,7 +70,7 @@ class CountingLLMClient:
             "character_arcs": characters,
             "world_rules": ["rule-1"],
             "forbidden_facts": ["fact-1"],
-            "foreshadowing_seeds": [{"id": "seed-1"}],
+            "foreshadowing_seeds": [{"id": "seed-1", "setup": "setup", "payoff_target": "resolution"}],
         }
 
     def generate_chapter_plan(self, story_input, logline, characters, three_act_plot, story_bible):
@@ -90,14 +92,118 @@ class CountingLLMClient:
             }
         ]
 
-    def generate_chapter_draft(self, story_input, logline, characters, chapter_plan, chapter_index=0):
+    def generate_chapter_briefs(
+        self,
+        story_input,
+        logline,
+        characters,
+        three_act_plot,
+        story_bible,
+        chapter_plan,
+    ):
+        self.chapter_briefs_calls += 1
+        return [
+            {
+                "chapter_number": chapter["chapter_number"],
+                "purpose": chapter["purpose"],
+                "goal": f"{chapter['title']} で物語を進める",
+                "conflict": f"{three_act_plot['act_2'].get('rising_action', 'rising')} が障害になる",
+                "turn": story_bible["ending_reveal"],
+                "must_include": [story_bible["foreshadowing_seeds"][0]["id"]],
+                "continuity_dependencies": [characters[0]["name"]],
+                "foreshadowing_targets": [story_bible["foreshadowing_seeds"][0]["id"]],
+                "arc_progress": characters[0]["arc"],
+                "target_length_guidance": "standard",
+            }
+            for chapter in chapter_plan
+        ]
+
+    def generate_scene_cards(
+        self,
+        story_input,
+        logline,
+        characters,
+        three_act_plot,
+        story_bible,
+        chapter_plan,
+        chapter_briefs,
+    ):
+        self.scene_cards_calls += 1
+        return [
+            {
+                "chapter_number": brief["chapter_number"],
+                "scenes": [
+                    {
+                        "chapter_number": brief["chapter_number"],
+                        "scene_number": 1,
+                        "scene_goal": brief["goal"],
+                        "scene_conflict": brief["conflict"],
+                        "scene_turn": "前提が揺らぐ",
+                        "pov_character": chapter_plan[index]["point_of_view"],
+                        "participants": [characters[0]["name"]],
+                        "setting": f"scene-{brief['chapter_number']}",
+                        "must_include": brief["must_include"],
+                        "continuity_refs": brief["continuity_dependencies"],
+                        "foreshadowing_action": "seed",
+                        "exit_state": "選択を先送りする",
+                    },
+                    {
+                        "chapter_number": brief["chapter_number"],
+                        "scene_number": 2,
+                        "scene_goal": "対立を悪化させる",
+                        "scene_conflict": brief["conflict"],
+                        "scene_turn": three_act_plot["act_2"]["rising_action"],
+                        "pov_character": chapter_plan[index]["point_of_view"],
+                        "participants": [characters[0]["name"]],
+                        "setting": f"scene-{brief['chapter_number']}-2",
+                        "must_include": brief["must_include"],
+                        "continuity_refs": brief["continuity_dependencies"],
+                        "foreshadowing_action": "progress",
+                        "exit_state": "後戻りしにくくなる",
+                    },
+                    {
+                        "chapter_number": brief["chapter_number"],
+                        "scene_number": 3,
+                        "scene_goal": brief["goal"],
+                        "scene_conflict": brief["conflict"],
+                        "scene_turn": three_act_plot["act_3"]["resolution"],
+                        "pov_character": chapter_plan[index]["point_of_view"],
+                        "participants": [characters[0]["name"]],
+                        "setting": f"scene-{brief['chapter_number']}-3",
+                        "must_include": brief["must_include"],
+                        "continuity_refs": brief["continuity_dependencies"],
+                        "foreshadowing_action": "payoff_or_seed",
+                        "exit_state": brief["turn"],
+                    }
+                ],
+            }
+            for index, brief in enumerate(chapter_briefs)
+        ]
+
+    def generate_chapter_draft(
+        self,
+        story_input,
+        logline,
+        characters,
+        three_act_plot,
+        chapter_plan,
+        chapter_briefs,
+        scene_cards,
+        chapter_index=0,
+    ):
         self.chapter_draft_calls += 1
         chapter = chapter_plan[chapter_index]
+        brief = chapter_briefs[chapter_index]
+        scene_packet = scene_cards[chapter_index]
         return {
             "chapter_number": chapter["chapter_number"],
             "title": chapter["title"],
-            "summary": chapter["purpose"],
-            "text": f"篠崎 遥の草稿 {self.chapter_draft_calls}",
+            "summary": brief["goal"],
+            "text": (
+                f"{three_act_plot['act_1']['setup']} "
+                f"{scene_packet['scenes'][0]['exit_state']} "
+                f"篠崎 遥の草稿 {self.chapter_draft_calls}"
+            ),
         }
 
     def revise_chapter_draft(
