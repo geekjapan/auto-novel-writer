@@ -113,6 +113,36 @@ def thread_registry_contract() -> dict:
     }
 
 
+def progress_report_contract() -> dict:
+    return {
+        "schema_name": "progress_report",
+        "schema_version": "1.0",
+        "required_fields": [
+            "schema_name",
+            "schema_version",
+            "evaluated_through_chapter",
+            "checks",
+            "issue_codes",
+            "recommended_action",
+        ],
+        "check_names": [
+            "chapter_role_coverage",
+            "escalation_pace",
+            "emotional_progression",
+            "foreshadowing_coverage",
+            "unresolved_thread_load",
+            "climax_readiness",
+        ],
+        "check_required_fields": [
+            "status",
+            "summary",
+            "evidence",
+        ],
+        "allowed_statuses": ["ok", "warning", "critical"],
+        "allowed_actions": ["continue", "revise", "rerun", "replan", "stop_for_review"],
+    }
+
+
 def story_bible_contract() -> dict:
     return {
         "schema_name": "story_bible",
@@ -166,6 +196,71 @@ def validate_story_bible(payload: dict) -> dict:
     for field_name in contract["list_fields"]:
         if not isinstance(payload.get(field_name), list):
             raise ValueError(f"Invalid story_bible: {field_name} must be a list.")
+
+    return payload
+
+
+def validate_progress_report(payload: dict) -> dict:
+    contract = progress_report_contract()
+    if not isinstance(payload, dict):
+        raise ValueError("Invalid progress_report: payload must be an object.")
+
+    missing_fields = [field for field in contract["required_fields"] if field not in payload]
+    if missing_fields:
+        missing = ", ".join(sorted(missing_fields))
+        raise ValueError(
+            "Invalid progress_report: missing required fields: "
+            f"{missing}. Regenerate the progress report from the pipeline."
+        )
+
+    if payload.get("schema_name") != contract["schema_name"]:
+        raise ValueError(
+            "Invalid progress_report: "
+            f"schema_name={payload.get('schema_name')!r} is not supported; expected {contract['schema_name']!r}."
+        )
+
+    if payload.get("schema_version") != contract["schema_version"]:
+        raise ValueError(
+            "Invalid progress_report: "
+            f"schema_version={payload.get('schema_version')!r} is not supported; expected {contract['schema_version']!r}."
+        )
+
+    _validate_int_field(payload.get("evaluated_through_chapter"), "progress_report", "evaluated_through_chapter")
+
+    checks = payload.get("checks")
+    if not isinstance(checks, dict):
+        raise ValueError("Invalid progress_report: checks must be an object.")
+    missing_checks = [name for name in contract["check_names"] if name not in checks]
+    if missing_checks:
+        missing = ", ".join(sorted(missing_checks))
+        raise ValueError(f"Invalid progress_report: checks is missing required fields: {missing}.")
+
+    for check_name in contract["check_names"]:
+        check_payload = checks.get(check_name)
+        if not isinstance(check_payload, dict):
+            raise ValueError(f"Invalid progress_report: checks.{check_name} must be an object.")
+        missing_check_fields = [
+            field for field in contract["check_required_fields"] if field not in check_payload
+        ]
+        if missing_check_fields:
+            missing = ", ".join(sorted(missing_check_fields))
+            raise ValueError(
+                f"Invalid progress_report: checks.{check_name} is missing required fields: {missing}."
+            )
+        _validate_str_field(check_payload.get("status"), "progress_report", f"checks.{check_name}.status")
+        if check_payload.get("status") not in contract["allowed_statuses"]:
+            allowed = ", ".join(contract["allowed_statuses"])
+            raise ValueError(
+                f"Invalid progress_report: checks.{check_name}.status must be one of: {allowed}."
+            )
+        _validate_str_field(check_payload.get("summary"), "progress_report", f"checks.{check_name}.summary")
+        _validate_list_field(check_payload.get("evidence"), "progress_report", f"checks.{check_name}.evidence")
+
+    _validate_list_field(payload.get("issue_codes"), "progress_report", "issue_codes")
+    _validate_str_field(payload.get("recommended_action"), "progress_report", "recommended_action")
+    if payload.get("recommended_action") not in contract["allowed_actions"]:
+        allowed = ", ".join(contract["allowed_actions"])
+        raise ValueError(f"Invalid progress_report: recommended_action must be one of: {allowed}.")
 
     return payload
 
@@ -1135,6 +1230,7 @@ class StoryArtifacts:
             "chapter_handoff_packet": chapter_handoff_packet_contract(),
             "canon_ledger": canon_ledger_contract(),
             "chapter_briefs": chapter_briefs_contract(),
+            "progress_report": progress_report_contract(),
             "scene_cards": scene_cards_contract(),
             "story_bible": story_bible_contract(),
             "thread_registry": thread_registry_contract(),

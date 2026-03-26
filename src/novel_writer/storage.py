@@ -10,6 +10,7 @@ from novel_writer.schema import (
     validate_canon_ledger_chapter,
     validate_chapter_handoff_packet,
     validate_chapter_briefs,
+    validate_progress_report,
     project_manifest_contract,
     validate_scene_cards,
     validate_story_bible,
@@ -115,6 +116,17 @@ def save_chapter_handoff_packet(output_dir: Path, payload: Any, file_format: str
 def load_chapter_handoff_packet(output_dir: Path, file_format: str | None = None) -> dict[str, Any]:
     payload = load_artifact(output_dir, "chapter_handoff_packet", file_format)
     validate_chapter_handoff_packet(payload)
+    return payload
+
+
+def save_progress_report(output_dir: Path, payload: Any, file_format: str = "json") -> Path:
+    validate_progress_report(payload)
+    return save_artifact(output_dir, "progress_report", payload, file_format)
+
+
+def load_progress_report(output_dir: Path, file_format: str | None = None) -> dict[str, Any]:
+    payload = load_artifact(output_dir, "progress_report", file_format)
+    validate_progress_report(payload)
     return payload
 
 

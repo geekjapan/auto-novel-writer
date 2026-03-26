@@ -40,6 +40,7 @@ CLI から小説プロジェクトを作成し、長編小説を
 - `thread_registry` には thread 単位 upsert helper が入り、同じ `thread_id` の置換と新規 thread 追加を fail-fast 制約つきで扱える
 - `chapter_drafts` / `revised_chapter_drafts` step、`rerun-chapter`、continuity policy の内部 rerun は保存直後に `canon_ledger` / `thread_registry` を最小ルールで自動更新できる
 - `chapter_handoff_packet` の schema / storage contract は導入済みで、`style_constraints.tone / point_of_view / tense` を required field として固定した
+- `progress_report` の schema / storage contract は導入済みで、6 つの long-form checks と `recommended_action` を machine-readable に固定した
 - `story_summary.json`、`project_quality_report.json`、`publish_ready_bundle.json` を出力できる
 
 ## Gap To Goal
@@ -236,6 +237,14 @@ CLI から小説プロジェクトを作成し、長編小説を
   - unresolved thread load
   - climax readiness
 - issue code が rerun / revise / replan の推奨行動に結びつく
+
+進捗:
+
+- `progress_report` の schema / storage contract は導入済み
+- top-level は `schema_name`, `schema_version`, `evaluated_through_chapter`, `checks`, `issue_codes`, `recommended_action` に固定した
+- `checks` には `chapter_role_coverage`, `escalation_pace`, `emotional_progression`, `foreshadowing_coverage`, `unresolved_thread_load`, `climax_readiness` を必須にし、各 check の `status`, `summary`, `evidence` を validation する
+- `recommended_action` は `continue`, `revise`, `rerun`, `replan`, `stop_for_review` の列挙型に固定した
+- 次は pipeline から `progress_report.json` を生成し、project-level evaluation と接続する段階である
 
 ### M62. Replan Loop を導入する
 

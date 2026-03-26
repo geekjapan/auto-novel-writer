@@ -11,6 +11,7 @@ from novel_writer.storage import (
     load_canon_ledger,
     load_chapter_handoff_packet,
     load_chapter_briefs,
+    load_progress_report,
     load_scene_cards,
     load_project_manifest,
     load_publish_ready_bundle,
@@ -23,6 +24,7 @@ from novel_writer.storage import (
     save_canon_ledger,
     save_chapter_handoff_packet,
     save_chapter_briefs,
+    save_progress_report,
     save_scene_cards,
     save_publish_ready_bundle,
     save_project_manifest,
@@ -622,8 +624,78 @@ class SaveArtifactTest(unittest.TestCase):
         self.assertEqual(contract["canon_ledger"]["schema_version"], "1.0")
         self.assertEqual(contract["chapter_handoff_packet"]["schema_name"], "chapter_handoff_packet")
         self.assertEqual(contract["chapter_handoff_packet"]["schema_version"], "1.0")
+        self.assertEqual(contract["progress_report"]["schema_name"], "progress_report")
+        self.assertEqual(contract["progress_report"]["schema_version"], "1.0")
         self.assertEqual(contract["thread_registry"]["schema_name"], "thread_registry")
         self.assertEqual(contract["thread_registry"]["schema_version"], "1.0")
+
+    def test_save_progress_report_round_trips_valid_payload(self) -> None:
+        payload = {
+            "schema_name": "progress_report",
+            "schema_version": "1.0",
+            "evaluated_through_chapter": 5,
+            "checks": {
+                "chapter_role_coverage": {"status": "ok", "summary": "役割分担は維持されている", "evidence": []},
+                "escalation_pace": {"status": "warning", "summary": "中盤で伸びが鈍い", "evidence": ["chapter-4"]},
+                "emotional_progression": {"status": "ok", "summary": "感情線は前進している", "evidence": []},
+                "foreshadowing_coverage": {"status": "warning", "summary": "伏線回収が遅れている", "evidence": ["seed-1"]},
+                "unresolved_thread_load": {"status": "ok", "summary": "未解決 thread は許容範囲", "evidence": []},
+                "climax_readiness": {"status": "warning", "summary": "終盤準備がまだ弱い", "evidence": ["chapter-5"]},
+            },
+            "issue_codes": ["foreshadowing_coverage_gap", "climax_readiness_low"],
+            "recommended_action": "replan",
+        }
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            target = save_progress_report(Path(tmp_dir), payload, "json")
+            loaded = load_progress_report(Path(tmp_dir))
+
+            self.assertEqual(target.name, "progress_report.json")
+            self.assertEqual(loaded, payload)
+
+    def test_save_progress_report_validates_required_fields(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            with self.assertRaisesRegex(
+                ValueError,
+                "Invalid progress_report: missing required fields: checks",
+            ):
+                save_progress_report(
+                    Path(tmp_dir),
+                    {
+                        "schema_name": "progress_report",
+                        "schema_version": "1.0",
+                        "evaluated_through_chapter": 5,
+                        "issue_codes": [],
+                        "recommended_action": "continue",
+                    },
+                )
+
+    def test_load_progress_report_rejects_missing_named_check(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            save_artifact(
+                Path(tmp_dir),
+                "progress_report",
+                {
+                    "schema_name": "progress_report",
+                    "schema_version": "1.0",
+                    "evaluated_through_chapter": 5,
+                    "checks": {
+                        "chapter_role_coverage": {"status": "ok", "summary": "ok", "evidence": []},
+                        "escalation_pace": {"status": "ok", "summary": "ok", "evidence": []},
+                        "emotional_progression": {"status": "ok", "summary": "ok", "evidence": []},
+                        "foreshadowing_coverage": {"status": "ok", "summary": "ok", "evidence": []},
+                        "unresolved_thread_load": {"status": "ok", "summary": "ok", "evidence": []},
+                    },
+                    "issue_codes": [],
+                    "recommended_action": "continue",
+                },
+            )
+
+            with self.assertRaisesRegex(
+                ValueError,
+                "Invalid progress_report: checks is missing required fields: climax_readiness",
+            ):
+                load_progress_report(Path(tmp_dir))
 
     def test_save_chapter_handoff_packet_round_trips_valid_payload(self) -> None:
         payload = {
