@@ -13,6 +13,7 @@ from novel_writer.storage import save_canon_ledger, save_thread_registry
 class RecordingDraftContextLLMClient(MockLLMClient):
     def __init__(self) -> None:
         self.draft_calls: list[dict] = []
+        self.revise_calls: list[dict] = []
 
     def generate_chapter_draft(
         self,
@@ -50,6 +51,33 @@ class RecordingDraftContextLLMClient(MockLLMClient):
             scene_cards,
             canon_ledger,
             thread_registry,
+            chapter_index=chapter_index,
+            chapter_handoff_packet=chapter_handoff_packet,
+        )
+
+    def revise_chapter_draft(
+        self,
+        story_input,
+        chapter_plan,
+        chapter_draft,
+        continuity_report,
+        chapter_index=0,
+        chapter_handoff_packet=None,
+    ):
+        self.revise_calls.append(
+            {
+                "chapter_plan": chapter_plan,
+                "chapter_draft": chapter_draft,
+                "continuity_report": continuity_report,
+                "chapter_index": chapter_index,
+                "chapter_handoff_packet": chapter_handoff_packet,
+            }
+        )
+        return super().revise_chapter_draft(
+            story_input,
+            chapter_plan,
+            chapter_draft,
+            continuity_report,
             chapter_index=chapter_index,
             chapter_handoff_packet=chapter_handoff_packet,
         )
@@ -501,6 +529,33 @@ class StoryPipelineTest(unittest.TestCase):
             for call in client.draft_calls:
                 self.assertEqual(call["canon_ledger"]["chapters"][0]["chapter_number"], 1)
                 self.assertEqual(call["thread_registry"]["threads"][0]["thread_id"], "watch-mystery")
+
+    def test_pipeline_passes_chapter_handoff_packet_to_revision_loop(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            output_dir = Path(tmp_dir)
+            client = RecordingDraftContextLLMClient()
+
+            artifacts = StoryPipeline(
+                client,
+                output_dir,
+                "json",
+                continuity_checker=NoRerunContinuityChecker(),
+            ).run(
+                StoryInput(theme="記憶", genre="SF", tone="ビター", target_length=8000)
+            )
+
+            self.assertEqual(len(client.revise_calls), len(artifacts.chapter_plan))
+            for chapter_index, call in enumerate(client.revise_calls):
+                self.assertEqual(call["chapter_plan"], artifacts.chapter_plan)
+                self.assertEqual(call["chapter_index"], chapter_index)
+                self.assertEqual(
+                    call["chapter_handoff_packet"]["chapter_number"],
+                    chapter_index + 1,
+                )
+                self.assertEqual(
+                    call["chapter_handoff_packet"]["current_chapter_brief"],
+                    artifacts.chapter_briefs[chapter_index],
+                )
 
     def test_pipeline_updates_memory_artifacts_after_chapter_drafts(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

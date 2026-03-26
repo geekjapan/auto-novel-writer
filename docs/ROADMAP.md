@@ -182,7 +182,7 @@ CLI から小説プロジェクトを作成し、長編小説を
 - `rerun-chapter` でも対象章の draft / revised draft 保存直後に同じ章 entry / thread entry を更新する
 - continuity policy による medium / high rerun でも再生成 draft 保存直後に同じ章 entry / thread entry を更新する
 - `chapter_drafts` / `revised_chapter_drafts` step、`rerun-chapter`、continuity policy の内部 rerun では `foreshadowing_targets` ごとに `thread_registry` を自動更新し、同じ `thread_id` の `introduced_in_chapter` は最初の導入章を保持する
-- 次は M60 として chapter handoff packet の shared-input 化へ進む段階である
+- 次は M61 として long-form 評価の contract 固定へ進む段階である
 
 完了条件:
 
@@ -216,7 +216,9 @@ CLI から小説プロジェクトを作成し、長編小説を
 - `style_constraints` は `tone`, `point_of_view`, `tense` を required field として validation する
 - `chapter_drafts` step の直前には `chapter_{n}_handoff_packet.json` を構築して保存できる
 - draft 生成は `chapter_handoff_packet` を直接受け取るようになった
-- 次は revise / rerun も同じ packet を直接入力として共有する段階である
+- revise loop も `chapter_handoff_packet` を直接受け取るようになった
+- manual rerun / continuity policy rerun でも同じ packet builder を通して draft 再生成する
+- 次は M61 として `progress_report.json` の contract を固定し、long-form 評価の machine-readable layer を追加する段階である
 
 ### M61. Long-form 評価を強化する
 
@@ -302,7 +304,7 @@ M59 の実装順は次のとおりに進める。
 5. chapter draft 結果から memory artifact を自動更新する
 6. README / tests / TASKS を memory layer 前提へ同期する
 
-現在は 1 から 5 の最小導線と memory artifact 自動反映の主要経路、chapter handoff packet の contract / build 導線、draft の shared-input 化までが入り、次は M60 の revise / rerun shared-input 化へ進む段階である。
+現在は 1 から 5 の最小導線と memory artifact 自動反映の主要経路、chapter handoff packet の contract / build / shared-input 化までが入り、次は M61 の long-form 評価 artifact へ進む段階である。
 
 ## Roadmap Notes
 

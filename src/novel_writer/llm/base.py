@@ -95,6 +95,7 @@ class BaseLLMClient(ABC):
         chapter_draft: dict[str, Any],
         continuity_report: dict[str, Any],
         chapter_index: int = 0,
+        chapter_handoff_packet: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         raise NotImplementedError
 

@@ -4,19 +4,20 @@
 ここでの task は、1 回で安全に実装・テスト・docs 更新・コミットできる粒度へ分割する。
 
 ## In Progress
-- [ ] M60d: revise / rerun も `chapter_handoff_packet` を共有入力にできるようにする
-  - Title: chapter handoff packet を revise / rerun へ接続する
-  - Milestone: M60 Chapter Handoff Packet
-  - Purpose: draft に続いて revise / rerun の入力も chapter handoff packet に寄せ、章入力 contract を 1 本化する
-  - Target files or directories: `src/novel_writer/pipeline.py`, `src/novel_writer/llm/base.py`, `src/novel_writer/llm/mock.py`, `src/novel_writer/llm/openai_client.py`, `tests/test_pipeline.py`, `tests/test_llm_client.py`, `tests/test_rerun_policy.py`, `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
-  - Done when: revise / rerun でも `chapter_handoff_packet` が渡され、draft と同じ章入力 contract を共有することが docs / tests で固定される
-  - Required tests: `./venv/bin/python -m unittest tests.test_pipeline -v`, `./venv/bin/python -m unittest discover -s tests -v`
+- [ ] M61a: `progress_report` の schema と storage contract を固定する
+  - Title: long-form progress report の contract を追加する
+  - Milestone: M61 Long-form Evaluation
+  - Purpose: long-form 評価の machine-readable 正本として `progress_report.json` を導入し、後続の rerun / replan / autonomy 判断の入力を固定する
+  - Target files or directories: `src/novel_writer/schema.py`, `src/novel_writer/storage.py`, `tests/test_storage.py`, `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
+  - Done when: `progress_report` の top-level shape と required field が validator / save-load helper / docs / tests で固定される
+  - Required tests: `./venv/bin/python -m unittest tests.test_storage -v`, `./venv/bin/python -m unittest discover -s tests -v`
   - Docs to update: `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
 
 ## Ready
 
 ## Done
 
+- [x] M60d: revise / rerun も `chapter_handoff_packet` を共有入力にできるようにする
 - [x] M60c: draft / revise / rerun が `chapter_handoff_packet` を共有入力にできるようにする
 - [x] M60b: `chapter_handoff_packet` を構築して保存できるようにする
 - [x] M60a: `chapter_handoff_packet` の schema を固定する

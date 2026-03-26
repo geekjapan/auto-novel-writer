@@ -217,6 +217,7 @@ class CountingLLMClient:
         chapter_draft,
         continuity_report,
         chapter_index=0,
+        chapter_handoff_packet=None,
     ):
         self.revise_calls += 1
         return {

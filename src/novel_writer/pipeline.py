@@ -1126,12 +1126,21 @@ class StoryPipeline:
         source_draft: dict,
         continuity_report: dict,
     ) -> dict:
+        canon_ledger, thread_registry = self._load_memory_context(self.output_dir)
+        handoff_packet = self._build_chapter_handoff_packet(
+            story_input,
+            artifacts,
+            canon_ledger,
+            thread_registry,
+            chapter_index,
+        )
         revised_chapter_draft = self.llm_client.revise_chapter_draft(
             story_input,
             artifacts.chapter_plan,
             source_draft,
             continuity_report,
             chapter_index=chapter_index,
+            chapter_handoff_packet=handoff_packet,
         )
         return revised_chapter_draft
 

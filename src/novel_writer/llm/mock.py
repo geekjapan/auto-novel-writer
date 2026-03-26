@@ -306,8 +306,14 @@ class MockLLMClient(BaseLLMClient):
         chapter_draft: dict[str, Any],
         continuity_report: dict[str, Any],
         chapter_index: int = 0,
+        chapter_handoff_packet: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         target_plan = chapter_plan[chapter_index] if chapter_plan else {}
+        if chapter_handoff_packet:
+            target_plan = {
+                **target_plan,
+                **chapter_handoff_packet.get("current_chapter_brief", {}),
+            }
         original_text = str(chapter_draft.get("text", ""))
         cleaned_text = self._dedupe_sentences(original_text)
         summary = str(target_plan.get("purpose") or chapter_draft.get("summary", ""))
