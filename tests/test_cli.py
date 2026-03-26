@@ -1257,7 +1257,7 @@ class CliTest(unittest.TestCase):
             self.assertIn("compact.policy_limits.max_high_severity_chapters:", output)
             self.assertIn("Run candidates: 1", output)
             self.assertIn("run_candidate_names: latest_run", output)
-            self.assertIn("run_candidate_scores: latest_run=11", output)
+            self.assertIn("run_candidate_scores: latest_run=13", output)
             self.assertIn("run_candidate_output_dirs: latest_run=", output)
 
     def test_cli_show_run_comparison_reads_minimal_valid_artifact(self) -> None:

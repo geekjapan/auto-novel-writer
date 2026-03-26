@@ -3,7 +3,7 @@
 `auto-novel-writer` は、CLI ベースの小説制作パイプラインです。  
 目指すのは「一発で完成原稿を出す本文生成器」ではなく、**小説制作を工程分解し、章単位・作品単位で再開可能に回せる制御基盤**です。
 
-現在は、CLI 入力から `story_input`、`loglines`、`characters`、`three_act_plot`、`story_bible`、`chapter_plan`、全章 draft、全章 revised draft、quality 系 artifact、project/run 管理用 manifest、comparison artifact までを順に生成できます。
+現在は、CLI 入力から `story_input`、`loglines`、`characters`、`three_act_plot`、`story_bible`、`chapter_plan`、`chapter_briefs`、`scene_cards`、全章 draft、全章 revised draft、quality 系 artifact、project/run 管理用 manifest、comparison artifact までを順に生成できます。
 
 ## ソフトウェアの目的
 
@@ -32,6 +32,8 @@
 - 全章草稿の正本: `chapter_drafts`
 - 全章改稿稿の正本: `revised_chapter_drafts`
 - 長編設計の正本: `story_bible`
+- 章別成功条件の正本: `chapter_briefs`
+- 章内 scene 分解の正本: `scene_cards`
 - chapter 1 互換出力: `chapter_1_draft`, `revised_chapter_1_draft`, `continuity_report`
 - 配布向け成果物: `publish_ready_bundle.json`
 - artifact 契約定義: `artifact_contract`
@@ -60,9 +62,11 @@
 4. `three_act_plot`
 5. `story_bible`
 6. `chapter_plan`
-7. `chapter_drafts`
+7. `chapter_briefs`
+8. `scene_cards`
+9. `chapter_drafts`
 
-`chapter_plan` は全件ループで処理し、各章の `chapter_{n}_draft` を保存します。
+`chapter_plan` の後に、各章の成功条件をまとめた `chapter_briefs` と scene 分解をまとめた `scene_cards` を生成し、その 2 つを使って各章の `chapter_{n}_draft` を保存します。
 
 ### 3. 品質管理仕様
 
@@ -105,7 +109,9 @@
 
 - `mock` / `openai` / `openai-compatible` / `lmstudio` / `ollama` の LLM プロバイダ切替
 - provider ごとのモデル名選択
-- 全章 `chapter_plan` と全章 `chapter_{n}_draft` 生成
+- `story_bible` を参照した `chapter_plan` 生成
+- 全章 `chapter_briefs` / `scene_cards` 生成
+- 全章 `chapter_{n}_draft` 生成
 - 全章 `revised_chapter_{n}_draft` 保存
 - continuity report と quality report の生成
 - rerun policy による再生成制御
@@ -133,6 +139,11 @@
 - `foreshadowing_seeds`
 
 現在は `chapter_plan` 生成も `story_bible` を参照し、テーマ命題や終盤の真相、伏線情報を planning に反映します。
+
+`chapter_briefs` と `scene_cards` も導入済みです。現在は `chapter_plan` の後に順に生成し、resume / rerun でも chapter draft 生成の前提として扱います。
+
+- `chapter_briefs` は章ごとの `goal`, `conflict`, `turn`, `must_include`, `continuity_dependencies` などを保持します
+- `scene_cards` は章ごとの scene 配列として、`scene_goal`, `scene_conflict`, `scene_turn`, `must_include`, `continuity_refs` などを保持します
 
 ## chapter 1 互換 artifact と全章状態
 
@@ -229,6 +240,8 @@ novel-writer --resume-from-output-dir data\sample_run
 novel-writer --resume-from-output-dir data\sample_run --rerun-from chapter_drafts
 ```
 
+`--rerun-from chapter_drafts` は、保存済みの `chapter_briefs` と `scene_cards` を前提に chapter draft 以降をやり直します。これらの artifact が欠けている場合は fail fast で停止します。
+
 現在の step 順序:
 
 1. `story_input`
@@ -237,13 +250,15 @@ novel-writer --resume-from-output-dir data\sample_run --rerun-from chapter_draft
 4. `three_act_plot`
 5. `story_bible`
 6. `chapter_plan`
-7. `chapter_drafts`
-8. `continuity_report`
-9. `quality_report`
-10. `revised_chapter_drafts`
-11. `story_summary`
-12. `project_quality_report`
-13. `publish_ready_bundle`
+7. `chapter_briefs`
+8. `scene_cards`
+9. `chapter_drafts`
+10. `continuity_report`
+11. `quality_report`
+12. `revised_chapter_drafts`
+13. `story_summary`
+14. `project_quality_report`
+15. `publish_ready_bundle`
 
 ## project-level run
 
@@ -298,6 +313,8 @@ novel-writer rerun-chapter --project-id "my-story-01" --chapter-number 2
 - `03_three_act_plot`
 - `story_bible`
 - `04_chapter_plan`
+- `chapter_briefs`
+- `scene_cards`
 - `05_chapter_1_draft`
 - `chapter_{n}_draft`
 - `continuity_report.json`
@@ -427,7 +444,6 @@ minimal valid comparison artifact の read-only 境界:
 - `show-run-comparison` は `run_comparison_summary.json` の validator を通る最小 shape に対しても表示できる
 - 現在は `current_comparison_reason_codes`, `current_comparison_metrics`, `best_selection_source`, `best_selection_reason_codes`, `best_comparison_metrics`, `compact.issue_score`, `compact.completed_step_count`, `Run candidates: 0` まで tests で固定している
 - `run_candidates=[]` の場合でも count 行は表示するが、`run_candidate_names` / `run_candidate_scores` / `run_candidate_output_dirs` は表示しない
-- 次の最小タスクは `compact.long_run_should_stop` 行も同じ minimal artifact 経路で固定すること
 
 schema version の現方針:
 

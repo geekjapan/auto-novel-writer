@@ -28,7 +28,8 @@ CLI から小説プロジェクトを作成し、長編小説を
 
 - CLI から `theme`、`genre`、`tone`、`target_length` を受け取り、`project_id` 単位で project/run 管理できる
 - LLM provider は `mock` / `openai` / `openai-compatible` / `lmstudio` / `ollama` を切り替えられる
-- `story_input -> loglines -> characters -> three_act_plot -> chapter_plan -> chapter_drafts` の生成フローがある
+- `story_input -> loglines -> characters -> three_act_plot -> story_bible -> chapter_plan -> chapter_briefs -> scene_cards -> chapter_drafts` の生成フローがある
+- chapter draft 生成と `rerun-from chapter_drafts` は `chapter_plan` だけでなく `chapter_briefs` / `scene_cards` も参照する
 - chapter plan 全件に対して draft / revised draft を生成し、全章 artifact を保存できる
 - continuity check、quality report、rerun policy、bounded revise loop、resume / rerun、history / diff metadata 保存がある
 - `project_manifest.json` と comparison artifact により、current run / best run / run candidates を比較できる
@@ -40,27 +41,22 @@ CLI から小説プロジェクトを作成し、長編小説を
 また、LLM provider 境界は openai-compatible / lmstudio / ollama まで広がっています。  
 長編自律執筆に対して、現在不足している主な能力は以下である。
 
-### 1. Story Bible がない
-
-- 世界観、人物アーク、禁止事項、テーマ命題、真相、伏線台帳の正本がない
-- `characters` と `three_act_plot` だけでは後半の判断基準が弱い
-
-### 2. Scene レベル分解がない
-
-- chapter plan はあるが、各章の scene 目的、転換点、回収対象が足りない
-- 章本文の成功条件が曖昧なため、長編で脱線しやすい
-
-### 3. 長期記憶が弱い
+### 1. 長期記憶が弱い
 
 - 既出事実、人物関係、未回収伏線、時系列イベントを検索可能な形で保持していない
 - 章をまたぐ参照が summary 頼みになりやすい
 
-### 4. Replanning が弱い
+### 2. Handoff Packet が未整備
+
+- `chapter_briefs` と `scene_cards` は入ったが、章執筆入力を 1 つの packet として固定していない
+- rerun / revise / 将来の replan が複数 artifact の再構成に依存している
+
+### 3. Replanning が弱い
 
 - rerun はできるが、「後続章計画をどう直すか」が体系化されていない
 - 途中で設定変更や伏線追加が起きたときに downstream を更新しにくい
 
-### 5. Long-form evaluation が弱い
+### 4. Long-form evaluation が弱い
 
 - continuity / quality の基礎はあるが、長編特有の失敗を測りきれていない
 - 例: 中盤停滞、章ごとの役割重複、感情線の停滞、伏線回収漏れ、クライマックス準備不足
@@ -75,15 +71,15 @@ CLI から小説プロジェクトを作成し、長編小説を
 - `loglines`
 - `characters`
 - `three_act_plot`
-- 新規: `story_bible`
+- `story_bible`
 
 ここでは「何を書く作品か」を固定する。
 
 ### 2. Execution Plan Layer
 
 - `chapter_plan`
-- 新規: `chapter_briefs`
-- 新規: `scene_cards`
+- `chapter_briefs`
+- `scene_cards`
 
 ここでは「次に何を書くか」を、章と scene の両方で固定する。
 
@@ -123,7 +119,7 @@ CLI から小説プロジェクトを作成し、長編小説を
 - pipeline は `three_act_plot` の後に `story_bible.json` を生成・保存できる
 - provider interface は `generate_story_bible()` を持ち、mock / OpenAI client から同じ contract を返せる
 - `chapter_plan` は `story_bible` を参照し、theme statement / ending reveal / foreshadowing seed を planning に反映できる
-- 次は導入済みの `story_bible` を chapter brief / scene planning へ広げる
+- `chapter_briefs` / `scene_cards` 生成も `story_bible` を参照する形まで広がっている
 
 完了条件:
 
@@ -142,6 +138,14 @@ CLI から小説プロジェクトを作成し、長編小説を
 
 目的:
 章をさらに scene 単位へ分解し、本文生成の成功条件を明確にする。
+
+進捗:
+
+- `chapter_briefs.json` と `scene_cards.json` の schema / storage contract は導入済み
+- pipeline は `chapter_plan` の後に `chapter_briefs` と `scene_cards` を生成・保存できる
+- chapter draft 生成と `rerun-from chapter_drafts` は `chapter_briefs` / `scene_cards` を必須入力として使う
+- tests は pipeline 順序と fail-fast resume 条件を固定している
+- 次の本命は M59 の長期記憶層である
 
 完了条件:
 
@@ -247,21 +251,21 @@ CLI から小説プロジェクトを作成し、長編小説を
 
 ## Immediate Focus
 
-次の本命は M57 と M58 である。
+次の本命は M59 である。
 
 理由:
 
-- 今のコードベースは chapter plan までは作れるため、story bible と chapter brief を足す導線が素直
-- memory や replan は、その上に乗る正本 artifact がないと不安定になる
+- `story_bible`、`chapter_briefs`、`scene_cards` までそろったため、次は長期記憶の正本 artifact を増やす段階に入っている
+- memory や replan は、導入済みの設計 / 分解 layer の上に乗せるほうが安定する
 - comparison / status 系の改善は重要だが、長編自律執筆のボトルネックではない
 
-M57 の実装順は次のとおりに進める。
+M59 の実装順は次のとおりに進める。
 
-1. `story_bible` schema と storage contract を先に固定する
-2. pipeline に `story_bible` 生成段を追加する
-3. provider interface に `generate_story_bible()` を追加する
-4. `chapter_plan` 生成が `story_bible` を参照するようにする
-5. README / tests / resume step 順序を同期する
+1. `canon_ledger` schema と storage contract を先に固定する
+2. chapter ごとの新事実・変更事実・未解決事項・時系列イベントを `canon_ledger` へ追記できるようにする
+3. `thread_registry` schema と storage contract を追加する
+4. draft / revise / rerun で関連 ledger / thread を参照する導線を用意する
+5. README / tests / TASKS を memory layer 前提へ同期する
 
 ## Roadmap Notes
 
@@ -269,4 +273,3 @@ M57 の実装順は次のとおりに進める。
 - ROADMAP は「最終目標までに必要な能力」を書く
 - TASKS は「次に安全に実装できる最小単位」を書く
 - docs では既存の `run_candidates` / `best_run` / `chapter_statuses` / `chapter_histories` / `artifact_contract` / `long_run_status` を維持しつつ、今後は `story_bible` / `chapter_briefs` / `scene_cards` / `canon_ledger` / `thread_registry` / `replan_history` を追加の正本語彙として育てる
-

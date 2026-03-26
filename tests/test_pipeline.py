@@ -287,19 +287,38 @@ class StoryPipelineTest(unittest.TestCase):
             )
             self.assertFalse(manifest["long_run_status"]["should_stop"])
 
-    def test_pipeline_writes_chapter_briefs_and_scene_cards_before_drafts(self) -> None:
+    def test_pipeline_keeps_documented_story_flow_order(self) -> None:
+        expected_step_order = [
+            "story_input",
+            "loglines",
+            "characters",
+            "three_act_plot",
+            "story_bible",
+            "chapter_plan",
+            "chapter_briefs",
+            "scene_cards",
+            "chapter_drafts",
+            "continuity_report",
+            "quality_report",
+            "revised_chapter_drafts",
+            "story_summary",
+            "project_quality_report",
+            "publish_ready_bundle",
+        ]
+
+        self.assertEqual(PIPELINE_STEP_ORDER, expected_step_order)
+
         with tempfile.TemporaryDirectory() as tmp_dir:
             output_dir = Path(tmp_dir)
             artifacts = StoryPipeline(MockLLMClient(), output_dir, "json").run(
                 StoryInput(theme="記憶", genre="SF", tone="ビター", target_length=120000)
             )
+            manifest = json.loads((output_dir / "manifest.json").read_text(encoding="utf-8"))
 
             self.assertTrue((output_dir / "chapter_briefs.json").exists())
             self.assertTrue((output_dir / "scene_cards.json").exists())
-            self.assertEqual(
-                PIPELINE_STEP_ORDER[6:9],
-                ["chapter_briefs", "scene_cards", "chapter_drafts"],
-            )
+            self.assertEqual(manifest["completed_steps"], expected_step_order)
+            self.assertEqual([checkpoint["step"] for checkpoint in manifest["checkpoints"]], expected_step_order)
             self.assertEqual(len(artifacts.chapter_briefs), len(artifacts.chapter_plan))
             self.assertEqual(len(artifacts.scene_cards), len(artifacts.chapter_plan))
 
