@@ -7,6 +7,7 @@ from pathlib import Path
 from novel_writer.storage import (
     build_project_layout,
     load_artifact,
+    load_scene_cards,
     load_project_manifest,
     load_publish_ready_bundle,
     load_run_comparison_summary,
@@ -14,6 +15,7 @@ from novel_writer.storage import (
     normalize_project_id,
     resolve_artifact_path,
     save_artifact,
+    save_chapter_briefs,
     save_publish_ready_bundle,
     save_project_manifest,
     save_run_comparison_summary,
@@ -187,6 +189,25 @@ class SaveArtifactTest(unittest.TestCase):
                     },
                 )
 
+    def test_save_chapter_briefs_validates_required_fields(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            with self.assertRaisesRegex(ValueError, "missing required fields: conflict, turn"):
+                save_chapter_briefs(
+                    Path(tmp_dir),
+                    [
+                        {
+                            "chapter_number": 1,
+                            "purpose": "導入",
+                            "goal": "主人公に異変を認識させる",
+                            "must_include": ["壊れた腕時計"],
+                            "continuity_dependencies": [],
+                            "foreshadowing_targets": [],
+                            "arc_progress": "受け身の維持",
+                            "target_length_guidance": "標準",
+                        }
+                    ],
+                )
+
     def test_save_story_bible_writes_story_design_contract(self) -> None:
         payload = {
             "schema_name": "story_bible",
@@ -206,6 +227,18 @@ class SaveArtifactTest(unittest.TestCase):
 
             self.assertEqual(target.name, "story_bible.json")
             self.assertEqual(saved, payload)
+
+    def test_load_scene_cards_rejects_scene_count_out_of_range(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            save_artifact(
+                Path(tmp_dir),
+                "scene_cards",
+                [{"chapter_number": 1, "scenes": []}],
+                "json",
+            )
+
+            with self.assertRaisesRegex(ValueError, "scene_cards\\[0\\] must contain between 3 and 7 scenes"):
+                load_scene_cards(Path(tmp_dir))
 
     def test_load_story_bible_rejects_unsupported_schema_version(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

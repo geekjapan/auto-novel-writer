@@ -30,6 +30,25 @@ def chapter_artifact_contract() -> dict:
     }
 
 
+def chapter_briefs_contract() -> dict:
+    return {
+        "schema_name": "chapter_briefs",
+        "schema_version": "1.0",
+        "required_fields": [
+            "chapter_number",
+            "purpose",
+            "goal",
+            "conflict",
+            "turn",
+            "must_include",
+            "continuity_dependencies",
+            "foreshadowing_targets",
+            "arc_progress",
+            "target_length_guidance",
+        ],
+    }
+
+
 def story_bible_contract() -> dict:
     return {
         "schema_name": "story_bible",
@@ -83,6 +102,63 @@ def validate_story_bible(payload: dict) -> dict:
     for field_name in contract["list_fields"]:
         if not isinstance(payload.get(field_name), list):
             raise ValueError(f"Invalid story_bible: {field_name} must be a list.")
+
+    return payload
+
+
+def validate_chapter_briefs(payload: list[dict]) -> list[dict]:
+    if not isinstance(payload, list) or not payload:
+        raise ValueError("Invalid chapter_briefs: payload must be a non-empty list.")
+
+    contract = chapter_briefs_contract()
+    for index, item in enumerate(payload):
+        if not isinstance(item, dict):
+            raise ValueError(f"Invalid chapter_briefs: chapter_briefs[{index}] must be an object.")
+
+        missing_fields = [field for field in contract["required_fields"] if field not in item]
+        if missing_fields:
+            missing = ", ".join(sorted(missing_fields))
+            raise ValueError(
+                "Invalid chapter_briefs: "
+                f"chapter_briefs[{index}] is missing required fields: {missing}."
+            )
+
+    return payload
+
+
+def scene_cards_contract() -> dict:
+    return {
+        "schema_name": "scene_cards",
+        "schema_version": "1.0",
+        "required_fields": [
+            "chapter_number",
+            "scenes",
+        ],
+    }
+
+
+def validate_scene_cards(payload: list[dict]) -> list[dict]:
+    if not isinstance(payload, list) or not payload:
+        raise ValueError("Invalid scene_cards: payload must be a non-empty list.")
+
+    contract = scene_cards_contract()
+    for index, chapter_packet in enumerate(payload):
+        if not isinstance(chapter_packet, dict):
+            raise ValueError(f"Invalid scene_cards: scene_cards[{index}] must be an object.")
+
+        missing_fields = [field for field in contract["required_fields"] if field not in chapter_packet]
+        if missing_fields:
+            missing = ", ".join(sorted(missing_fields))
+            raise ValueError(
+                "Invalid scene_cards: "
+                f"scene_cards[{index}] is missing required fields: {missing}."
+            )
+
+        scenes = chapter_packet.get("scenes")
+        if not isinstance(scenes, list) or not 3 <= len(scenes) <= 7:
+            raise ValueError(
+                f"Invalid scene_cards: scene_cards[{index}] must contain between 3 and 7 scenes."
+            )
 
     return payload
 
@@ -536,6 +612,8 @@ class StoryArtifacts:
     three_act_plot: dict = field(default_factory=dict)
     story_bible: dict = field(default_factory=dict)
     chapter_plan: list[dict] = field(default_factory=list)
+    chapter_briefs: list[dict] = field(default_factory=list)
+    scene_cards: list[dict] = field(default_factory=list)
     chapter_drafts: list[dict] = field(default_factory=list)
     chapter_1_draft: dict = field(default_factory=dict)
     continuity_report: dict = field(default_factory=dict)
@@ -595,6 +673,8 @@ class StoryArtifacts:
     def artifact_contract(self) -> dict:
         return {
             "chapter_artifacts": chapter_artifact_contract(),
+            "chapter_briefs": chapter_briefs_contract(),
+            "scene_cards": scene_cards_contract(),
             "story_bible": story_bible_contract(),
             "publish_ready_bundle": publish_ready_bundle_contract(),
         }

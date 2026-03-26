@@ -6,7 +6,9 @@ from pathlib import Path
 from typing import Any
 
 from novel_writer.schema import (
+    validate_chapter_briefs,
     project_manifest_contract,
+    validate_scene_cards,
     validate_story_bible,
     validate_project_manifest,
     validate_publish_ready_bundle,
@@ -103,6 +105,17 @@ def save_story_bible(output_dir: Path, payload: Any, file_format: str = "json") 
 def load_story_bible(output_dir: Path, file_format: str | None = None) -> dict[str, Any]:
     payload = load_artifact(output_dir, "story_bible", file_format)
     validate_story_bible(payload)
+    return payload
+
+
+def save_chapter_briefs(output_dir: Path, payload: Any, file_format: str = "json") -> Path:
+    validate_chapter_briefs(payload)
+    return save_artifact(output_dir, "chapter_briefs", payload, file_format)
+
+
+def load_scene_cards(output_dir: Path, file_format: str | None = None) -> list[dict[str, Any]]:
+    payload = load_artifact(output_dir, "scene_cards", file_format)
+    validate_scene_cards(payload)
     return payload
 
 
