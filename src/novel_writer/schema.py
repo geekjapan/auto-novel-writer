@@ -143,6 +143,32 @@ def progress_report_contract() -> dict:
     }
 
 
+def replan_history_contract() -> dict:
+    return {
+        "schema_name": "replan_history",
+        "schema_version": "1.0",
+        "required_fields": [
+            "schema_name",
+            "schema_version",
+            "replans",
+        ],
+        "replan_required_fields": [
+            "replan_id",
+            "trigger_chapter_number",
+            "reason",
+            "issue_codes",
+            "impact_scope",
+            "updated_artifacts",
+            "change_summary",
+        ],
+        "impact_scope_required_fields": [
+            "from_chapter",
+            "to_chapter",
+            "chapter_numbers",
+        ],
+    }
+
+
 def story_bible_contract() -> dict:
     return {
         "schema_name": "story_bible",
@@ -261,6 +287,94 @@ def validate_progress_report(payload: dict) -> dict:
     if payload.get("recommended_action") not in contract["allowed_actions"]:
         allowed = ", ".join(contract["allowed_actions"])
         raise ValueError(f"Invalid progress_report: recommended_action must be one of: {allowed}.")
+
+    return payload
+
+
+def validate_replan_history(payload: dict) -> dict:
+    contract = replan_history_contract()
+    if not isinstance(payload, dict):
+        raise ValueError("Invalid replan_history: payload must be an object.")
+
+    missing_fields = [field for field in contract["required_fields"] if field not in payload]
+    if missing_fields:
+        missing = ", ".join(sorted(missing_fields))
+        raise ValueError(
+            "Invalid replan_history: missing required fields: "
+            f"{missing}. Regenerate the replan history from the pipeline."
+        )
+
+    if payload.get("schema_name") != contract["schema_name"]:
+        raise ValueError(
+            "Invalid replan_history: "
+            f"schema_name={payload.get('schema_name')!r} is not supported; expected {contract['schema_name']!r}."
+        )
+
+    if payload.get("schema_version") != contract["schema_version"]:
+        raise ValueError(
+            "Invalid replan_history: "
+            f"schema_version={payload.get('schema_version')!r} is not supported; expected {contract['schema_version']!r}."
+        )
+
+    replans = payload.get("replans")
+    if not isinstance(replans, list) or not replans:
+        raise ValueError("Invalid replan_history: replans must be a non-empty list.")
+
+    for index, replan in enumerate(replans):
+        validate_replan_entry(replan, f"replans[{index}]")
+
+    return payload
+
+
+def validate_replan_entry(payload: dict, field_name: str = "replan") -> dict:
+    contract = replan_history_contract()
+    if not isinstance(payload, dict):
+        raise ValueError(f"Invalid replan_history: {field_name} must be an object.")
+
+    missing_fields = [field for field in contract["replan_required_fields"] if field not in payload]
+    if missing_fields:
+        missing = ", ".join(sorted(missing_fields))
+        raise ValueError(f"Invalid replan_history: {field_name} is missing required fields: {missing}.")
+
+    _validate_str_field(payload.get("replan_id"), "replan_history", f"{field_name}.replan_id")
+    _validate_int_field(
+        payload.get("trigger_chapter_number"),
+        "replan_history",
+        f"{field_name}.trigger_chapter_number",
+    )
+    _validate_str_field(payload.get("reason"), "replan_history", f"{field_name}.reason")
+    _validate_list_field(payload.get("issue_codes"), "replan_history", f"{field_name}.issue_codes")
+    _validate_list_field(payload.get("updated_artifacts"), "replan_history", f"{field_name}.updated_artifacts")
+    _validate_list_field(payload.get("change_summary"), "replan_history", f"{field_name}.change_summary")
+
+    impact_scope = payload.get("impact_scope")
+    if not isinstance(impact_scope, dict):
+        raise ValueError(f"Invalid replan_history: {field_name}.impact_scope must be an object.")
+    missing_impact_fields = [field for field in contract["impact_scope_required_fields"] if field not in impact_scope]
+    if missing_impact_fields:
+        missing = ", ".join(sorted(missing_impact_fields))
+        raise ValueError(
+            f"Invalid replan_history: {field_name}.impact_scope is missing required fields: {missing}."
+        )
+    _validate_int_field(
+        impact_scope.get("from_chapter"),
+        "replan_history",
+        f"{field_name}.impact_scope.from_chapter",
+    )
+    _validate_int_field(
+        impact_scope.get("to_chapter"),
+        "replan_history",
+        f"{field_name}.impact_scope.to_chapter",
+    )
+    if impact_scope.get("to_chapter") < impact_scope.get("from_chapter"):
+        raise ValueError(
+            f"Invalid replan_history: {field_name}.impact_scope.to_chapter must be greater than or equal to from_chapter."
+        )
+    _validate_list_field(
+        impact_scope.get("chapter_numbers"),
+        "replan_history",
+        f"{field_name}.impact_scope.chapter_numbers",
+    )
 
     return payload
 
@@ -1233,6 +1347,7 @@ class StoryArtifacts:
             "canon_ledger": canon_ledger_contract(),
             "chapter_briefs": chapter_briefs_contract(),
             "progress_report": progress_report_contract(),
+            "replan_history": replan_history_contract(),
             "scene_cards": scene_cards_contract(),
             "story_bible": story_bible_contract(),
             "thread_registry": thread_registry_contract(),

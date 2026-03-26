@@ -260,6 +260,14 @@ CLI から小説プロジェクトを作成し、長編小説を
 - replan の理由、影響範囲、変更差分を manifest から追える
 - rerun と replan の境界が docs / tests で明確になる
 
+進捗:
+
+- `replan_history` の schema / storage contract は導入済み
+- top-level は `schema_name`, `schema_version`, `replans` に固定した
+- 各 replan entry は `replan_id`, `trigger_chapter_number`, `reason`, `issue_codes`, `impact_scope`, `updated_artifacts`, `change_summary` を required field に固定した
+- `impact_scope` は `from_chapter`, `to_chapter`, `chapter_numbers` を持ち、future chapter への影響範囲を machine-readable に表現する
+- 次は replan entry を追加保存する helper を導入し、loop 本体より先に履歴保存導線を固める段階である
+
 ### M63. 自律実行ポリシーを導入する
 
 目的:

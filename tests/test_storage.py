@@ -12,6 +12,7 @@ from novel_writer.storage import (
     load_chapter_handoff_packet,
     load_chapter_briefs,
     load_progress_report,
+    load_replan_history,
     load_scene_cards,
     load_project_manifest,
     load_publish_ready_bundle,
@@ -25,6 +26,7 @@ from novel_writer.storage import (
     save_chapter_handoff_packet,
     save_chapter_briefs,
     save_progress_report,
+    save_replan_history,
     save_scene_cards,
     save_publish_ready_bundle,
     save_project_manifest,
@@ -627,6 +629,8 @@ class SaveArtifactTest(unittest.TestCase):
         self.assertEqual(contract["chapter_handoff_packet"]["schema_version"], "1.0")
         self.assertEqual(contract["progress_report"]["schema_name"], "progress_report")
         self.assertEqual(contract["progress_report"]["schema_version"], "1.0")
+        self.assertEqual(contract["replan_history"]["schema_name"], "replan_history")
+        self.assertEqual(contract["replan_history"]["schema_version"], "1.0")
         self.assertEqual(contract["thread_registry"]["schema_name"], "thread_registry")
         self.assertEqual(contract["thread_registry"]["schema_version"], "1.0")
 
@@ -697,6 +701,79 @@ class SaveArtifactTest(unittest.TestCase):
                 "Invalid progress_report: checks is missing required fields: climax_readiness",
             ):
                 load_progress_report(Path(tmp_dir))
+
+    def test_save_replan_history_round_trips_valid_payload(self) -> None:
+        payload = {
+            "schema_name": "replan_history",
+            "schema_version": "1.0",
+            "replans": [
+                {
+                    "replan_id": "replan-001",
+                    "trigger_chapter_number": 5,
+                    "reason": "progress_report が中盤停滞を示したため",
+                    "issue_codes": ["escalation_pace_flat", "climax_readiness_low"],
+                    "impact_scope": {
+                        "from_chapter": 6,
+                        "to_chapter": 8,
+                        "chapter_numbers": [6, 7, 8],
+                    },
+                    "updated_artifacts": ["chapter_briefs", "scene_cards"],
+                    "change_summary": ["第6章の役割を再定義した", "第7章の伏線回収を前倒しした"],
+                }
+            ],
+        }
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            target = save_replan_history(Path(tmp_dir), payload, "json")
+            loaded = load_replan_history(Path(tmp_dir))
+
+            self.assertEqual(target.name, "replan_history.json")
+            self.assertEqual(loaded, payload)
+
+    def test_save_replan_history_validates_required_fields(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            with self.assertRaisesRegex(
+                ValueError,
+                "Invalid replan_history: missing required fields: replans",
+            ):
+                save_replan_history(
+                    Path(tmp_dir),
+                    {
+                        "schema_name": "replan_history",
+                        "schema_version": "1.0",
+                    },
+                )
+
+    def test_load_replan_history_rejects_missing_impact_scope_field(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            save_artifact(
+                Path(tmp_dir),
+                "replan_history",
+                {
+                    "schema_name": "replan_history",
+                    "schema_version": "1.0",
+                    "replans": [
+                        {
+                            "replan_id": "replan-001",
+                            "trigger_chapter_number": 5,
+                            "reason": "理由",
+                            "issue_codes": ["code-1"],
+                            "impact_scope": {
+                                "from_chapter": 6,
+                                "chapter_numbers": [6, 7],
+                            },
+                            "updated_artifacts": ["chapter_briefs"],
+                            "change_summary": ["差分"],
+                        }
+                    ],
+                },
+            )
+
+            with self.assertRaisesRegex(
+                ValueError,
+                "Invalid replan_history: replans\\[0\\].impact_scope is missing required fields: to_chapter",
+            ):
+                load_replan_history(Path(tmp_dir))
 
     def test_save_chapter_handoff_packet_round_trips_valid_payload(self) -> None:
         payload = {
