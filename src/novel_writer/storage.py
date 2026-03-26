@@ -113,6 +113,17 @@ def save_chapter_briefs(output_dir: Path, payload: Any, file_format: str = "json
     return save_artifact(output_dir, "chapter_briefs", payload, file_format)
 
 
+def load_chapter_briefs(output_dir: Path, file_format: str | None = None) -> list[dict[str, Any]]:
+    payload = load_artifact(output_dir, "chapter_briefs", file_format)
+    validate_chapter_briefs(payload)
+    return payload
+
+
+def save_scene_cards(output_dir: Path, payload: Any, file_format: str = "json") -> Path:
+    validate_scene_cards(payload)
+    return save_artifact(output_dir, "scene_cards", payload, file_format)
+
+
 def load_scene_cards(output_dir: Path, file_format: str | None = None) -> list[dict[str, Any]]:
     payload = load_artifact(output_dir, "scene_cards", file_format)
     validate_scene_cards(payload)

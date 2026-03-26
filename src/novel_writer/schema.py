@@ -123,6 +123,16 @@ def validate_chapter_briefs(payload: list[dict]) -> list[dict]:
                 f"chapter_briefs[{index}] is missing required fields: {missing}."
             )
 
+        _validate_int_field(
+            item.get("chapter_number"),
+            "chapter_briefs",
+            f"chapter_briefs[{index}].chapter_number",
+        )
+        for field_name in ["purpose", "goal", "conflict", "turn", "arc_progress", "target_length_guidance"]:
+            _validate_str_field(item.get(field_name), "chapter_briefs", f"chapter_briefs[{index}].{field_name}")
+        for field_name in ["must_include", "continuity_dependencies", "foreshadowing_targets"]:
+            _validate_list_field(item.get(field_name), "chapter_briefs", f"chapter_briefs[{index}].{field_name}")
+
     return payload
 
 
@@ -154,13 +164,89 @@ def validate_scene_cards(payload: list[dict]) -> list[dict]:
                 f"scene_cards[{index}] is missing required fields: {missing}."
             )
 
+        _validate_int_field(
+            chapter_packet.get("chapter_number"),
+            "scene_cards",
+            f"scene_cards[{index}].chapter_number",
+        )
+
         scenes = chapter_packet.get("scenes")
-        if not isinstance(scenes, list) or not 3 <= len(scenes) <= 7:
+        _validate_list_field(scenes, "scene_cards", f"scene_cards[{index}].scenes")
+        if not 3 <= len(scenes) <= 7:
             raise ValueError(
                 f"Invalid scene_cards: scene_cards[{index}] must contain between 3 and 7 scenes."
             )
+        for scene_index, scene in enumerate(scenes):
+            if not isinstance(scene, dict):
+                raise ValueError(
+                    f"Invalid scene_cards: scene_cards[{index}].scenes[{scene_index}] must be an object."
+                )
+
+            missing_scene_fields = [
+                field for field in [
+                    "scene_number",
+                    "scene_goal",
+                    "scene_conflict",
+                    "scene_turn",
+                    "pov_character",
+                    "participants",
+                    "setting",
+                    "must_include",
+                    "continuity_refs",
+                    "foreshadowing_action",
+                    "exit_state",
+                ]
+                if field not in scene
+            ]
+            if missing_scene_fields:
+                missing = ", ".join(sorted(missing_scene_fields))
+                raise ValueError(
+                    "Invalid scene_cards: "
+                    f"scene_cards[{index}].scenes[{scene_index}] is missing required fields: {missing}."
+                )
+
+            _validate_int_field(
+                scene.get("scene_number"),
+                "scene_cards",
+                f"scene_cards[{index}].scenes[{scene_index}].scene_number",
+            )
+            for field_name in [
+                "scene_goal",
+                "scene_conflict",
+                "scene_turn",
+                "pov_character",
+                "setting",
+                "foreshadowing_action",
+                "exit_state",
+            ]:
+                _validate_str_field(
+                    scene.get(field_name),
+                    "scene_cards",
+                    f"scene_cards[{index}].scenes[{scene_index}].{field_name}",
+                )
+            for field_name in ["participants", "must_include", "continuity_refs"]:
+                _validate_list_field(
+                    scene.get(field_name),
+                    "scene_cards",
+                    f"scene_cards[{index}].scenes[{scene_index}].{field_name}",
+                )
 
     return payload
+
+
+def _validate_int_field(value: object, prefix: str, field_name: str) -> None:
+    if not isinstance(value, int) or isinstance(value, bool):
+        raise ValueError(f"Invalid {prefix}: {field_name} must be an int.")
+
+
+def _validate_str_field(value: object, prefix: str, field_name: str) -> None:
+    if not isinstance(value, str):
+        raise ValueError(f"Invalid {prefix}: {field_name} must be a string.")
+
+
+def _validate_list_field(value: object, prefix: str, field_name: str) -> None:
+    if not isinstance(value, list):
+        raise ValueError(f"Invalid {prefix}: {field_name} must be a list.")
 
 
 def publish_ready_bundle_contract() -> dict:
