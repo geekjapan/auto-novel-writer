@@ -133,6 +133,13 @@ def validate_chapter_briefs(payload: list[dict]) -> list[dict]:
         for field_name in ["must_include", "continuity_dependencies", "foreshadowing_targets"]:
             _validate_list_field(item.get(field_name), "chapter_briefs", f"chapter_briefs[{index}].{field_name}")
 
+    _validate_sequential_numbers(
+        [item["chapter_number"] for item in payload],
+        "chapter_briefs",
+        "chapter_number",
+        "payload",
+    )
+
     return payload
 
 
@@ -143,6 +150,20 @@ def scene_cards_contract() -> dict:
         "required_fields": [
             "chapter_number",
             "scenes",
+        ],
+        "scene_required_fields": [
+            "chapter_number",
+            "scene_number",
+            "scene_goal",
+            "scene_conflict",
+            "scene_turn",
+            "pov_character",
+            "participants",
+            "setting",
+            "must_include",
+            "continuity_refs",
+            "foreshadowing_action",
+            "exit_state",
         ],
     }
 
@@ -169,6 +190,11 @@ def validate_scene_cards(payload: list[dict]) -> list[dict]:
             "scene_cards",
             f"scene_cards[{index}].chapter_number",
         )
+        if chapter_packet.get("chapter_number") != index + 1:
+            raise ValueError(
+                "Invalid scene_cards: "
+                f"scene_cards[{index}] chapter_number sequence must be 1..len(payload)."
+            )
 
         scenes = chapter_packet.get("scenes")
         _validate_list_field(scenes, "scene_cards", f"scene_cards[{index}].scenes")
@@ -176,6 +202,7 @@ def validate_scene_cards(payload: list[dict]) -> list[dict]:
             raise ValueError(
                 f"Invalid scene_cards: scene_cards[{index}] must contain between 3 and 7 scenes."
             )
+
         for scene_index, scene in enumerate(scenes):
             if not isinstance(scene, dict):
                 raise ValueError(
@@ -183,20 +210,7 @@ def validate_scene_cards(payload: list[dict]) -> list[dict]:
                 )
 
             missing_scene_fields = [
-                field for field in [
-                    "scene_number",
-                    "scene_goal",
-                    "scene_conflict",
-                    "scene_turn",
-                    "pov_character",
-                    "participants",
-                    "setting",
-                    "must_include",
-                    "continuity_refs",
-                    "foreshadowing_action",
-                    "exit_state",
-                ]
-                if field not in scene
+                field for field in contract["scene_required_fields"] if field not in scene
             ]
             if missing_scene_fields:
                 missing = ", ".join(sorted(missing_scene_fields))
@@ -210,6 +224,16 @@ def validate_scene_cards(payload: list[dict]) -> list[dict]:
                 "scene_cards",
                 f"scene_cards[{index}].scenes[{scene_index}].scene_number",
             )
+            _validate_int_field(
+                scene.get("chapter_number"),
+                "scene_cards",
+                f"scene_cards[{index}].scenes[{scene_index}].chapter_number",
+            )
+            if scene.get("chapter_number") != chapter_packet.get("chapter_number"):
+                raise ValueError(
+                    "Invalid scene_cards: "
+                    f"scene_cards[{index}].scenes[{scene_index}].chapter_number must match parent chapter_number."
+                )
             for field_name in [
                 "scene_goal",
                 "scene_conflict",
@@ -231,6 +255,13 @@ def validate_scene_cards(payload: list[dict]) -> list[dict]:
                     f"scene_cards[{index}].scenes[{scene_index}].{field_name}",
                 )
 
+        _validate_sequential_numbers(
+            [scene.get("scene_number") for scene in scenes],
+            "scene_cards",
+            f"scene_cards[{index}].scenes",
+            "scenes",
+        )
+
     return payload
 
 
@@ -247,6 +278,22 @@ def _validate_str_field(value: object, prefix: str, field_name: str) -> None:
 def _validate_list_field(value: object, prefix: str, field_name: str) -> None:
     if not isinstance(value, list):
         raise ValueError(f"Invalid {prefix}: {field_name} must be a list.")
+
+
+def _validate_sequential_numbers(
+    values: list[object],
+    prefix: str,
+    sequence_name: str,
+    container_label: str,
+) -> None:
+    expected_values = list(range(1, len(values) + 1))
+    for index, value in enumerate(values):
+        if not isinstance(value, int) or isinstance(value, bool):
+            raise ValueError(f"Invalid {prefix}: {sequence_name}[{index}] must be an int.")
+        if value != expected_values[index]:
+            raise ValueError(
+                f"Invalid {prefix}: {sequence_name} sequence must be 1..len({container_label})."
+            )
 
 
 def publish_ready_bundle_contract() -> dict:
@@ -723,6 +770,8 @@ class StoryArtifacts:
                 "three_act_plot",
                 "story_bible",
                 "chapter_plan",
+                "chapter_briefs",
+                "scene_cards",
                 "chapter_drafts",
                 "continuity_report",
                 "quality_report",
@@ -735,6 +784,8 @@ class StoryArtifacts:
                 "loglines": len(self.loglines),
                 "characters": len(self.characters),
                 "chapters": len(self.chapter_plan),
+                "chapter_briefs": len(self.chapter_briefs),
+                "scene_cards": len(self.scene_cards),
                 "chapter_drafts": len(self.chapter_drafts),
                 "revised_chapter_drafts": len(self.revised_chapter_drafts),
             },

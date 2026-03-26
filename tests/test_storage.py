@@ -4,6 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from novel_writer.schema import StoryArtifacts, StoryInput
 from novel_writer.storage import (
     build_project_layout,
     load_artifact,
@@ -233,6 +234,44 @@ class SaveArtifactTest(unittest.TestCase):
             self.assertEqual(target.name, "chapter_briefs.json")
             self.assertEqual(loaded, payload)
 
+    def test_story_artifacts_summary_includes_chapter_briefs_and_scene_cards(self) -> None:
+        artifacts = StoryArtifacts(
+            story_input=StoryInput(theme="記憶", genre="SF", tone="静か", target_length=120),
+            chapter_plan=[{"chapter_number": 1}, {"chapter_number": 2}],
+            chapter_briefs=[{"chapter_number": 1}, {"chapter_number": 2}],
+            scene_cards=[{"chapter_number": 1, "scenes": []}, {"chapter_number": 2, "scenes": []}],
+            chapter_drafts=[{"chapter_number": 1}, {"chapter_number": 2}],
+            revised_chapter_drafts=[{"chapter_number": 1}],
+        )
+
+        summary = artifacts.summary()
+
+        self.assertEqual(
+            summary["phases"],
+            [
+                "story_input",
+                "loglines",
+                "characters",
+                "three_act_plot",
+                "story_bible",
+                "chapter_plan",
+                "chapter_briefs",
+                "scene_cards",
+                "chapter_drafts",
+                "continuity_report",
+                "quality_report",
+                "revised_chapter_drafts",
+                "story_summary",
+                "project_quality_report",
+                "publish_ready_bundle",
+            ],
+        )
+        self.assertEqual(summary["counts"]["chapters"], 2)
+        self.assertEqual(summary["counts"]["chapter_briefs"], 2)
+        self.assertEqual(summary["counts"]["scene_cards"], 2)
+        self.assertEqual(summary["counts"]["chapter_drafts"], 2)
+        self.assertEqual(summary["counts"]["revised_chapter_drafts"], 1)
+
     def test_save_story_bible_writes_story_design_contract(self) -> None:
         payload = {
             "schema_name": "story_bible",
@@ -271,6 +310,7 @@ class SaveArtifactTest(unittest.TestCase):
                 "chapter_number": 1,
                 "scenes": [
                     {
+                        "chapter_number": 1,
                         "scene_number": 1,
                         "scene_goal": "異変に気づく",
                         "scene_conflict": "記憶が曖昧になる",
@@ -284,6 +324,7 @@ class SaveArtifactTest(unittest.TestCase):
                         "exit_state": "違和感を抱えたまま移動する",
                     },
                     {
+                        "chapter_number": 1,
                         "scene_number": 2,
                         "scene_goal": "手がかりを探す",
                         "scene_conflict": "手がかりが見つからない",
@@ -297,6 +338,7 @@ class SaveArtifactTest(unittest.TestCase):
                         "exit_state": "次の場所へ向かう",
                     },
                     {
+                        "chapter_number": 1,
                         "scene_number": 3,
                         "scene_goal": "次章へつなぐ",
                         "scene_conflict": "敵の気配が近づく",
@@ -330,6 +372,7 @@ class SaveArtifactTest(unittest.TestCase):
                             "chapter_number": 1,
                             "scenes": [
                                 {
+                                    "chapter_number": 1,
                                     "scene_number": 1,
                                     "scene_goal": "異変に気づく",
                                     "scene_conflict": "記憶が曖昧になる",
@@ -342,6 +385,7 @@ class SaveArtifactTest(unittest.TestCase):
                                     "foreshadowing_action": "周囲を見回す",
                                 },
                                 {
+                                    "chapter_number": 1,
                                     "scene_number": 2,
                                     "scene_goal": "手がかりを探す",
                                     "scene_conflict": "手がかりが見つからない",
@@ -355,7 +399,197 @@ class SaveArtifactTest(unittest.TestCase):
                                     "exit_state": "次の場所へ向かう",
                                 },
                                 {
+                                    "chapter_number": 1,
                                     "scene_number": 3,
+                                    "scene_goal": "次章へつなぐ",
+                                    "scene_conflict": "敵の気配が近づく",
+                                    "scene_turn": "誰かに尾行されていると気づく",
+                                    "pov_character": "ミナト",
+                                    "participants": ["ミナト", "尾行者"],
+                                    "setting": "高架下",
+                                    "must_include": ["足音"],
+                                    "continuity_refs": ["scene 2"],
+                                    "foreshadowing_action": "走り出す",
+                                    "exit_state": "危機が迫る",
+                                },
+                            ],
+                        }
+                    ],
+                )
+
+    def test_save_chapter_briefs_rejects_non_sequential_numbering(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            with self.assertRaisesRegex(ValueError, "chapter_number sequence must be 1..len\\(payload\\)"):
+                save_chapter_briefs(
+                    Path(tmp_dir),
+                    [
+                        {
+                            "chapter_number": 2,
+                            "purpose": "導入",
+                            "goal": "主人公に異変を認識させる",
+                            "conflict": "記憶の欠落が広がる",
+                            "turn": "壊れた腕時計が異常反応する",
+                            "must_include": ["壊れた腕時計"],
+                            "continuity_dependencies": ["第1話の違和感"],
+                            "foreshadowing_targets": ["黒幕の手がかり"],
+                            "arc_progress": "受け身の維持",
+                            "target_length_guidance": "標準",
+                        }
+                    ],
+                )
+
+    def test_save_scene_cards_rejects_non_sequential_packet_numbering(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            with self.assertRaisesRegex(ValueError, "scene_cards\\[0\\] chapter_number sequence must be 1..len\\(payload\\)"):
+                save_scene_cards(
+                    Path(tmp_dir),
+                    [
+                        {
+                            "chapter_number": 2,
+                            "scenes": [
+                                {
+                                    "chapter_number": 2,
+                                    "scene_number": 1,
+                                    "scene_goal": "異変に気づく",
+                                    "scene_conflict": "記憶が曖昧になる",
+                                    "scene_turn": "腕時計が逆回転する",
+                                    "pov_character": "ミナト",
+                                    "participants": ["ミナト", "相棒"],
+                                    "setting": "駅前の路地",
+                                    "must_include": ["壊れた腕時計"],
+                                    "continuity_refs": ["chapter_briefs[0]"],
+                                    "foreshadowing_action": "周囲を見回す",
+                                    "exit_state": "違和感を抱えたまま移動する",
+                                },
+                                {
+                                    "chapter_number": 2,
+                                    "scene_number": 2,
+                                    "scene_goal": "手がかりを探す",
+                                    "scene_conflict": "手がかりが見つからない",
+                                    "scene_turn": "古いメモが見つかる",
+                                    "pov_character": "ミナト",
+                                    "participants": ["ミナト"],
+                                    "setting": "喫茶店",
+                                    "must_include": ["古いメモ"],
+                                    "continuity_refs": ["scene 1"],
+                                    "foreshadowing_action": "メモを読む",
+                                    "exit_state": "次の場所へ向かう",
+                                },
+                                {
+                                    "chapter_number": 2,
+                                    "scene_number": 3,
+                                    "scene_goal": "次章へつなぐ",
+                                    "scene_conflict": "敵の気配が近づく",
+                                    "scene_turn": "誰かに尾行されていると気づく",
+                                    "pov_character": "ミナト",
+                                    "participants": ["ミナト", "尾行者"],
+                                    "setting": "高架下",
+                                    "must_include": ["足音"],
+                                    "continuity_refs": ["scene 2"],
+                                    "foreshadowing_action": "走り出す",
+                                    "exit_state": "危機が迫る",
+                                },
+                            ],
+                        }
+                    ],
+                )
+
+    def test_save_scene_cards_rejects_mismatched_scene_chapter_number(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            with self.assertRaisesRegex(ValueError, "scene_cards\\[0\\]\\.scenes\\[0\\]\\.chapter_number must match parent chapter_number"):
+                save_scene_cards(
+                    Path(tmp_dir),
+                    [
+                        {
+                            "chapter_number": 1,
+                            "scenes": [
+                                {
+                                    "chapter_number": 2,
+                                    "scene_number": 1,
+                                    "scene_goal": "異変に気づく",
+                                    "scene_conflict": "記憶が曖昧になる",
+                                    "scene_turn": "腕時計が逆回転する",
+                                    "pov_character": "ミナト",
+                                    "participants": ["ミナト", "相棒"],
+                                    "setting": "駅前の路地",
+                                    "must_include": ["壊れた腕時計"],
+                                    "continuity_refs": ["chapter_briefs[0]"],
+                                    "foreshadowing_action": "周囲を見回す",
+                                    "exit_state": "違和感を抱えたまま移動する",
+                                },
+                                {
+                                    "chapter_number": 1,
+                                    "scene_number": 2,
+                                    "scene_goal": "手がかりを探す",
+                                    "scene_conflict": "手がかりが見つからない",
+                                    "scene_turn": "古いメモが見つかる",
+                                    "pov_character": "ミナト",
+                                    "participants": ["ミナト"],
+                                    "setting": "喫茶店",
+                                    "must_include": ["古いメモ"],
+                                    "continuity_refs": ["scene 1"],
+                                    "foreshadowing_action": "メモを読む",
+                                    "exit_state": "次の場所へ向かう",
+                                },
+                                {
+                                    "chapter_number": 1,
+                                    "scene_number": 3,
+                                    "scene_goal": "次章へつなぐ",
+                                    "scene_conflict": "敵の気配が近づく",
+                                    "scene_turn": "誰かに尾行されていると気づく",
+                                    "pov_character": "ミナト",
+                                    "participants": ["ミナト", "尾行者"],
+                                    "setting": "高架下",
+                                    "must_include": ["足音"],
+                                    "continuity_refs": ["scene 2"],
+                                    "foreshadowing_action": "走り出す",
+                                    "exit_state": "危機が迫る",
+                                },
+                            ],
+                        }
+                    ],
+                )
+
+    def test_save_scene_cards_rejects_non_sequential_scene_numbers(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            with self.assertRaisesRegex(ValueError, "scene_cards\\[0\\]\\.scenes sequence must be 1..len\\(scenes\\)"):
+                save_scene_cards(
+                    Path(tmp_dir),
+                    [
+                        {
+                            "chapter_number": 1,
+                            "scenes": [
+                                {
+                                    "chapter_number": 1,
+                                    "scene_number": 2,
+                                    "scene_goal": "異変に気づく",
+                                    "scene_conflict": "記憶が曖昧になる",
+                                    "scene_turn": "腕時計が逆回転する",
+                                    "pov_character": "ミナト",
+                                    "participants": ["ミナト", "相棒"],
+                                    "setting": "駅前の路地",
+                                    "must_include": ["壊れた腕時計"],
+                                    "continuity_refs": ["chapter_briefs[0]"],
+                                    "foreshadowing_action": "周囲を見回す",
+                                    "exit_state": "違和感を抱えたまま移動する",
+                                },
+                                {
+                                    "chapter_number": 1,
+                                    "scene_number": 3,
+                                    "scene_goal": "手がかりを探す",
+                                    "scene_conflict": "手がかりが見つからない",
+                                    "scene_turn": "古いメモが見つかる",
+                                    "pov_character": "ミナト",
+                                    "participants": ["ミナト"],
+                                    "setting": "喫茶店",
+                                    "must_include": ["古いメモ"],
+                                    "continuity_refs": ["scene 1"],
+                                    "foreshadowing_action": "メモを読む",
+                                    "exit_state": "次の場所へ向かう",
+                                },
+                                {
+                                    "chapter_number": 1,
+                                    "scene_number": 4,
                                     "scene_goal": "次章へつなぐ",
                                     "scene_conflict": "敵の気配が近づく",
                                     "scene_turn": "誰かに尾行されていると気づく",
