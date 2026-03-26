@@ -8,6 +8,7 @@ from novel_writer.schema import StoryArtifacts, StoryInput
 from novel_writer.storage import (
     build_project_layout,
     load_artifact,
+    load_canon_ledger,
     load_chapter_briefs,
     load_scene_cards,
     load_project_manifest,
@@ -17,6 +18,7 @@ from novel_writer.storage import (
     normalize_project_id,
     resolve_artifact_path,
     save_artifact,
+    save_canon_ledger,
     save_chapter_briefs,
     save_scene_cards,
     save_publish_ready_bundle,
@@ -234,6 +236,47 @@ class SaveArtifactTest(unittest.TestCase):
             self.assertEqual(target.name, "chapter_briefs.json")
             self.assertEqual(loaded, payload)
 
+    def test_save_canon_ledger_validates_required_fields(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            with self.assertRaisesRegex(ValueError, "chapters\\[0\\] is missing required fields: timeline_events"):
+                save_canon_ledger(
+                    Path(tmp_dir),
+                    {
+                        "schema_name": "canon_ledger",
+                        "schema_version": "1.0",
+                        "chapters": [
+                            {
+                                "chapter_number": 1,
+                                "new_facts": ["主人公は腕時計の逆回転を見た。"],
+                                "changed_facts": [],
+                                "open_questions": ["なぜ時計が逆回転したのか。"],
+                            }
+                        ],
+                    },
+                )
+
+    def test_save_canon_ledger_round_trips_valid_payload(self) -> None:
+        payload = {
+            "schema_name": "canon_ledger",
+            "schema_version": "1.0",
+            "chapters": [
+                {
+                    "chapter_number": 1,
+                    "new_facts": ["主人公は腕時計の逆回転を見た。"],
+                    "changed_facts": ["相棒への不信感が芽生えた。"],
+                    "open_questions": ["なぜ時計が逆回転したのか。"],
+                    "timeline_events": ["放課後の駅前で異変が発生した。"],
+                }
+            ],
+        }
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            target = save_canon_ledger(Path(tmp_dir), payload, "json")
+            loaded = load_canon_ledger(Path(tmp_dir))
+
+            self.assertEqual(target.name, "canon_ledger.json")
+            self.assertEqual(loaded, payload)
+
     def test_story_artifacts_summary_includes_chapter_briefs_and_scene_cards(self) -> None:
         artifacts = StoryArtifacts(
             story_input=StoryInput(theme="記憶", genre="SF", tone="静か", target_length=120),
@@ -271,6 +314,16 @@ class SaveArtifactTest(unittest.TestCase):
         self.assertEqual(summary["counts"]["scene_cards"], 2)
         self.assertEqual(summary["counts"]["chapter_drafts"], 2)
         self.assertEqual(summary["counts"]["revised_chapter_drafts"], 1)
+
+    def test_story_artifacts_contract_includes_canon_ledger(self) -> None:
+        artifacts = StoryArtifacts(
+            story_input=StoryInput(theme="記憶", genre="SF", tone="静か", target_length=120),
+        )
+
+        contract = artifacts.artifact_contract()
+
+        self.assertEqual(contract["canon_ledger"]["schema_name"], "canon_ledger")
+        self.assertEqual(contract["canon_ledger"]["schema_version"], "1.0")
 
     def test_save_story_bible_writes_story_design_contract(self) -> None:
         payload = {
@@ -649,6 +702,30 @@ class SaveArtifactTest(unittest.TestCase):
 
             with self.assertRaisesRegex(ValueError, "world_rules must be a list"):
                 load_story_bible(Path(tmp_dir))
+
+    def test_load_canon_ledger_rejects_unsupported_schema_version(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            save_artifact(
+                Path(tmp_dir),
+                "canon_ledger",
+                {
+                    "schema_name": "canon_ledger",
+                    "schema_version": "9.9",
+                    "chapters": [
+                        {
+                            "chapter_number": 1,
+                            "new_facts": [],
+                            "changed_facts": [],
+                            "open_questions": [],
+                            "timeline_events": [],
+                        }
+                    ],
+                },
+                "json",
+            )
+
+            with self.assertRaisesRegex(ValueError, "schema_version='9.9' is not supported; expected '1.0'"):
+                load_canon_ledger(Path(tmp_dir))
 
     def test_load_project_manifest_validates_required_fields(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

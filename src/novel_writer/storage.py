@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from novel_writer.schema import (
+    validate_canon_ledger,
     validate_chapter_briefs,
     project_manifest_contract,
     validate_scene_cards,
@@ -100,6 +101,17 @@ def save_project_manifest(
 def save_story_bible(output_dir: Path, payload: Any, file_format: str = "json") -> Path:
     validate_story_bible(payload)
     return save_artifact(output_dir, "story_bible", payload, file_format)
+
+
+def save_canon_ledger(output_dir: Path, payload: Any, file_format: str = "json") -> Path:
+    validate_canon_ledger(payload)
+    return save_artifact(output_dir, "canon_ledger", payload, file_format)
+
+
+def load_canon_ledger(output_dir: Path, file_format: str | None = None) -> dict[str, Any]:
+    payload = load_artifact(output_dir, "canon_ledger", file_format)
+    validate_canon_ledger(payload)
+    return payload
 
 
 def load_story_bible(output_dir: Path, file_format: str | None = None) -> dict[str, Any]:

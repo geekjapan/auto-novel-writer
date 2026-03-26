@@ -34,6 +34,7 @@ CLI から小説プロジェクトを作成し、長編小説を
 - continuity check、quality report、rerun policy、bounded revise loop、resume / rerun、history / diff metadata 保存がある
 - `project_manifest.json` と comparison artifact により、current run / best run / run candidates を比較できる
 - `show-run-comparison` の minimal artifact read-only coverage では compact issue / step / long-run stop 行まで tests で固定している
+- `canon_ledger` の schema / storage contract は導入済みで、chapter 単位の required field と `schema_version` を save/load 時に validation できる
 - `story_summary.json`、`project_quality_report.json`、`publish_ready_bundle.json` を出力できる
 
 ## Gap To Goal
@@ -160,6 +161,14 @@ CLI から小説プロジェクトを作成し、長編小説を
 目的:
 既出事実と未回収要素を、長編用の運用メモリとして保持する。
 
+進捗:
+
+- `canon_ledger.json` の schema / storage contract は導入済み
+- top-level は `schema_name` / `schema_version` / `chapters` で固定した
+- 各 chapter entry は `chapter_number`, `new_facts`, `changed_facts`, `open_questions`, `timeline_events` を required field として validation する
+- save/load helper は required field 欠落と `schema_version` 不整合で fail fast に停止する
+- 次は chapter ごとの結果を ledger に追記する導線を足す段階である
+
 完了条件:
 
 - `canon_ledger.json` を保存できる
@@ -252,7 +261,7 @@ CLI から小説プロジェクトを作成し、長編小説を
 
 ## Immediate Focus
 
-次の本命は M59 である。
+次の本命は引き続き M59 である。
 
 理由:
 
@@ -267,6 +276,8 @@ M59 の実装順は次のとおりに進める。
 3. `thread_registry` schema と storage contract を追加する
 4. draft / revise / rerun で関連 ledger / thread を参照する導線を用意する
 5. README / tests / TASKS を memory layer 前提へ同期する
+
+現在は 1 が完了し、次は 2 に進む。
 
 ## Roadmap Notes
 

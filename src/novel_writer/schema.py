@@ -49,6 +49,25 @@ def chapter_briefs_contract() -> dict:
     }
 
 
+def canon_ledger_contract() -> dict:
+    return {
+        "schema_name": "canon_ledger",
+        "schema_version": "1.0",
+        "required_fields": [
+            "schema_name",
+            "schema_version",
+            "chapters",
+        ],
+        "chapter_required_fields": [
+            "chapter_number",
+            "new_facts",
+            "changed_facts",
+            "open_questions",
+            "timeline_events",
+        ],
+    }
+
+
 def story_bible_contract() -> dict:
     return {
         "schema_name": "story_bible",
@@ -102,6 +121,66 @@ def validate_story_bible(payload: dict) -> dict:
     for field_name in contract["list_fields"]:
         if not isinstance(payload.get(field_name), list):
             raise ValueError(f"Invalid story_bible: {field_name} must be a list.")
+
+    return payload
+
+
+def validate_canon_ledger(payload: dict) -> dict:
+    contract = canon_ledger_contract()
+    missing_fields = [field for field in contract["required_fields"] if field not in payload]
+    if missing_fields:
+        missing = ", ".join(sorted(missing_fields))
+        raise ValueError(
+            "Invalid canon_ledger: missing required fields: "
+            f"{missing}. Regenerate the canon ledger from the pipeline."
+        )
+
+    if payload.get("schema_name") != contract["schema_name"]:
+        raise ValueError(
+            "Invalid canon_ledger: "
+            f"schema_name={payload.get('schema_name')!r} is not supported; expected {contract['schema_name']!r}."
+        )
+
+    if payload.get("schema_version") != contract["schema_version"]:
+        raise ValueError(
+            "Invalid canon_ledger: "
+            f"schema_version={payload.get('schema_version')!r} is not supported; expected {contract['schema_version']!r}."
+        )
+
+    chapters = payload.get("chapters")
+    if not isinstance(chapters, list) or not chapters:
+        raise ValueError("Invalid canon_ledger: chapters must be a non-empty list.")
+
+    for index, chapter in enumerate(chapters):
+        if not isinstance(chapter, dict):
+            raise ValueError(f"Invalid canon_ledger: chapters[{index}] must be an object.")
+
+        missing_fields = [field for field in contract["chapter_required_fields"] if field not in chapter]
+        if missing_fields:
+            missing = ", ".join(sorted(missing_fields))
+            raise ValueError(
+                "Invalid canon_ledger: "
+                f"chapters[{index}] is missing required fields: {missing}."
+            )
+
+        _validate_int_field(
+            chapter.get("chapter_number"),
+            "canon_ledger",
+            f"chapters[{index}].chapter_number",
+        )
+        for field_name in ["new_facts", "changed_facts", "open_questions", "timeline_events"]:
+            _validate_list_field(
+                chapter.get(field_name),
+                "canon_ledger",
+                f"chapters[{index}].{field_name}",
+            )
+
+    _validate_sequential_numbers(
+        [chapter["chapter_number"] for chapter in chapters],
+        "canon_ledger",
+        "chapters",
+        "chapters",
+    )
 
     return payload
 
@@ -810,6 +889,7 @@ class StoryArtifacts:
     def artifact_contract(self) -> dict:
         return {
             "chapter_artifacts": chapter_artifact_contract(),
+            "canon_ledger": canon_ledger_contract(),
             "chapter_briefs": chapter_briefs_contract(),
             "scene_cards": scene_cards_contract(),
             "story_bible": story_bible_contract(),
