@@ -12,6 +12,7 @@ from novel_writer.schema import (
     project_manifest_contract,
     validate_scene_cards,
     validate_story_bible,
+    validate_thread_registry,
     validate_project_manifest,
     validate_publish_ready_bundle,
     validate_run_comparison_summary,
@@ -112,6 +113,17 @@ def save_canon_ledger(output_dir: Path, payload: Any, file_format: str = "json")
 def load_canon_ledger(output_dir: Path, file_format: str | None = None) -> dict[str, Any]:
     payload = load_artifact(output_dir, "canon_ledger", file_format)
     validate_canon_ledger(payload)
+    return payload
+
+
+def save_thread_registry(output_dir: Path, payload: Any, file_format: str = "json") -> Path:
+    validate_thread_registry(payload)
+    return save_artifact(output_dir, "thread_registry", payload, file_format)
+
+
+def load_thread_registry(output_dir: Path, file_format: str | None = None) -> dict[str, Any]:
+    payload = load_artifact(output_dir, "thread_registry", file_format)
+    validate_thread_registry(payload)
     return payload
 
 

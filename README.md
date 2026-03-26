@@ -3,7 +3,7 @@
 `auto-novel-writer` は、CLI ベースの小説制作パイプラインです。  
 目指すのは「一発で完成原稿を出す本文生成器」ではなく、**小説制作を工程分解し、章単位・作品単位で再開可能に回せる制御基盤**です。
 
-現在は、CLI 入力から `story_input`、`loglines`、`characters`、`three_act_plot`、`story_bible`、`chapter_plan`、`chapter_briefs`、`scene_cards`、全章 draft、全章 revised draft、quality 系 artifact、project/run 管理用 manifest、comparison artifact までを順に生成できます。加えて、次段階の story state layer に向けて `canon_ledger` の schema / storage contract も導入済みです。
+現在は、CLI 入力から `story_input`、`loglines`、`characters`、`three_act_plot`、`story_bible`、`chapter_plan`、`chapter_briefs`、`scene_cards`、全章 draft、全章 revised draft、quality 系 artifact、project/run 管理用 manifest、comparison artifact までを順に生成できます。加えて、次段階の story state layer に向けて `canon_ledger` と `thread_registry` の schema / storage contract も導入済みです。
 
 ## ソフトウェアの目的
 
@@ -35,6 +35,7 @@
 - 章別成功条件の正本: `chapter_briefs`
 - 章内 scene 分解の正本: `scene_cards`
 - 長期記憶の正本: `canon_ledger`
+- thread 状態の正本: `thread_registry`
 - chapter 1 互換出力: `chapter_1_draft`, `revised_chapter_1_draft`, `continuity_report`
 - 配布向け成果物: `publish_ready_bundle.json`
 - artifact 契約定義: `artifact_contract`
@@ -127,6 +128,7 @@
 - `story_bible` の schema / storage contract
 - `canon_ledger` の schema / storage contract
 - `canon_ledger` の chapter 単位 upsert helper
+- `thread_registry` の schema / storage contract
 
 ## 長編設計 artifact の現状
 
@@ -157,6 +159,18 @@
 - `timeline_events`
 
 `canon_ledger.json` は保存時と読込時の両方で validation され、required field 欠落や `schema_version` 不整合は fail fast で停止します。storage helper では chapter 単位 upsert もでき、同じ `chapter_number` は置換、連番の次章は追記、番号が飛ぶ append は fail fast で停止します。まだ draft pipeline から自動生成・追記はしておらず、次段階で chapter 結果を ledger へ反映する導線を追加します。
+
+`thread_registry` も save/load helper と validator まで導入済みです。現在の contract は top-level に `schema_name`, `schema_version`, `threads` を持ち、各 thread entry に最低限次を要求します。
+
+- `thread_id`
+- `label`
+- `status`
+- `introduced_in_chapter`
+- `last_updated_in_chapter`
+- `related_characters`
+- `notes`
+
+`status` は `seeded`, `progressed`, `resolved`, `dropped` の列挙型に固定しています。`thread_registry.json` も保存時と読込時の両方で validation され、required field 欠落、unsupported `schema_version`、不正な status、`last_updated_in_chapter < introduced_in_chapter` は fail fast で停止します。まだ thread 単位更新 helper や pipeline からの自動更新は入れていません。
 
 ## chapter 1 互換 artifact と全章状態
 
@@ -329,6 +343,7 @@ novel-writer rerun-chapter --project-id "my-story-01" --chapter-number 2
 - `chapter_briefs`
 - `scene_cards`
 - `canon_ledger`
+- `thread_registry`
 - `05_chapter_1_draft`
 - `chapter_{n}_draft`
 - `continuity_report.json`

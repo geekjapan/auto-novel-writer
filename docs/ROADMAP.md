@@ -36,6 +36,7 @@ CLI から小説プロジェクトを作成し、長編小説を
 - `show-run-comparison` の minimal artifact read-only coverage では compact issue / step / long-run stop 行まで tests で固定している
 - `canon_ledger` の schema / storage contract は導入済みで、chapter 単位の required field と `schema_version` を save/load 時に validation できる
 - `canon_ledger` には chapter 単位 upsert helper が入り、同章置換と次章追記を fail-fast 制約つきで扱える
+- `thread_registry` の schema / storage contract は導入済みで、status 列挙型と chapter 参照の基本整合性を save/load 時に validation できる
 - `story_summary.json`、`project_quality_report.json`、`publish_ready_bundle.json` を出力できる
 
 ## Gap To Goal
@@ -165,11 +166,13 @@ CLI から小説プロジェクトを作成し、長編小説を
 進捗:
 
 - `canon_ledger.json` の schema / storage contract は導入済み
+- `thread_registry.json` の schema / storage contract は導入済み
 - top-level は `schema_name` / `schema_version` / `chapters` で固定した
 - 各 chapter entry は `chapter_number`, `new_facts`, `changed_facts`, `open_questions`, `timeline_events` を required field として validation する
 - save/load helper は required field 欠落と `schema_version` 不整合で fail fast に停止する
 - chapter 単位 upsert helper により、同章置換と次章追記ができる
-- 次は thread registry の契約を足し、その後 draft / revise / rerun から memory layer へ配線する段階である
+- `thread_registry` は top-level を `schema_name` / `schema_version` / `threads` に固定し、各 thread entry は `thread_id`, `label`, `status`, `introduced_in_chapter`, `last_updated_in_chapter`, `related_characters`, `notes` を required field として validation する
+- 次は thread 単位更新 helper を足し、その後 draft / revise / rerun から memory layer へ配線する段階である
 
 完了条件:
 
@@ -279,7 +282,7 @@ M59 の実装順は次のとおりに進める。
 4. draft / revise / rerun で関連 ledger / thread を参照する導線を用意する
 5. README / tests / TASKS を memory layer 前提へ同期する
 
-現在は 1 と 2 が完了し、次は 3 に進む。
+現在は 1 から 3 が完了し、次は 4 に進む。
 
 ## Roadmap Notes
 

@@ -68,6 +68,28 @@ def canon_ledger_contract() -> dict:
     }
 
 
+def thread_registry_contract() -> dict:
+    return {
+        "schema_name": "thread_registry",
+        "schema_version": "1.0",
+        "required_fields": [
+            "schema_name",
+            "schema_version",
+            "threads",
+        ],
+        "thread_required_fields": [
+            "thread_id",
+            "label",
+            "status",
+            "introduced_in_chapter",
+            "last_updated_in_chapter",
+            "related_characters",
+            "notes",
+        ],
+        "allowed_statuses": ["seeded", "progressed", "resolved", "dropped"],
+    }
+
+
 def story_bible_contract() -> dict:
     return {
         "schema_name": "story_bible",
@@ -189,6 +211,82 @@ def validate_canon_ledger_chapter(payload: dict, field_name: str = "chapter") ->
             f"{field_name}.{list_field}",
         )
 
+    return payload
+
+
+def validate_thread_registry(payload: dict) -> dict:
+    contract = thread_registry_contract()
+    missing_fields = [field for field in contract["required_fields"] if field not in payload]
+    if missing_fields:
+        missing = ", ".join(sorted(missing_fields))
+        raise ValueError(
+            "Invalid thread_registry: missing required fields: "
+            f"{missing}. Regenerate the thread registry from the pipeline."
+        )
+
+    if payload.get("schema_name") != contract["schema_name"]:
+        raise ValueError(
+            "Invalid thread_registry: "
+            f"schema_name={payload.get('schema_name')!r} is not supported; expected {contract['schema_name']!r}."
+        )
+
+    if payload.get("schema_version") != contract["schema_version"]:
+        raise ValueError(
+            "Invalid thread_registry: "
+            f"schema_version={payload.get('schema_version')!r} is not supported; expected {contract['schema_version']!r}."
+        )
+
+    threads = payload.get("threads")
+    if not isinstance(threads, list) or not threads:
+        raise ValueError("Invalid thread_registry: threads must be a non-empty list.")
+
+    for index, thread in enumerate(threads):
+        validate_thread_registry_entry(thread, f"threads[{index}]")
+
+    return payload
+
+
+def validate_thread_registry_entry(payload: dict, field_name: str = "thread") -> dict:
+    contract = thread_registry_contract()
+    if not isinstance(payload, dict):
+        raise ValueError(f"Invalid thread_registry: {field_name} must be an object.")
+
+    missing_fields = [field for field in contract["thread_required_fields"] if field not in payload]
+    if missing_fields:
+        missing = ", ".join(sorted(missing_fields))
+        raise ValueError(
+            "Invalid thread_registry: "
+            f"{field_name} is missing required fields: {missing}."
+        )
+
+    _validate_str_field(payload.get("thread_id"), "thread_registry", f"{field_name}.thread_id")
+    _validate_str_field(payload.get("label"), "thread_registry", f"{field_name}.label")
+    _validate_str_field(payload.get("status"), "thread_registry", f"{field_name}.status")
+    if payload.get("status") not in contract["allowed_statuses"]:
+        allowed = ", ".join(contract["allowed_statuses"])
+        raise ValueError(
+            f"Invalid thread_registry: {field_name}.status must be one of: {allowed}."
+        )
+    _validate_int_field(
+        payload.get("introduced_in_chapter"),
+        "thread_registry",
+        f"{field_name}.introduced_in_chapter",
+    )
+    _validate_int_field(
+        payload.get("last_updated_in_chapter"),
+        "thread_registry",
+        f"{field_name}.last_updated_in_chapter",
+    )
+    if payload.get("last_updated_in_chapter") < payload.get("introduced_in_chapter"):
+        raise ValueError(
+            f"Invalid thread_registry: {field_name}.last_updated_in_chapter must be greater than or equal to introduced_in_chapter."
+        )
+    _validate_list_field(
+        payload.get("related_characters"),
+        "thread_registry",
+        f"{field_name}.related_characters",
+    )
+    _validate_list_field(payload.get("notes"), "thread_registry", f"{field_name}.notes")
     return payload
 
 
@@ -900,6 +998,7 @@ class StoryArtifacts:
             "chapter_briefs": chapter_briefs_contract(),
             "scene_cards": scene_cards_contract(),
             "story_bible": story_bible_contract(),
+            "thread_registry": thread_registry_contract(),
             "publish_ready_bundle": publish_ready_bundle_contract(),
         }
 

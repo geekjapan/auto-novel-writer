@@ -15,6 +15,7 @@ from novel_writer.storage import (
     load_publish_ready_bundle,
     load_run_comparison_summary,
     load_story_bible,
+    load_thread_registry,
     normalize_project_id,
     resolve_artifact_path,
     save_artifact,
@@ -25,6 +26,7 @@ from novel_writer.storage import (
     save_project_manifest,
     save_run_comparison_summary,
     save_story_bible,
+    save_thread_registry,
     upsert_canon_ledger_chapter,
 )
 
@@ -278,6 +280,51 @@ class SaveArtifactTest(unittest.TestCase):
             self.assertEqual(target.name, "canon_ledger.json")
             self.assertEqual(loaded, payload)
 
+    def test_save_thread_registry_validates_required_fields(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            with self.assertRaisesRegex(ValueError, "threads\\[0\\] is missing required fields: notes"):
+                save_thread_registry(
+                    Path(tmp_dir),
+                    {
+                        "schema_name": "thread_registry",
+                        "schema_version": "1.0",
+                        "threads": [
+                            {
+                                "thread_id": "watch-mystery",
+                                "label": "壊れた腕時計の謎",
+                                "status": "seeded",
+                                "introduced_in_chapter": 1,
+                                "last_updated_in_chapter": 1,
+                                "related_characters": ["ミナト"],
+                            }
+                        ],
+                    },
+                )
+
+    def test_save_thread_registry_round_trips_valid_payload(self) -> None:
+        payload = {
+            "schema_name": "thread_registry",
+            "schema_version": "1.0",
+            "threads": [
+                {
+                    "thread_id": "watch-mystery",
+                    "label": "壊れた腕時計の謎",
+                    "status": "seeded",
+                    "introduced_in_chapter": 1,
+                    "last_updated_in_chapter": 1,
+                    "related_characters": ["ミナト"],
+                    "notes": ["駅前で逆回転が初登場した。"],
+                }
+            ],
+        }
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            target = save_thread_registry(Path(tmp_dir), payload, "json")
+            loaded = load_thread_registry(Path(tmp_dir))
+
+            self.assertEqual(target.name, "thread_registry.json")
+            self.assertEqual(loaded, payload)
+
     def test_upsert_canon_ledger_chapter_creates_new_ledger_when_missing(self) -> None:
         chapter_payload = {
             "chapter_number": 1,
@@ -439,6 +486,8 @@ class SaveArtifactTest(unittest.TestCase):
 
         self.assertEqual(contract["canon_ledger"]["schema_name"], "canon_ledger")
         self.assertEqual(contract["canon_ledger"]["schema_version"], "1.0")
+        self.assertEqual(contract["thread_registry"]["schema_name"], "thread_registry")
+        self.assertEqual(contract["thread_registry"]["schema_version"], "1.0")
 
     def test_save_story_bible_writes_story_design_contract(self) -> None:
         payload = {
@@ -841,6 +890,58 @@ class SaveArtifactTest(unittest.TestCase):
 
             with self.assertRaisesRegex(ValueError, "schema_version='9.9' is not supported; expected '1.0'"):
                 load_canon_ledger(Path(tmp_dir))
+
+    def test_load_thread_registry_rejects_invalid_status(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            save_artifact(
+                Path(tmp_dir),
+                "thread_registry",
+                {
+                    "schema_name": "thread_registry",
+                    "schema_version": "1.0",
+                    "threads": [
+                        {
+                            "thread_id": "watch-mystery",
+                            "label": "壊れた腕時計の謎",
+                            "status": "paused",
+                            "introduced_in_chapter": 1,
+                            "last_updated_in_chapter": 1,
+                            "related_characters": ["ミナト"],
+                            "notes": ["駅前で逆回転が初登場した。"],
+                        }
+                    ],
+                },
+                "json",
+            )
+
+            with self.assertRaisesRegex(ValueError, "threads\\[0\\]\\.status must be one of: seeded, progressed, resolved, dropped"):
+                load_thread_registry(Path(tmp_dir))
+
+    def test_load_thread_registry_rejects_unsupported_schema_version(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            save_artifact(
+                Path(tmp_dir),
+                "thread_registry",
+                {
+                    "schema_name": "thread_registry",
+                    "schema_version": "9.9",
+                    "threads": [
+                        {
+                            "thread_id": "watch-mystery",
+                            "label": "壊れた腕時計の謎",
+                            "status": "seeded",
+                            "introduced_in_chapter": 1,
+                            "last_updated_in_chapter": 1,
+                            "related_characters": ["ミナト"],
+                            "notes": ["駅前で逆回転が初登場した。"],
+                        }
+                    ],
+                },
+                "json",
+            )
+
+            with self.assertRaisesRegex(ValueError, "schema_version='9.9' is not supported; expected '1.0'"):
+                load_thread_registry(Path(tmp_dir))
 
     def test_load_project_manifest_validates_required_fields(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
