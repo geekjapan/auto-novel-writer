@@ -4,19 +4,20 @@
 ここでの task は、1 回で安全に実装・テスト・docs 更新・コミットできる粒度へ分割する。
 
 ## In Progress
-- [ ] M59i: continuity policy の内部 rerun 結果も memory artifact へ反映できるようにする
-  - Title: policy 駆動 rerun 後の memory artifact 自動更新導線を追加する
-  - Milestone: M59 Canon Ledger And Thread Registry
-  - Purpose: medium / high severity による内部 rerun でも `canon_ledger` / `thread_registry` を更新し、自動再生成後に memory layer が古いまま残らないようにする
-  - Target files or directories: `src/novel_writer/pipeline.py`, `tests/test_pipeline.py`, `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
-  - Done when: continuity policy による rerun 後にも対象章または全章の memory artifact が更新され、手動 rerun との差分方針が docs / tests で固定される
-  - Required tests: `./venv/bin/python -m unittest tests.test_pipeline -v`, `./venv/bin/python -m unittest discover -s tests -v`
+- [ ] M60a: `chapter_handoff_packet` の schema を固定する
+  - Title: chapter handoff packet contract を追加する
+  - Milestone: M60 Chapter Handoff Packet
+  - Purpose: draft / revise / rerun が共有する章入力 packet の shape を先に固定し、後続の packet 生成と利用を fail-fast に進められるようにする
+  - Target files or directories: `src/novel_writer/schema.py`, `src/novel_writer/storage.py`, `tests/test_storage.py`, `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
+  - Done when: `chapter_handoff_packet` の required field / schema version / validation が定義され、保存と読込の contract が tests / docs で固定される
+  - Required tests: `./venv/bin/python -m unittest tests.test_storage -v`, `./venv/bin/python -m unittest discover -s tests -v`
   - Docs to update: `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
 
 ## Ready
 
 ## Done
 
+- [x] M59i: continuity policy の内部 rerun 結果も memory artifact へ反映できるようにする
 - [x] M59h: `rerun-chapter` 結果も memory artifact へ反映できるようにする
 - [x] M59g: revised chapter 結果も memory artifact へ反映できるようにする
 - [x] M59f: memory artifact を chapter 結果から自動更新できるようにする

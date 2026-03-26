@@ -903,6 +903,7 @@ class StoryPipeline:
             )
             artifacts.set_chapter_draft(chapter_index, chapter_draft)
             self._save_chapter_draft_artifact(chapter_index, chapter_draft)
+            self._update_memory_artifacts_from_chapter_draft(artifacts, chapter_index, chapter_draft)
             if chapter_index == 0:
                 save_artifact(self.output_dir, "05_chapter_1_draft", artifacts.get_chapter_draft(0), self.file_format)
             chapter_report = self._build_report_with_decision(artifacts, chapter_index=chapter_index)
@@ -964,6 +965,11 @@ class StoryPipeline:
                 )
                 artifacts.set_chapter_draft(rerun_chapter_index, chapter_draft)
                 self._save_chapter_draft_artifact(rerun_chapter_index, chapter_draft)
+                self._update_memory_artifacts_from_chapter_draft(
+                    artifacts,
+                    rerun_chapter_index,
+                    chapter_draft,
+                )
             save_artifact(self.output_dir, "05_chapter_1_draft", artifacts.get_chapter_draft(0), self.file_format)
             chapter_report = self._build_report_with_decision(artifacts, chapter_index=chapter_index)
             artifacts.rerun_history.append(
