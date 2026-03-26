@@ -21,6 +21,8 @@ from novel_writer.storage import (
     save_publish_ready_bundle,
     save_scene_cards,
     save_story_bible,
+    upsert_canon_ledger_chapter,
+    upsert_thread_registry_entry,
 )
 
 
@@ -351,6 +353,7 @@ class StoryPipeline:
             )
             artifacts.set_chapter_draft(chapter_index, chapter_draft)
             self._save_chapter_draft_artifact(chapter_index, chapter_draft)
+            self._update_memory_artifacts_from_chapter_draft(artifacts, chapter_index, chapter_draft)
         save_artifact(self.output_dir, "05_chapter_1_draft", artifacts.get_chapter_draft(0), self.file_format)
         self._mark_checkpoint("chapter_drafts", checkpoints, artifacts, selected_logline)
 
@@ -753,6 +756,53 @@ class StoryPipeline:
             revised_chapter_draft,
             self.file_format,
         )
+
+    def _update_memory_artifacts_from_chapter_draft(
+        self,
+        artifacts: StoryArtifacts,
+        chapter_index: int,
+        chapter_draft: dict,
+    ) -> None:
+        brief = artifacts.chapter_briefs[chapter_index]
+        scene_packet = artifacts.scene_cards[chapter_index]
+        chapter_number = int(brief["chapter_number"])
+        try:
+            thread_registry = load_thread_registry(self.output_dir, self.file_format)
+        except FileNotFoundError:
+            thread_registry = self._default_thread_registry()
+        existing_threads = {
+            str(thread["thread_id"]): thread for thread in thread_registry.get("threads", [])
+        }
+        upsert_canon_ledger_chapter(
+            self.output_dir,
+            {
+                "chapter_number": chapter_number,
+                "new_facts": [chapter_draft.get("summary", "")],
+                "changed_facts": [],
+                "open_questions": list(brief.get("foreshadowing_targets", [])),
+                "timeline_events": [scene_packet["scenes"][0]["exit_state"]],
+            },
+            self.file_format,
+        )
+        for target in brief.get("foreshadowing_targets", []):
+            existing_thread = existing_threads.get(str(target))
+            upsert_thread_registry_entry(
+                self.output_dir,
+                {
+                    "thread_id": target,
+                    "label": target,
+                    "status": "seeded",
+                    "introduced_in_chapter": (
+                        existing_thread["introduced_in_chapter"]
+                        if existing_thread
+                        else chapter_number
+                    ),
+                    "last_updated_in_chapter": chapter_number,
+                    "related_characters": list(brief.get("continuity_dependencies", [])),
+                    "notes": [chapter_draft.get("summary", "")],
+                },
+                self.file_format,
+            )
 
     def _run_story_summary_step(
         self,

@@ -428,6 +428,40 @@ class StoryPipelineTest(unittest.TestCase):
                 self.assertEqual(call["canon_ledger"]["chapters"][0]["chapter_number"], 1)
                 self.assertEqual(call["thread_registry"]["threads"][0]["thread_id"], "watch-mystery")
 
+    def test_pipeline_updates_memory_artifacts_after_chapter_drafts(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            output_dir = Path(tmp_dir)
+
+            artifacts = StoryPipeline(
+                MockLLMClient(),
+                output_dir,
+                "json",
+                continuity_checker=NoRerunContinuityChecker(),
+            ).run(
+                StoryInput(theme="記憶", genre="SF", tone="ビター", target_length=8000)
+            )
+
+            canon_ledger = json.loads((output_dir / "canon_ledger.json").read_text(encoding="utf-8"))
+            thread_registry = json.loads((output_dir / "thread_registry.json").read_text(encoding="utf-8"))
+
+            self.assertEqual(canon_ledger["schema_name"], "canon_ledger")
+            self.assertEqual(len(canon_ledger["chapters"]), len(artifacts.chapter_plan))
+            self.assertEqual(canon_ledger["chapters"][0]["chapter_number"], 1)
+            self.assertEqual(canon_ledger["chapters"][0]["new_facts"], [artifacts.chapter_drafts[0]["summary"]])
+            self.assertEqual(
+                canon_ledger["chapters"][0]["timeline_events"],
+                [artifacts.scene_cards[0]["scenes"][0]["exit_state"]],
+            )
+
+            self.assertEqual(thread_registry["schema_name"], "thread_registry")
+            self.assertTrue(thread_registry["threads"])
+            self.assertEqual(
+                thread_registry["threads"][0]["thread_id"],
+                artifacts.chapter_briefs[0]["foreshadowing_targets"][0],
+            )
+            self.assertEqual(thread_registry["threads"][0]["status"], "seeded")
+            self.assertEqual(thread_registry["threads"][0]["introduced_in_chapter"], 1)
+
     def test_resume_normalizes_compatibility_only_manifest_to_chapter_arrays(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             output_dir = Path(tmp_dir)
