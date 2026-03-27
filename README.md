@@ -3,7 +3,7 @@
 `auto-novel-writer` は、CLI ベースの小説制作パイプラインです。  
 目指すのは「一発で完成原稿を出す本文生成器」ではなく、**小説制作を工程分解し、章単位・作品単位で再開可能に回せる制御基盤**です。
 
-現在は、CLI 入力から `story_input`、`loglines`、`characters`、`three_act_plot`、`story_bible`、`chapter_plan`、`chapter_briefs`、`scene_cards`、全章 draft、全章 revised draft、quality 系 artifact、project/run 管理用 manifest、comparison artifact までを順に生成できます。
+現在は、CLI 入力から `story_input`、`loglines`、`characters`、`three_act_plot`、`story_bible`、`chapter_plan`、`chapter_briefs`、`scene_cards`、全章 draft、全章 revised draft、quality 系 artifact、project/run 管理用 manifest、comparison artifact までを順に生成できます。加えて、次段階の story state layer に向けて `canon_ledger` と `thread_registry` の schema / storage contract、chapter draft / revised draft / `rerun-chapter` / policy 駆動 rerun 結果からの最小自動反映導線、`chapter_handoff_packet` の shared-input 化、`progress_report` の schema / storage contract も導入済みです。
 
 ## ソフトウェアの目的
 
@@ -34,6 +34,8 @@
 - 長編設計の正本: `story_bible`
 - 章別成功条件の正本: `chapter_briefs`
 - 章内 scene 分解の正本: `scene_cards`
+- 長期記憶の正本: `canon_ledger`
+- thread 状態の正本: `thread_registry`
 - chapter 1 互換出力: `chapter_1_draft`, `revised_chapter_1_draft`, `continuity_report`
 - 配布向け成果物: `publish_ready_bundle.json`
 - artifact 契約定義: `artifact_contract`
@@ -124,6 +126,13 @@
 - current run と `best_run` の比較結果を CLI から確認
 - `show-project-status` / `show-run-comparison` の read-only 表示
 - `story_bible` の schema / storage contract
+- `canon_ledger` の schema / storage contract
+- `canon_ledger` の chapter 単位 upsert helper
+- `thread_registry` の schema / storage contract
+- `thread_registry` の thread 単位 upsert helper
+- `chapter_handoff_packet` の schema / storage contract
+- `progress_report` の schema / storage contract
+- `replan_history` の schema / storage contract
 
 ## 長編設計 artifact の現状
 
@@ -144,6 +153,34 @@
 
 - `chapter_briefs` は章ごとの `goal`, `conflict`, `turn`, `must_include`, `continuity_dependencies` などを保持します
 - `scene_cards` は章ごとの scene 配列として、`scene_goal`, `scene_conflict`, `scene_turn`, `must_include`, `continuity_refs` などを保持します
+
+`canon_ledger` は、story state layer に入る前の長期記憶 artifact として save/load helper と validator まで導入済みです。現在の contract は top-level に `schema_name`, `schema_version`, `chapters` を持ち、各 chapter entry に最低限次を要求します。
+
+- `chapter_number`
+- `new_facts`
+- `changed_facts`
+- `open_questions`
+- `timeline_events`
+
+`canon_ledger.json` は保存時と読込時の両方で validation され、required field 欠落や `schema_version` 不整合は fail fast で停止します。storage helper では chapter 単位 upsert もでき、同じ `chapter_number` は置換、連番の次章は追記、番号が飛ぶ append は fail fast で停止します。chapter draft 生成と `rerun-chapter` の文脈入力でも参照し、artifact が存在しない場合は空の `canon_ledger` を互換用 default として渡します。さらに chapter draft 保存直後、revised draft 保存直後、`rerun-chapter` の対象章保存直後、continuity policy による内部 rerun 保存直後には最小の決め打ちルールで自動更新し、`new_facts` にはその時点の draft `summary`、`open_questions` には `chapter_briefs.foreshadowing_targets`、`timeline_events` には scene 1 の `exit_state` を保存します。full pipeline や `rerun-chapter` が revised まで進んだ場合、対象 chapter entry は revised draft の `summary` で上書きされます。
+
+`thread_registry` も save/load helper と validator まで導入済みです。現在の contract は top-level に `schema_name`, `schema_version`, `threads` を持ち、各 thread entry に最低限次を要求します。
+
+- `thread_id`
+- `label`
+- `status`
+- `introduced_in_chapter`
+- `last_updated_in_chapter`
+- `related_characters`
+- `notes`
+
+`status` は `seeded`, `progressed`, `resolved`, `dropped` の列挙型に固定しています。`thread_registry.json` も保存時と読込時の両方で validation され、required field 欠落、unsupported `schema_version`、不正な status、`last_updated_in_chapter < introduced_in_chapter` は fail fast で停止します。storage helper では thread 単位 upsert もでき、同じ `thread_id` は置換、未登録の `thread_id` は追加します。chapter draft 生成と `rerun-chapter` の文脈入力でも参照し、artifact が存在しない場合は空の `thread_registry` を互換用 default として渡します。さらに chapter draft 保存直後、revised draft 保存直後、`rerun-chapter` の対象章保存直後、continuity policy による内部 rerun 保存直後には `chapter_briefs.foreshadowing_targets` から thread entry を自動反映し、`last_updated_in_chapter` は当該章、`introduced_in_chapter` は既存 thread があれば最初の導入章を保持します。full pipeline や `rerun-chapter` が revised まで進んだ場合、各 thread の `notes` は最後に更新した章の revised draft `summary` になります。
+
+`chapter_handoff_packet` は、draft / revise / rerun が共有する章入力 packet の contract として導入しました。現在の contract は top-level に `schema_name`, `schema_version`, `chapter_number`, `current_chapter_brief`, `relevant_scene_cards`, `relevant_canon_facts`, `unresolved_threads`, `previous_chapter_summary`, `style_constraints` を持ちます。`style_constraints` は `tone`, `point_of_view`, `tense` を required field に固定しています。さらに `chapter_drafts` の直前には `chapter_{n}_handoff_packet.json` を自動保存し、`current_chapter_brief`、当該章の scene 群、既存 memory artifact 由来の facts / threads、前章 summary、tone / POV / tense を packet にまとめます。現在は draft 生成と revise loop の両方がこの packet を直接受け取り、manual rerun / policy rerun でも同じ packet builder を通して章入力 contract を共有します。
+
+`progress_report` は、long-form evaluation の machine-readable artifact として導入済みです。現在の contract は top-level に `schema_name`, `schema_version`, `evaluated_through_chapter`, `checks`, `issue_codes`, `recommended_action` を持ちます。`checks` には `chapter_role_coverage`, `escalation_pace`, `emotional_progression`, `foreshadowing_coverage`, `unresolved_thread_load`, `climax_readiness` を必須で持たせ、各 check は `status`, `summary`, `evidence` を required field に固定しています。`recommended_action` は `continue`, `revise`, `rerun`, `replan`, `stop_for_review` の列挙型です。現在の pipeline では `project_quality_report` の後に `progress_report.json` を生成し、revised draft と `thread_registry` を使って 6 つの long-form checks と推奨アクションを保存します。
+
+`replan_history` は、future chapter の再計画履歴を追跡する machine-readable artifact として導入済みです。現在の contract は top-level に `schema_name`, `schema_version`, `replans` を持ちます。各 replan entry は `replan_id`, `trigger_chapter_number`, `reason`, `issue_codes`, `impact_scope`, `updated_artifacts`, `change_summary` を required field に固定しています。`impact_scope` は `from_chapter`, `to_chapter`, `chapter_numbers` を持ち、どの章範囲へ影響した replan かを明示します。storage helper では `replan_id` を主キーにした upsert ができ、未作成 history からの新規生成、既存 replan の置換、新規 replan の追記を fail-fast の validator つきで扱えます。さらに現在の pipeline では `progress_report.recommended_action == "replan"` を検出すると、`replan_history.json` へ decision trace を 1 entry 保存します。初版では `chapter_briefs` / `scene_cards` を更新対象 artifact として記録し、trigger chapter と impact scope を残します。
 
 ## chapter 1 互換 artifact と全章状態
 
@@ -315,6 +352,8 @@ novel-writer rerun-chapter --project-id "my-story-01" --chapter-number 2
 - `04_chapter_plan`
 - `chapter_briefs`
 - `scene_cards`
+- `canon_ledger`
+- `thread_registry`
 - `05_chapter_1_draft`
 - `chapter_{n}_draft`
 - `continuity_report.json`
@@ -442,7 +481,7 @@ run comparison summary field と artifact field の対応:
 minimal valid comparison artifact の read-only 境界:
 
 - `show-run-comparison` は `run_comparison_summary.json` の validator を通る最小 shape に対しても表示できる
-- 現在は `current_comparison_reason_codes`, `current_comparison_metrics`, `best_selection_source`, `best_selection_reason_codes`, `best_comparison_metrics`, `compact.issue_score`, `compact.completed_step_count`, `Run candidates: 0` まで tests で固定している
+- 現在は `current_comparison_reason_codes`, `current_comparison_metrics`, `best_selection_source`, `best_selection_reason_codes`, `best_comparison_metrics`, `compact.issue_score`, `compact.completed_step_count`, `compact.long_run_should_stop`, `Run candidates: 0` まで tests で固定している
 - `run_candidates=[]` の場合でも count 行は表示するが、`run_candidate_names` / `run_candidate_scores` / `run_candidate_output_dirs` は表示しない
 
 schema version の現方針:

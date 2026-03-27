@@ -298,7 +298,10 @@ class OpenAIClient(BaseLLMClient):
         chapter_plan: list[dict[str, Any]],
         chapter_briefs: list[dict[str, Any]],
         scene_cards: list[dict[str, Any]],
+        canon_ledger: dict[str, Any],
+        thread_registry: dict[str, Any],
         chapter_index: int = 0,
+        chapter_handoff_packet: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         if chapter_index < 0 or chapter_index >= len(chapter_plan):
             raise ValueError(f"chapter_plan must contain an entry for chapter_index={chapter_index}.")
@@ -317,6 +320,9 @@ class OpenAIClient(BaseLLMClient):
                 f"chapter_plan={json.dumps(chapter_plan, ensure_ascii=False)}, "
                 f"chapter_briefs={json.dumps(chapter_briefs, ensure_ascii=False)}, "
                 f"scene_cards={json.dumps(scene_cards, ensure_ascii=False)}, "
+                f"chapter_handoff_packet={json.dumps(chapter_handoff_packet or {}, ensure_ascii=False)}, "
+                f"canon_ledger={json.dumps(canon_ledger, ensure_ascii=False)}, "
+                f"thread_registry={json.dumps(thread_registry, ensure_ascii=False)}, "
                 f"chapter_index={chapter_index}"
             ),
         )
@@ -335,6 +341,7 @@ class OpenAIClient(BaseLLMClient):
         chapter_draft: dict[str, Any],
         continuity_report: dict[str, Any],
         chapter_index: int = 0,
+        chapter_handoff_packet: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         data = self._generate_json(
             "You revise a Japanese chapter draft for consistency, concision, and tone.",
@@ -344,6 +351,7 @@ class OpenAIClient(BaseLLMClient):
                 f"chapter_plan={json.dumps(chapter_plan, ensure_ascii=False)}, "
                 f"chapter_draft={json.dumps(chapter_draft, ensure_ascii=False)}, "
                 f"continuity_report={json.dumps(continuity_report, ensure_ascii=False)}, "
+                f"chapter_handoff_packet={json.dumps(chapter_handoff_packet or {}, ensure_ascii=False)}, "
                 f"chapter_index={chapter_index}. "
                 "Keep the same chapter number and title, improve style, remove redundancy, and align summary to the selected chapter plan."
             ),

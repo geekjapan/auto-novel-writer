@@ -33,6 +33,14 @@ CLI から小説プロジェクトを作成し、長編小説を
 - chapter plan 全件に対して draft / revised draft を生成し、全章 artifact を保存できる
 - continuity check、quality report、rerun policy、bounded revise loop、resume / rerun、history / diff metadata 保存がある
 - `project_manifest.json` と comparison artifact により、current run / best run / run candidates を比較できる
+- `show-run-comparison` の minimal artifact read-only coverage では compact issue / step / long-run stop 行まで tests で固定している
+- `canon_ledger` の schema / storage contract は導入済みで、chapter 単位の required field と `schema_version` を save/load 時に validation できる
+- `canon_ledger` には chapter 単位 upsert helper が入り、同章置換と次章追記を fail-fast 制約つきで扱える
+- `thread_registry` の schema / storage contract は導入済みで、status 列挙型と chapter 参照の基本整合性を save/load 時に validation できる
+- `thread_registry` には thread 単位 upsert helper が入り、同じ `thread_id` の置換と新規 thread 追加を fail-fast 制約つきで扱える
+- `chapter_drafts` / `revised_chapter_drafts` step、`rerun-chapter`、continuity policy の内部 rerun は保存直後に `canon_ledger` / `thread_registry` を最小ルールで自動更新できる
+- `chapter_handoff_packet` の schema / storage contract は導入済みで、`style_constraints.tone / point_of_view / tense` を required field として固定した
+- `progress_report` は導入済みで、schema / storage contract と pipeline 生成の初版が入っている
 - `story_summary.json`、`project_quality_report.json`、`publish_ready_bundle.json` を出力できる
 
 ## Gap To Goal
@@ -159,6 +167,24 @@ CLI から小説プロジェクトを作成し、長編小説を
 目的:
 既出事実と未回収要素を、長編用の運用メモリとして保持する。
 
+進捗:
+
+- `canon_ledger.json` の schema / storage contract は導入済み
+- `thread_registry.json` の schema / storage contract は導入済み
+- top-level は `schema_name` / `schema_version` / `chapters` で固定した
+- 各 chapter entry は `chapter_number`, `new_facts`, `changed_facts`, `open_questions`, `timeline_events` を required field として validation する
+- save/load helper は required field 欠落と `schema_version` 不整合で fail fast に停止する
+- chapter 単位 upsert helper により、同章置換と次章追記ができる
+- `thread_registry` は top-level を `schema_name` / `schema_version` / `threads` に固定し、各 thread entry は `thread_id`, `label`, `status`, `introduced_in_chapter`, `last_updated_in_chapter`, `related_characters`, `notes` を required field として validation する
+- thread 単位 upsert helper により、同じ `thread_id` の置換と新規 thread 追加ができる
+- chapter draft 生成と `rerun-chapter` は memory artifact を読める場合に prompt context として参照し、欠落時は空 ledger / empty thread registry を互換用 default として渡す
+- `chapter_drafts` step では draft `summary`、`foreshadowing_targets`、scene 1 `exit_state` を使って `canon_ledger` を自動更新する
+- `revised_chapter_drafts` step でも同じ章 entry / thread entry を再更新し、full pipeline 完了時は revised draft の `summary` を memory layer へ反映する
+- `rerun-chapter` でも対象章の draft / revised draft 保存直後に同じ章 entry / thread entry を更新する
+- continuity policy による medium / high rerun でも再生成 draft 保存直後に同じ章 entry / thread entry を更新する
+- `chapter_drafts` / `revised_chapter_drafts` step、`rerun-chapter`、continuity policy の内部 rerun では `foreshadowing_targets` ごとに `thread_registry` を自動更新し、同じ `thread_id` の `introduced_in_chapter` は最初の導入章を保持する
+- 次は M61 として long-form 評価の contract 固定へ進む段階である
+
 完了条件:
 
 - `canon_ledger.json` を保存できる
@@ -184,6 +210,17 @@ CLI から小説プロジェクトを作成し、長編小説を
   - style / POV / tense constraints
 - draft / revise / rerun が同じ packet contract を共有する
 
+進捗:
+
+- `chapter_handoff_packet` の schema / storage contract は導入済み
+- top-level は `schema_name`, `schema_version`, `chapter_number`, `current_chapter_brief`, `relevant_scene_cards`, `relevant_canon_facts`, `unresolved_threads`, `previous_chapter_summary`, `style_constraints` に固定した
+- `style_constraints` は `tone`, `point_of_view`, `tense` を required field として validation する
+- `chapter_drafts` step の直前には `chapter_{n}_handoff_packet.json` を構築して保存できる
+- draft 生成は `chapter_handoff_packet` を直接受け取るようになった
+- revise loop も `chapter_handoff_packet` を直接受け取るようになった
+- manual rerun / continuity policy rerun でも同じ packet builder を通して draft 再生成する
+- 次は M61 として `progress_report.json` の contract を固定し、long-form 評価の machine-readable layer を追加する段階である
+
 ### M61. Long-form 評価を強化する
 
 目的:
@@ -201,6 +238,16 @@ CLI から小説プロジェクトを作成し、長編小説を
   - climax readiness
 - issue code が rerun / revise / replan の推奨行動に結びつく
 
+進捗:
+
+- `progress_report` の schema / storage contract は導入済み
+- top-level は `schema_name`, `schema_version`, `evaluated_through_chapter`, `checks`, `issue_codes`, `recommended_action` に固定した
+- `checks` には `chapter_role_coverage`, `escalation_pace`, `emotional_progression`, `foreshadowing_coverage`, `unresolved_thread_load`, `climax_readiness` を必須にし、各 check の `status`, `summary`, `evidence` を validation する
+- `recommended_action` は `continue`, `revise`, `rerun`, `replan`, `stop_for_review` の列挙型に固定した
+- pipeline は `project_quality_report` の後に `progress_report.json` を生成できる
+- 初版では revised draft と `thread_registry` を使って 6 つの long-form checks と issue code を組み立て、`recommended_action` を返す
+- 次は M62 として `replan_history` を正本 artifact として固定する段階である
+
 ### M62. Replan Loop を導入する
 
 目的:
@@ -212,6 +259,17 @@ CLI から小説プロジェクトを作成し、長編小説を
 - ある章の結果を受けて、未来の `chapter_briefs` / `scene_cards` を更新できる
 - replan の理由、影響範囲、変更差分を manifest から追える
 - rerun と replan の境界が docs / tests で明確になる
+
+進捗:
+
+- `replan_history` の schema / storage contract は導入済み
+- top-level は `schema_name`, `schema_version`, `replans` に固定した
+- 各 replan entry は `replan_id`, `trigger_chapter_number`, `reason`, `issue_codes`, `impact_scope`, `updated_artifacts`, `change_summary` を required field に固定した
+- `impact_scope` は `from_chapter`, `to_chapter`, `chapter_numbers` を持ち、future chapter への影響範囲を machine-readable に表現する
+- `replan_id` を主キーにした upsert helper で、未作成 history からの新規生成、既存 entry の置換、新規 entry の追記ができる
+- pipeline は `progress_report.recommended_action=replan` を検出すると `replan_history` へ decision trace を保存できる
+- 初版では `chapter_briefs` / `scene_cards` を更新対象 artifact として記録し、trigger chapter と impact scope を残す
+- 次は実際に future chapter の `chapter_briefs` / `scene_cards` を更新する helper を導入する段階である
 
 ### M63. 自律実行ポリシーを導入する
 
@@ -251,7 +309,7 @@ CLI から小説プロジェクトを作成し、長編小説を
 
 ## Immediate Focus
 
-次の本命は M59 である。
+次の本命は引き続き M59 である。
 
 理由:
 
@@ -265,7 +323,10 @@ M59 の実装順は次のとおりに進める。
 2. chapter ごとの新事実・変更事実・未解決事項・時系列イベントを `canon_ledger` へ追記できるようにする
 3. `thread_registry` schema と storage contract を追加する
 4. draft / revise / rerun で関連 ledger / thread を参照する導線を用意する
-5. README / tests / TASKS を memory layer 前提へ同期する
+5. chapter draft 結果から memory artifact を自動更新する
+6. README / tests / TASKS を memory layer 前提へ同期する
+
+現在は 1 から 5 の最小導線と memory artifact 自動反映の主要経路、chapter handoff packet の contract / build / shared-input 化までが入り、次は M61 の long-form 評価 artifact へ進む段階である。
 
 ## Roadmap Notes
 

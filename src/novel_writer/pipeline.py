@@ -9,16 +9,23 @@ from novel_writer.llm_client import BaseLLMClient
 from novel_writer.rerun_policy import ContinuityRerunPolicy
 from novel_writer.schema import StoryArtifacts, StoryInput
 from novel_writer.storage import (
+    load_canon_ledger,
     load_artifact,
     load_chapter_briefs,
     load_publish_ready_bundle,
     load_scene_cards,
     load_story_bible,
+    load_thread_registry,
     save_artifact,
+    save_chapter_handoff_packet,
     save_chapter_briefs,
+    save_progress_report,
     save_publish_ready_bundle,
     save_scene_cards,
     save_story_bible,
+    upsert_canon_ledger_chapter,
+    upsert_replan_history_entry,
+    upsert_thread_registry_entry,
 )
 
 
@@ -37,6 +44,7 @@ PIPELINE_STEP_ORDER = [
     "revised_chapter_drafts",
     "story_summary",
     "project_quality_report",
+    "progress_report",
     "publish_ready_bundle",
 ]
 
@@ -58,6 +66,23 @@ class StoryPipeline:
         self.continuity_checker = continuity_checker or ContinuityChecker()
         self.rerun_policy = rerun_policy or ContinuityRerunPolicy()
         self.long_run_status = self._default_long_run_status()
+
+    def _default_canon_ledger(self) -> dict:
+        return {"schema_name": "canon_ledger", "schema_version": "1.0", "chapters": []}
+
+    def _default_thread_registry(self) -> dict:
+        return {"schema_name": "thread_registry", "schema_version": "1.0", "threads": []}
+
+    def _load_memory_context(self, output_dir: Path) -> tuple[dict, dict]:
+        try:
+            canon_ledger = load_canon_ledger(output_dir)
+        except FileNotFoundError:
+            canon_ledger = self._default_canon_ledger()
+        try:
+            thread_registry = load_thread_registry(output_dir)
+        except FileNotFoundError:
+            thread_registry = self._default_thread_registry()
+        return canon_ledger, thread_registry
 
     def run(
         self,
@@ -113,6 +138,14 @@ class StoryPipeline:
 
         artifacts.normalize_chapter_artifacts()
         self._require_chapter_generation_inputs(artifacts, chapter_index)
+        canon_ledger, thread_registry = self._load_memory_context(resume_from)
+        handoff_packet = self._build_chapter_handoff_packet(
+            artifacts.story_input,
+            artifacts,
+            canon_ledger,
+            thread_registry,
+            chapter_index,
+        )
         chapter_draft = self.llm_client.generate_chapter_draft(
             artifacts.story_input,
             selected_logline,
@@ -121,10 +154,14 @@ class StoryPipeline:
             artifacts.chapter_plan,
             artifacts.chapter_briefs,
             artifacts.scene_cards,
+            canon_ledger,
+            thread_registry,
             chapter_index=chapter_index,
+            chapter_handoff_packet=handoff_packet,
         )
         artifacts.set_chapter_draft(chapter_index, chapter_draft)
         self._save_chapter_draft_artifact(chapter_index, chapter_draft)
+        self._update_memory_artifacts_from_chapter_draft(artifacts, chapter_index, chapter_draft)
         if chapter_index == 0:
             save_artifact(self.output_dir, "05_chapter_1_draft", artifacts.get_chapter_draft(0), self.file_format)
 
@@ -159,6 +196,11 @@ class StoryPipeline:
         )
         revised_chapter_draft = artifacts.get_revised_chapter_draft(chapter_index)
         self._save_revised_chapter_draft_artifact(chapter_index, revised_chapter_draft)
+        self._update_memory_artifacts_from_chapter_draft(
+            artifacts,
+            chapter_index,
+            revised_chapter_draft,
+        )
         if chapter_index == 0:
             save_artifact(self.output_dir, "revised_chapter_1_draft", revised_chapter_draft, self.file_format)
 
@@ -172,6 +214,14 @@ class StoryPipeline:
 
         artifacts.project_quality_report = self.continuity_checker.build_project_quality_report(artifacts)
         save_artifact(self.output_dir, "project_quality_report", artifacts.project_quality_report, "json")
+
+        _canon_ledger, thread_registry = self._load_memory_context(self.output_dir)
+        artifacts.progress_report = self.continuity_checker.build_progress_report(
+            artifacts,
+            thread_registry,
+        )
+        save_progress_report(self.output_dir, artifacts.progress_report, "json")
+        self._record_replan_decision(artifacts.progress_report, artifacts)
 
         artifacts.publish_ready_bundle = {
             "title": artifacts.story_summary.get("title") or selected_logline.get("title"),
@@ -312,8 +362,17 @@ class StoryPipeline:
         artifacts: StoryArtifacts,
         checkpoints: list[dict],
     ) -> None:
+        canon_ledger, thread_registry = self._load_memory_context(self.output_dir)
         for chapter_index, _chapter in enumerate(artifacts.chapter_plan):
             self._require_chapter_generation_inputs(artifacts, chapter_index)
+            handoff_packet = self._build_chapter_handoff_packet(
+                story_input,
+                artifacts,
+                canon_ledger,
+                thread_registry,
+                chapter_index,
+            )
+            self._save_chapter_handoff_packet_artifact(chapter_index, handoff_packet)
             chapter_draft = self.llm_client.generate_chapter_draft(
                 story_input,
                 selected_logline,
@@ -322,10 +381,14 @@ class StoryPipeline:
                 artifacts.chapter_plan,
                 artifacts.chapter_briefs,
                 artifacts.scene_cards,
+                canon_ledger,
+                thread_registry,
                 chapter_index=chapter_index,
+                chapter_handoff_packet=handoff_packet,
             )
             artifacts.set_chapter_draft(chapter_index, chapter_draft)
             self._save_chapter_draft_artifact(chapter_index, chapter_draft)
+            self._update_memory_artifacts_from_chapter_draft(artifacts, chapter_index, chapter_draft)
         save_artifact(self.output_dir, "05_chapter_1_draft", artifacts.get_chapter_draft(0), self.file_format)
         self._mark_checkpoint("chapter_drafts", checkpoints, artifacts, selected_logline)
 
@@ -399,7 +462,13 @@ class StoryPipeline:
                 continuity_report=chapter_report,
                 quality_report=chapter_quality_report,
             )
-            self._save_revised_chapter_draft_artifact(chapter_index, artifacts.get_revised_chapter_draft(chapter_index))
+            revised_chapter_draft = artifacts.get_revised_chapter_draft(chapter_index)
+            self._save_revised_chapter_draft_artifact(chapter_index, revised_chapter_draft)
+            self._update_memory_artifacts_from_chapter_draft(
+                artifacts,
+                chapter_index,
+                revised_chapter_draft,
+            )
         save_artifact(self.output_dir, "revised_chapter_1_draft", artifacts.revised_chapter_1_draft, self.file_format)
         self._mark_checkpoint("revised_chapter_drafts", checkpoints, artifacts, selected_logline)
 
@@ -452,6 +521,9 @@ class StoryPipeline:
         if step_name == "project_quality_report":
             self._run_project_quality_report_step(artifacts, checkpoints, selected_logline)
             return selected_logline
+        if step_name == "progress_report":
+            self._run_progress_report_step(artifacts, checkpoints, selected_logline)
+            return selected_logline
         if step_name == "publish_ready_bundle":
             self._run_publish_ready_bundle_step(artifacts, checkpoints, selected_logline)
             return selected_logline
@@ -479,6 +551,7 @@ class StoryPipeline:
             "revised_chapter_1_draft",
             "story_summary",
             "project_quality_report",
+            "progress_report",
             "publish_ready_bundle",
             "rerun_history",
             "revise_history",
@@ -559,6 +632,9 @@ class StoryPipeline:
         if rerun_from == "project_quality_report":
             self._reset_from_project_quality_report(artifacts)
             return
+        if rerun_from == "progress_report":
+            self._reset_from_progress_report(artifacts)
+            return
         if rerun_from == "publish_ready_bundle":
             self._reset_from_publish_ready_bundle(artifacts)
 
@@ -620,6 +696,10 @@ class StoryPipeline:
 
     def _reset_from_project_quality_report(self, artifacts: StoryArtifacts) -> None:
         artifacts.project_quality_report = {}
+        self._reset_from_progress_report(artifacts)
+
+    def _reset_from_progress_report(self, artifacts: StoryArtifacts) -> None:
+        artifacts.progress_report = {}
         self._reset_from_publish_ready_bundle(artifacts)
 
     def _reset_from_publish_ready_bundle(self, artifacts: StoryArtifacts) -> None:
@@ -729,6 +809,103 @@ class StoryPipeline:
             self.file_format,
         )
 
+    def _save_chapter_handoff_packet_artifact(self, chapter_index: int, handoff_packet: dict) -> None:
+        save_chapter_handoff_packet(self.output_dir, handoff_packet, self.file_format)
+        save_artifact(
+            self.output_dir,
+            f"chapter_{chapter_index + 1}_handoff_packet",
+            handoff_packet,
+            self.file_format,
+        )
+
+    def _build_chapter_handoff_packet(
+        self,
+        story_input: StoryInput,
+        artifacts: StoryArtifacts,
+        canon_ledger: dict,
+        thread_registry: dict,
+        chapter_index: int,
+    ) -> dict:
+        chapter = artifacts.chapter_plan[chapter_index]
+        brief = artifacts.chapter_briefs[chapter_index]
+        scene_packet = artifacts.scene_cards[chapter_index]
+        previous_summary = ""
+        if chapter_index > 0 and chapter_index - 1 < len(artifacts.chapter_drafts):
+            previous_summary = str(artifacts.chapter_drafts[chapter_index - 1].get("summary", ""))
+
+        relevant_canon_facts = []
+        for chapter_entry in canon_ledger.get("chapters", []):
+            if chapter_entry.get("chapter_number", 0) < brief["chapter_number"]:
+                relevant_canon_facts.extend(chapter_entry.get("new_facts", []))
+
+        unresolved_threads = []
+        for thread in thread_registry.get("threads", []):
+            if thread.get("status") not in {"resolved", "dropped"}:
+                unresolved_threads.append(str(thread.get("thread_id", "")))
+
+        return {
+            "schema_name": "chapter_handoff_packet",
+            "schema_version": "1.0",
+            "chapter_number": brief["chapter_number"],
+            "current_chapter_brief": brief,
+            "relevant_scene_cards": list(scene_packet.get("scenes", [])),
+            "relevant_canon_facts": relevant_canon_facts,
+            "unresolved_threads": unresolved_threads,
+            "previous_chapter_summary": previous_summary,
+            "style_constraints": {
+                "tone": story_input.tone,
+                "point_of_view": str(chapter.get("point_of_view", "")),
+                "tense": "past",
+            },
+        }
+
+    def _update_memory_artifacts_from_chapter_draft(
+        self,
+        artifacts: StoryArtifacts,
+        chapter_index: int,
+        chapter_draft: dict,
+    ) -> None:
+        brief = artifacts.chapter_briefs[chapter_index]
+        scene_packet = artifacts.scene_cards[chapter_index]
+        chapter_number = int(brief["chapter_number"])
+        try:
+            thread_registry = load_thread_registry(self.output_dir, self.file_format)
+        except FileNotFoundError:
+            thread_registry = self._default_thread_registry()
+        existing_threads = {
+            str(thread["thread_id"]): thread for thread in thread_registry.get("threads", [])
+        }
+        upsert_canon_ledger_chapter(
+            self.output_dir,
+            {
+                "chapter_number": chapter_number,
+                "new_facts": [chapter_draft.get("summary", "")],
+                "changed_facts": [],
+                "open_questions": list(brief.get("foreshadowing_targets", [])),
+                "timeline_events": [scene_packet["scenes"][0]["exit_state"]],
+            },
+            self.file_format,
+        )
+        for target in brief.get("foreshadowing_targets", []):
+            existing_thread = existing_threads.get(str(target))
+            upsert_thread_registry_entry(
+                self.output_dir,
+                {
+                    "thread_id": target,
+                    "label": target,
+                    "status": "seeded",
+                    "introduced_in_chapter": (
+                        existing_thread["introduced_in_chapter"]
+                        if existing_thread
+                        else chapter_number
+                    ),
+                    "last_updated_in_chapter": chapter_number,
+                    "related_characters": list(brief.get("continuity_dependencies", [])),
+                    "notes": [chapter_draft.get("summary", "")],
+                },
+                self.file_format,
+            )
+
     def _run_story_summary_step(
         self,
         story_input: StoryInput,
@@ -754,6 +931,57 @@ class StoryPipeline:
         artifacts.project_quality_report = self.continuity_checker.build_project_quality_report(artifacts)
         save_artifact(self.output_dir, "project_quality_report", artifacts.project_quality_report, "json")
         self._mark_checkpoint("project_quality_report", checkpoints, artifacts, selected_logline)
+
+    def _run_progress_report_step(
+        self,
+        artifacts: StoryArtifacts,
+        checkpoints: list[dict],
+        selected_logline: dict,
+    ) -> None:
+        _canon_ledger, thread_registry = self._load_memory_context(self.output_dir)
+        artifacts.progress_report = self.continuity_checker.build_progress_report(
+            artifacts,
+            thread_registry,
+        )
+        save_progress_report(self.output_dir, artifacts.progress_report, "json")
+        self._record_replan_decision(artifacts.progress_report, artifacts)
+        self._mark_checkpoint("progress_report", checkpoints, artifacts, selected_logline)
+
+    def _record_replan_decision(self, progress_report: dict, artifacts: StoryArtifacts) -> None:
+        if progress_report.get("recommended_action") != "replan":
+            return
+
+        trigger_chapter_number = int(progress_report.get("evaluated_through_chapter", 0))
+        total_chapters = len(artifacts.chapter_plan)
+        from_chapter = min(trigger_chapter_number + 1, total_chapters) if total_chapters else trigger_chapter_number
+        if from_chapter <= 0:
+            from_chapter = 1
+        to_chapter = total_chapters if total_chapters else from_chapter
+        chapter_numbers = list(range(from_chapter, to_chapter + 1))
+        if not chapter_numbers:
+            chapter_numbers = [trigger_chapter_number]
+            from_chapter = trigger_chapter_number
+            to_chapter = trigger_chapter_number
+
+        upsert_replan_history_entry(
+            self.output_dir,
+            {
+                "replan_id": f"replan-after-chapter-{trigger_chapter_number}",
+                "trigger_chapter_number": trigger_chapter_number,
+                "reason": "progress_report recommended replan",
+                "issue_codes": list(progress_report.get("issue_codes", [])),
+                "impact_scope": {
+                    "from_chapter": from_chapter,
+                    "to_chapter": to_chapter,
+                    "chapter_numbers": chapter_numbers,
+                },
+                "updated_artifacts": ["chapter_briefs", "scene_cards"],
+                "change_summary": [
+                    f"chapter {trigger_chapter_number} の progress_report が replan を推奨した",
+                ],
+            },
+            self.file_format,
+        )
 
     def _run_publish_ready_bundle_step(
         self,
@@ -801,6 +1029,14 @@ class StoryPipeline:
 
         if decision.severity == "medium":
             self._require_chapter_generation_inputs(artifacts, chapter_index)
+            canon_ledger, thread_registry = self._load_memory_context(self.output_dir)
+            handoff_packet = self._build_chapter_handoff_packet(
+                story_input,
+                artifacts,
+                canon_ledger,
+                thread_registry,
+                chapter_index,
+            )
             chapter_draft = self.llm_client.generate_chapter_draft(
                 story_input,
                 selected_logline,
@@ -809,10 +1045,14 @@ class StoryPipeline:
                 artifacts.chapter_plan,
                 artifacts.chapter_briefs,
                 artifacts.scene_cards,
+                canon_ledger,
+                thread_registry,
                 chapter_index=chapter_index,
+                chapter_handoff_packet=handoff_packet,
             )
             artifacts.set_chapter_draft(chapter_index, chapter_draft)
             self._save_chapter_draft_artifact(chapter_index, chapter_draft)
+            self._update_memory_artifacts_from_chapter_draft(artifacts, chapter_index, chapter_draft)
             if chapter_index == 0:
                 save_artifact(self.output_dir, "05_chapter_1_draft", artifacts.get_chapter_draft(0), self.file_format)
             chapter_report = self._build_report_with_decision(artifacts, chapter_index=chapter_index)
@@ -856,9 +1096,17 @@ class StoryPipeline:
                 artifacts.chapter_briefs,
             )
             save_scene_cards(self.output_dir, artifacts.scene_cards, self.file_format)
+            canon_ledger, thread_registry = self._load_memory_context(self.output_dir)
 
             for rerun_chapter_index, _chapter in enumerate(artifacts.chapter_plan):
                 self._require_chapter_generation_inputs(artifacts, rerun_chapter_index)
+                handoff_packet = self._build_chapter_handoff_packet(
+                    story_input,
+                    artifacts,
+                    canon_ledger,
+                    thread_registry,
+                    rerun_chapter_index,
+                )
                 chapter_draft = self.llm_client.generate_chapter_draft(
                     story_input,
                     selected_logline,
@@ -867,10 +1115,18 @@ class StoryPipeline:
                     artifacts.chapter_plan,
                     artifacts.chapter_briefs,
                     artifacts.scene_cards,
+                    canon_ledger,
+                    thread_registry,
                     chapter_index=rerun_chapter_index,
+                    chapter_handoff_packet=handoff_packet,
                 )
                 artifacts.set_chapter_draft(rerun_chapter_index, chapter_draft)
                 self._save_chapter_draft_artifact(rerun_chapter_index, chapter_draft)
+                self._update_memory_artifacts_from_chapter_draft(
+                    artifacts,
+                    rerun_chapter_index,
+                    chapter_draft,
+                )
             save_artifact(self.output_dir, "05_chapter_1_draft", artifacts.get_chapter_draft(0), self.file_format)
             chapter_report = self._build_report_with_decision(artifacts, chapter_index=chapter_index)
             artifacts.rerun_history.append(
@@ -943,12 +1199,21 @@ class StoryPipeline:
         source_draft: dict,
         continuity_report: dict,
     ) -> dict:
+        canon_ledger, thread_registry = self._load_memory_context(self.output_dir)
+        handoff_packet = self._build_chapter_handoff_packet(
+            story_input,
+            artifacts,
+            canon_ledger,
+            thread_registry,
+            chapter_index,
+        )
         revised_chapter_draft = self.llm_client.revise_chapter_draft(
             story_input,
             artifacts.chapter_plan,
             source_draft,
             continuity_report,
             chapter_index=chapter_index,
+            chapter_handoff_packet=handoff_packet,
         )
         return revised_chapter_draft
 

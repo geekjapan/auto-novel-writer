@@ -387,6 +387,101 @@ class ContinuityCheckerTest(unittest.TestCase):
         self.assertEqual(project_quality_report["checks"]["pov_consistency"]["status"], "warn")
         self.assertEqual(project_quality_report["checks"]["chapter_balance"]["status"], "warn")
 
+    def test_build_progress_report_summarizes_long_form_checks(self) -> None:
+        artifacts = StoryArtifacts(
+            story_input=StoryInput(theme="秘密", genre="ミステリ", tone="静謐", target_length=120000),
+            chapter_plan=[
+                {
+                    "chapter_number": 1,
+                    "title": "第1章 導入",
+                    "purpose": "秘密を抱えた主人公が異変に気づく。",
+                    "point_of_view": "篠崎 遥",
+                    "target_words": 1000,
+                },
+                {
+                    "chapter_number": 2,
+                    "title": "第2章 対立",
+                    "purpose": "主人公の疑いが深まり、対立が悪化する。",
+                    "point_of_view": "篠崎 遥",
+                    "target_words": 1100,
+                },
+                {
+                    "chapter_number": 3,
+                    "title": "第3章 転換",
+                    "purpose": "伏線が反転し、終盤への道筋が見える。",
+                    "point_of_view": "篠崎 遥",
+                    "target_words": 1200,
+                },
+            ],
+            chapter_briefs=[
+                {
+                    "chapter_number": 1,
+                    "purpose": "導入",
+                    "goal": "異変に気づく",
+                    "conflict": "状況が見えない",
+                    "turn": "不吉な違和感が残る",
+                    "must_include": ["seed-1"],
+                    "continuity_dependencies": ["篠崎 遥"],
+                    "foreshadowing_targets": ["seed-1"],
+                    "arc_progress": "不安が芽生える",
+                    "target_length_guidance": "standard",
+                },
+                {
+                    "chapter_number": 2,
+                    "purpose": "対立",
+                    "goal": "疑いを深める",
+                    "conflict": "味方を信じ切れない",
+                    "turn": "後戻りできない",
+                    "must_include": ["seed-1"],
+                    "continuity_dependencies": ["篠崎 遥"],
+                    "foreshadowing_targets": ["seed-1"],
+                    "arc_progress": "疑念が強まる",
+                    "target_length_guidance": "standard",
+                },
+                {
+                    "chapter_number": 3,
+                    "purpose": "転換",
+                    "goal": "終盤準備を整える",
+                    "conflict": "真相に届かない",
+                    "turn": "核心へ近づく",
+                    "must_include": ["seed-1"],
+                    "continuity_dependencies": ["篠崎 遥"],
+                    "foreshadowing_targets": ["seed-1"],
+                    "arc_progress": "決意が固まる",
+                    "target_length_guidance": "standard",
+                },
+            ],
+            revised_chapter_drafts=[
+                {"chapter_number": 1, "title": "第1章 導入", "summary": "異変が始まり、seed-1 が提示される。", "text": "本文1"},
+                {"chapter_number": 2, "title": "第2章 対立", "summary": "対立が悪化し、seed-1 が進展する。", "text": "本文2"},
+                {"chapter_number": 3, "title": "第3章 転換", "summary": "核心へ近づき、climax 準備が見える。", "text": "本文3"},
+            ],
+        )
+        thread_registry = {
+            "schema_name": "thread_registry",
+            "schema_version": "1.0",
+            "threads": [
+                {
+                    "thread_id": "seed-1",
+                    "label": "seed-1",
+                    "status": "progressed",
+                    "introduced_in_chapter": 1,
+                    "last_updated_in_chapter": 3,
+                    "related_characters": ["篠崎 遥"],
+                    "notes": ["第3章まで進展した"],
+                }
+            ],
+        }
+
+        progress_report = ContinuityChecker().build_progress_report(artifacts, thread_registry)
+
+        self.assertEqual(progress_report["schema_name"], "progress_report")
+        self.assertEqual(progress_report["schema_version"], "1.0")
+        self.assertEqual(progress_report["evaluated_through_chapter"], 3)
+        self.assertIn("chapter_role_coverage", progress_report["checks"])
+        self.assertIn("climax_readiness", progress_report["checks"])
+        self.assertIn(progress_report["recommended_action"], {"continue", "revise", "rerun", "replan", "stop_for_review"})
+
 
 if __name__ == "__main__":
     unittest.main()

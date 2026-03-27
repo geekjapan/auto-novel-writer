@@ -276,7 +276,24 @@ class MockLLMClientTest(unittest.TestCase):
                     },
                 ],
             }],
+            {"schema_name": "canon_ledger", "schema_version": "1.0", "chapters": []},
+            {"schema_name": "thread_registry", "schema_version": "1.0", "threads": []},
             chapter_index=0,
+            chapter_handoff_packet={
+                "schema_name": "chapter_handoff_packet",
+                "schema_version": "1.0",
+                "chapter_number": 1,
+                "current_chapter_brief": {"chapter_number": 1},
+                "relevant_scene_cards": [],
+                "relevant_canon_facts": [],
+                "unresolved_threads": [],
+                "previous_chapter_summary": "",
+                "style_constraints": {
+                    "tone": "静謐",
+                    "point_of_view": "篠崎 遥",
+                    "tense": "past",
+                },
+            },
         )
 
         prompt = completions.last_kwargs["messages"][1]["content"]
@@ -286,6 +303,9 @@ class MockLLMClientTest(unittest.TestCase):
         self.assertIn("chapter_plan=", prompt)
         self.assertIn("chapter_briefs=", prompt)
         self.assertIn("scene_cards=", prompt)
+        self.assertIn("chapter_handoff_packet=", prompt)
+        self.assertIn("canon_ledger=", prompt)
+        self.assertIn("thread_registry=", prompt)
         self.assertIn("chapter_index=0", prompt)
 
     def test_openai_client_accepts_markdown_fenced_json_from_lmstudio(self) -> None:
@@ -334,6 +354,23 @@ class MockLLMClientTest(unittest.TestCase):
             chapter_plan,
             chapter_briefs,
             scene_cards,
+            {"schema_name": "canon_ledger", "schema_version": "1.0", "chapters": []},
+            {"schema_name": "thread_registry", "schema_version": "1.0", "threads": []},
+            chapter_handoff_packet={
+                "schema_name": "chapter_handoff_packet",
+                "schema_version": "1.0",
+                "chapter_number": 1,
+                "current_chapter_brief": chapter_briefs[0],
+                "relevant_scene_cards": scene_cards[0]["scenes"],
+                "relevant_canon_facts": [],
+                "unresolved_threads": [],
+                "previous_chapter_summary": "",
+                "style_constraints": {
+                    "tone": story_input.tone,
+                    "point_of_view": chapter_plan[0]["point_of_view"],
+                    "tense": "past",
+                },
+            },
         )
         revised = client.revise_chapter_draft(
             story_input,
@@ -406,6 +443,8 @@ class MockLLMClientTest(unittest.TestCase):
                 chapter_plan,
                 [],
                 scene_cards,
+                {"schema_name": "canon_ledger", "schema_version": "1.0", "chapters": []},
+                {"schema_name": "thread_registry", "schema_version": "1.0", "threads": []},
                 chapter_index=0,
             )
 
@@ -433,6 +472,8 @@ class MockLLMClientTest(unittest.TestCase):
                 chapter_plan,
                 chapter_briefs,
                 [],
+                {"schema_name": "canon_ledger", "schema_version": "1.0", "chapters": []},
+                {"schema_name": "thread_registry", "schema_version": "1.0", "threads": []},
                 chapter_index=0,
             )
 
@@ -445,6 +486,8 @@ class MockLLMClientTest(unittest.TestCase):
                 chapter_plan,
                 chapter_briefs,
                 scene_cards[:1],
+                {"schema_name": "canon_ledger", "schema_version": "1.0", "chapters": []},
+                {"schema_name": "thread_registry", "schema_version": "1.0", "threads": []},
                 chapter_index=1,
             )
 
@@ -533,6 +576,8 @@ class MockLLMClientTest(unittest.TestCase):
                     },
                 ],
             }],
+            {"schema_name": "canon_ledger", "schema_version": "1.0", "chapters": []},
+            {"schema_name": "thread_registry", "schema_version": "1.0", "threads": []},
             chapter_index=0,
         )
 
@@ -561,6 +606,45 @@ class MockLLMClientTest(unittest.TestCase):
                 {"severity": "low"},
                 chapter_index=0,
             )
+
+    def test_openai_client_revised_draft_prompt_includes_handoff_packet(self) -> None:
+        completions = RecordingCompletions(
+            '{"revised_chapter_draft": {"chapter_number": 1, "title": "第1章", "summary": "導入", "text": "本文"}}'
+        )
+        client = object.__new__(OpenAIClient)
+        client._client = RecordingOpenAIBackend(completions)
+        client._model = "gpt-4.1-mini"
+        client._provider_label = "OpenAI"
+        client._response_format_type = "json_object"
+
+        story_input = StoryInput(theme="喪失", genre="ミステリ", tone="静謐", target_length=120000)
+
+        client.revise_chapter_draft(
+            story_input,
+            [{"chapter_number": 1, "title": "第1章", "purpose": "導入", "point_of_view": "篠崎 遥", "target_words": 5000}],
+            {"chapter_number": 1, "title": "第1章", "summary": "導入", "text": "本文"},
+            {"severity": "medium", "issue_counts": {"plan_to_draft_gaps": 1}},
+            chapter_index=0,
+            chapter_handoff_packet={
+                "schema_name": "chapter_handoff_packet",
+                "schema_version": "1.0",
+                "chapter_number": 1,
+                "current_chapter_brief": {"chapter_number": 1, "purpose": "導入"},
+                "relevant_scene_cards": [],
+                "relevant_canon_facts": [],
+                "unresolved_threads": [],
+                "previous_chapter_summary": "",
+                "style_constraints": {
+                    "tone": "静謐",
+                    "point_of_view": "篠崎 遥",
+                    "tense": "past",
+                },
+            },
+        )
+
+        prompt = completions.last_kwargs["messages"][1]["content"]
+        self.assertIn("chapter_handoff_packet=", prompt)
+        self.assertIn("continuity_report=", prompt)
 
     def test_openai_client_validates_story_summary_schema(self) -> None:
         client = FakeOpenAIClient({"story_summary": {"title": "鏡", "chapter_count": 3}})

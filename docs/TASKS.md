@@ -4,20 +4,39 @@
 ここでの task は、1 回で安全に実装・テスト・docs 更新・コミットできる粒度へ分割する。
 
 ## In Progress
-- [ ] M56: `show-run-comparison` の minimal artifact ケースで compact long-run stop 行を固定する
-  - Title: comparison CLI の minimal artifact compact long-run stop 行を固定する
-  - Milestone: M56 Run Comparison Minimal Compact Coverage
-  - Purpose: `run_candidates=[]` の minimal artifact を読む read-only CLI 経路で、compact summary 側の `long_run_should_stop` 行も期待どおり表示されることを tests で固定する
-  - Target files or directories: `tests/test_cli.py`, `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
-  - Done when: minimal artifact ケースで `compact.long_run_should_stop` が表示されることを tests で固定する
-  - Required tests: `./venv/bin/python -m unittest tests.test_cli -v`, `./venv/bin/python -m unittest discover -s tests -v`
+- [ ] M62d: future chapter の `chapter_briefs` / `scene_cards` を更新する helper を追加する
+  - Title: replan apply helper を追加する
+  - Milestone: M62 Replan Loop
+  - Purpose: decision trace だけでなく、future chapter の実際の planning artifact を安全に更新できる helper を整える
+  - Target files or directories: `src/novel_writer/storage.py`, `src/novel_writer/schema.py`, `tests/test_storage.py`, `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
+  - Done when: 指定 chapter 以降の `chapter_briefs` / `scene_cards` を fail-fast に差し替える helper が tests / docs で固定される
+  - Required tests: `./venv/bin/python -m unittest tests.test_storage -v`, `./venv/bin/python -m unittest discover -s tests -v`
   - Docs to update: `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
 
 ## Ready
 
 ## Done
 
+- [x] M62c: `recommended_action=replan` を `replan_history` へ保存できるようにする
+- [x] M62b: `replan_history` へ entry を追記できる helper を追加する
+- [x] M62a: `replan_history` の schema と storage contract を固定する
+- [x] M61b: pipeline で `progress_report.json` を生成できるようにする
+- [x] M61a: `progress_report` の schema と storage contract を固定する
+- [x] M60d: revise / rerun も `chapter_handoff_packet` を共有入力にできるようにする
+- [x] M60c: draft / revise / rerun が `chapter_handoff_packet` を共有入力にできるようにする
+- [x] M60b: `chapter_handoff_packet` を構築して保存できるようにする
+- [x] M60a: `chapter_handoff_packet` の schema を固定する
+- [x] M59i: continuity policy の内部 rerun 結果も memory artifact へ反映できるようにする
+- [x] M59h: `rerun-chapter` 結果も memory artifact へ反映できるようにする
+- [x] M59g: revised chapter 結果も memory artifact へ反映できるようにする
+- [x] M59f: memory artifact を chapter 結果から自動更新できるようにする
+- [x] M59e: memory layer を draft / revise / rerun から参照できるようにする
+- [x] M59d: thread 単位の registry 更新 helper を追加する
+- [x] M59c: `thread_registry` の schema と storage contract を固定する
+- [x] M59b: chapter 単位の ledger 追記 helper を追加する
+- [x] M59a: `canon_ledger` の schema と storage contract を固定する
 - [x] Scaffold CLI-based short-story pipeline MVP
+- [x] M56: `show-run-comparison` の minimal artifact ケースで compact long-run stop 行を固定する
 - [x] Docs: `chapter_briefs` / `scene_cards` 統合後に README / ROADMAP / TASKS / tests を同期する
 - [x] M58: `chapter_briefs` と `scene_cards` を導入し、chapter draft の正式入力を拡張する
 - [x] M57d: `chapter_plan` 生成が `story_bible` を参照するようにする

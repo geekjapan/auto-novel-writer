@@ -8,21 +8,34 @@ from novel_writer.schema import StoryArtifacts, StoryInput
 from novel_writer.storage import (
     build_project_layout,
     load_artifact,
+    load_canon_ledger,
+    load_chapter_handoff_packet,
     load_chapter_briefs,
+    load_progress_report,
+    load_replan_history,
     load_scene_cards,
     load_project_manifest,
     load_publish_ready_bundle,
     load_run_comparison_summary,
     load_story_bible,
+    load_thread_registry,
     normalize_project_id,
     resolve_artifact_path,
     save_artifact,
+    save_canon_ledger,
+    save_chapter_handoff_packet,
     save_chapter_briefs,
+    save_progress_report,
+    save_replan_history,
     save_scene_cards,
     save_publish_ready_bundle,
     save_project_manifest,
     save_run_comparison_summary,
     save_story_bible,
+    save_thread_registry,
+    upsert_canon_ledger_chapter,
+    upsert_replan_history_entry,
+    upsert_thread_registry_entry,
 )
 
 
@@ -234,6 +247,337 @@ class SaveArtifactTest(unittest.TestCase):
             self.assertEqual(target.name, "chapter_briefs.json")
             self.assertEqual(loaded, payload)
 
+    def test_save_canon_ledger_validates_required_fields(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            with self.assertRaisesRegex(ValueError, "chapters\\[0\\] is missing required fields: timeline_events"):
+                save_canon_ledger(
+                    Path(tmp_dir),
+                    {
+                        "schema_name": "canon_ledger",
+                        "schema_version": "1.0",
+                        "chapters": [
+                            {
+                                "chapter_number": 1,
+                                "new_facts": ["主人公は腕時計の逆回転を見た。"],
+                                "changed_facts": [],
+                                "open_questions": ["なぜ時計が逆回転したのか。"],
+                            }
+                        ],
+                    },
+                )
+
+    def test_save_canon_ledger_round_trips_valid_payload(self) -> None:
+        payload = {
+            "schema_name": "canon_ledger",
+            "schema_version": "1.0",
+            "chapters": [
+                {
+                    "chapter_number": 1,
+                    "new_facts": ["主人公は腕時計の逆回転を見た。"],
+                    "changed_facts": ["相棒への不信感が芽生えた。"],
+                    "open_questions": ["なぜ時計が逆回転したのか。"],
+                    "timeline_events": ["放課後の駅前で異変が発生した。"],
+                }
+            ],
+        }
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            target = save_canon_ledger(Path(tmp_dir), payload, "json")
+            loaded = load_canon_ledger(Path(tmp_dir))
+
+            self.assertEqual(target.name, "canon_ledger.json")
+            self.assertEqual(loaded, payload)
+
+    def test_save_thread_registry_validates_required_fields(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            with self.assertRaisesRegex(ValueError, "threads\\[0\\] is missing required fields: notes"):
+                save_thread_registry(
+                    Path(tmp_dir),
+                    {
+                        "schema_name": "thread_registry",
+                        "schema_version": "1.0",
+                        "threads": [
+                            {
+                                "thread_id": "watch-mystery",
+                                "label": "壊れた腕時計の謎",
+                                "status": "seeded",
+                                "introduced_in_chapter": 1,
+                                "last_updated_in_chapter": 1,
+                                "related_characters": ["ミナト"],
+                            }
+                        ],
+                    },
+                )
+
+    def test_save_thread_registry_round_trips_valid_payload(self) -> None:
+        payload = {
+            "schema_name": "thread_registry",
+            "schema_version": "1.0",
+            "threads": [
+                {
+                    "thread_id": "watch-mystery",
+                    "label": "壊れた腕時計の謎",
+                    "status": "seeded",
+                    "introduced_in_chapter": 1,
+                    "last_updated_in_chapter": 1,
+                    "related_characters": ["ミナト"],
+                    "notes": ["駅前で逆回転が初登場した。"],
+                }
+            ],
+        }
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            target = save_thread_registry(Path(tmp_dir), payload, "json")
+            loaded = load_thread_registry(Path(tmp_dir))
+
+            self.assertEqual(target.name, "thread_registry.json")
+            self.assertEqual(loaded, payload)
+
+    def test_upsert_thread_registry_entry_creates_new_registry_when_missing(self) -> None:
+        thread_payload = {
+            "thread_id": "watch-mystery",
+            "label": "壊れた腕時計の謎",
+            "status": "seeded",
+            "introduced_in_chapter": 1,
+            "last_updated_in_chapter": 1,
+            "related_characters": ["ミナト"],
+            "notes": ["駅前で逆回転が初登場した。"],
+        }
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            target = upsert_thread_registry_entry(Path(tmp_dir), thread_payload)
+            loaded = load_thread_registry(Path(tmp_dir))
+
+            self.assertEqual(target.name, "thread_registry.json")
+            self.assertEqual(
+                loaded,
+                {
+                    "schema_name": "thread_registry",
+                    "schema_version": "1.0",
+                    "threads": [thread_payload],
+                },
+            )
+
+    def test_upsert_thread_registry_entry_appends_new_thread(self) -> None:
+        first_thread = {
+            "thread_id": "watch-mystery",
+            "label": "壊れた腕時計の謎",
+            "status": "seeded",
+            "introduced_in_chapter": 1,
+            "last_updated_in_chapter": 1,
+            "related_characters": ["ミナト"],
+            "notes": ["駅前で逆回転が初登場した。"],
+        }
+        second_thread = {
+            "thread_id": "partner-secret",
+            "label": "相棒の沈黙",
+            "status": "progressed",
+            "introduced_in_chapter": 2,
+            "last_updated_in_chapter": 2,
+            "related_characters": ["ミナト", "相棒"],
+            "notes": ["教室で証言が食い違った。"],
+        }
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            save_thread_registry(
+                Path(tmp_dir),
+                {
+                    "schema_name": "thread_registry",
+                    "schema_version": "1.0",
+                    "threads": [first_thread],
+                },
+            )
+
+            upsert_thread_registry_entry(Path(tmp_dir), second_thread)
+            loaded = load_thread_registry(Path(tmp_dir))
+
+            self.assertEqual(loaded["threads"], [first_thread, second_thread])
+
+    def test_upsert_thread_registry_entry_replaces_existing_thread(self) -> None:
+        original_thread = {
+            "thread_id": "watch-mystery",
+            "label": "壊れた腕時計の謎",
+            "status": "seeded",
+            "introduced_in_chapter": 1,
+            "last_updated_in_chapter": 1,
+            "related_characters": ["ミナト"],
+            "notes": ["駅前で逆回転が初登場した。"],
+        }
+        updated_thread = {
+            "thread_id": "watch-mystery",
+            "label": "壊れた腕時計の謎",
+            "status": "progressed",
+            "introduced_in_chapter": 1,
+            "last_updated_in_chapter": 3,
+            "related_characters": ["ミナト", "相棒"],
+            "notes": ["教室の会話で矛盾が増えた。"],
+        }
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            save_thread_registry(
+                Path(tmp_dir),
+                {
+                    "schema_name": "thread_registry",
+                    "schema_version": "1.0",
+                    "threads": [original_thread],
+                },
+            )
+
+            upsert_thread_registry_entry(Path(tmp_dir), updated_thread)
+            loaded = load_thread_registry(Path(tmp_dir))
+
+            self.assertEqual(loaded["threads"], [updated_thread])
+
+    def test_upsert_thread_registry_entry_rejects_invalid_chapter_order(self) -> None:
+        original_thread = {
+            "thread_id": "watch-mystery",
+            "label": "壊れた腕時計の謎",
+            "status": "progressed",
+            "introduced_in_chapter": 1,
+            "last_updated_in_chapter": 3,
+            "related_characters": ["ミナト", "相棒"],
+            "notes": ["教室の会話で矛盾が増えた。"],
+        }
+        invalid_update = {
+            "thread_id": "watch-mystery",
+            "label": "壊れた腕時計の謎",
+            "status": "resolved",
+            "introduced_in_chapter": 1,
+            "last_updated_in_chapter": 0,
+            "related_characters": ["ミナト"],
+            "notes": ["真相が明かされた。"],
+        }
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            save_thread_registry(
+                Path(tmp_dir),
+                {
+                    "schema_name": "thread_registry",
+                    "schema_version": "1.0",
+                    "threads": [original_thread],
+                },
+            )
+
+            with self.assertRaisesRegex(
+                ValueError,
+                "thread_payload\\.last_updated_in_chapter must be greater than or equal to introduced_in_chapter",
+            ):
+                upsert_thread_registry_entry(Path(tmp_dir), invalid_update)
+
+    def test_upsert_canon_ledger_chapter_creates_new_ledger_when_missing(self) -> None:
+        chapter_payload = {
+            "chapter_number": 1,
+            "new_facts": ["主人公は腕時計の逆回転を見た。"],
+            "changed_facts": [],
+            "open_questions": ["なぜ時計が逆回転したのか。"],
+            "timeline_events": ["放課後の駅前で異変が発生した。"],
+        }
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            target = upsert_canon_ledger_chapter(Path(tmp_dir), chapter_payload)
+            loaded = load_canon_ledger(Path(tmp_dir))
+
+            self.assertEqual(target.name, "canon_ledger.json")
+            self.assertEqual(
+                loaded,
+                {
+                    "schema_name": "canon_ledger",
+                    "schema_version": "1.0",
+                    "chapters": [chapter_payload],
+                },
+            )
+
+    def test_upsert_canon_ledger_chapter_appends_next_chapter(self) -> None:
+        first_chapter = {
+            "chapter_number": 1,
+            "new_facts": ["主人公は腕時計の逆回転を見た。"],
+            "changed_facts": [],
+            "open_questions": ["なぜ時計が逆回転したのか。"],
+            "timeline_events": ["放課後の駅前で異変が発生した。"],
+        }
+        second_chapter = {
+            "chapter_number": 2,
+            "new_facts": ["相棒が逆回転を目撃していないと判明した。"],
+            "changed_facts": ["主人公は相棒を疑い始めた。"],
+            "open_questions": ["相棒は何を隠しているのか。"],
+            "timeline_events": ["翌朝の教室で食い違いが表面化した。"],
+        }
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            save_canon_ledger(
+                Path(tmp_dir),
+                {
+                    "schema_name": "canon_ledger",
+                    "schema_version": "1.0",
+                    "chapters": [first_chapter],
+                },
+            )
+
+            upsert_canon_ledger_chapter(Path(tmp_dir), second_chapter)
+            loaded = load_canon_ledger(Path(tmp_dir))
+
+            self.assertEqual(loaded["chapters"], [first_chapter, second_chapter])
+
+    def test_upsert_canon_ledger_chapter_replaces_existing_chapter(self) -> None:
+        original_chapter = {
+            "chapter_number": 1,
+            "new_facts": ["主人公は腕時計の逆回転を見た。"],
+            "changed_facts": [],
+            "open_questions": ["なぜ時計が逆回転したのか。"],
+            "timeline_events": ["放課後の駅前で異変が発生した。"],
+        }
+        updated_chapter = {
+            "chapter_number": 1,
+            "new_facts": ["主人公は腕時計の逆回転と停止を見た。"],
+            "changed_facts": ["主人公は異変を偶然ではないと判断した。"],
+            "open_questions": ["誰が時計を止めたのか。"],
+            "timeline_events": ["放課後の駅前で時計が一度停止した。"],
+        }
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            save_canon_ledger(
+                Path(tmp_dir),
+                {
+                    "schema_name": "canon_ledger",
+                    "schema_version": "1.0",
+                    "chapters": [original_chapter],
+                },
+            )
+
+            upsert_canon_ledger_chapter(Path(tmp_dir), updated_chapter)
+            loaded = load_canon_ledger(Path(tmp_dir))
+
+            self.assertEqual(loaded["chapters"], [updated_chapter])
+
+    def test_upsert_canon_ledger_chapter_rejects_non_sequential_append(self) -> None:
+        first_chapter = {
+            "chapter_number": 1,
+            "new_facts": ["主人公は腕時計の逆回転を見た。"],
+            "changed_facts": [],
+            "open_questions": ["なぜ時計が逆回転したのか。"],
+            "timeline_events": ["放課後の駅前で異変が発生した。"],
+        }
+        skipped_chapter = {
+            "chapter_number": 3,
+            "new_facts": ["相棒が沈黙した。"],
+            "changed_facts": [],
+            "open_questions": ["第2章で何が起きたのか。"],
+            "timeline_events": ["深夜の屋上で対話が途切れた。"],
+        }
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            save_canon_ledger(
+                Path(tmp_dir),
+                {
+                    "schema_name": "canon_ledger",
+                    "schema_version": "1.0",
+                    "chapters": [first_chapter],
+                },
+            )
+
+            with self.assertRaisesRegex(ValueError, "chapter_number 3 cannot be appended after existing chapter 1"):
+                upsert_canon_ledger_chapter(Path(tmp_dir), skipped_chapter)
+
     def test_story_artifacts_summary_includes_chapter_briefs_and_scene_cards(self) -> None:
         artifacts = StoryArtifacts(
             story_input=StoryInput(theme="記憶", genre="SF", tone="静か", target_length=120),
@@ -263,6 +607,7 @@ class SaveArtifactTest(unittest.TestCase):
                 "revised_chapter_drafts",
                 "story_summary",
                 "project_quality_report",
+                "progress_report",
                 "publish_ready_bundle",
             ],
         )
@@ -271,6 +616,369 @@ class SaveArtifactTest(unittest.TestCase):
         self.assertEqual(summary["counts"]["scene_cards"], 2)
         self.assertEqual(summary["counts"]["chapter_drafts"], 2)
         self.assertEqual(summary["counts"]["revised_chapter_drafts"], 1)
+
+    def test_story_artifacts_contract_includes_canon_ledger(self) -> None:
+        artifacts = StoryArtifacts(
+            story_input=StoryInput(theme="記憶", genre="SF", tone="静か", target_length=120),
+        )
+
+        contract = artifacts.artifact_contract()
+
+        self.assertEqual(contract["canon_ledger"]["schema_name"], "canon_ledger")
+        self.assertEqual(contract["canon_ledger"]["schema_version"], "1.0")
+        self.assertEqual(contract["chapter_handoff_packet"]["schema_name"], "chapter_handoff_packet")
+        self.assertEqual(contract["chapter_handoff_packet"]["schema_version"], "1.0")
+        self.assertEqual(contract["progress_report"]["schema_name"], "progress_report")
+        self.assertEqual(contract["progress_report"]["schema_version"], "1.0")
+        self.assertEqual(contract["replan_history"]["schema_name"], "replan_history")
+        self.assertEqual(contract["replan_history"]["schema_version"], "1.0")
+        self.assertEqual(contract["thread_registry"]["schema_name"], "thread_registry")
+        self.assertEqual(contract["thread_registry"]["schema_version"], "1.0")
+
+    def test_save_progress_report_round_trips_valid_payload(self) -> None:
+        payload = {
+            "schema_name": "progress_report",
+            "schema_version": "1.0",
+            "evaluated_through_chapter": 5,
+            "checks": {
+                "chapter_role_coverage": {"status": "ok", "summary": "役割分担は維持されている", "evidence": []},
+                "escalation_pace": {"status": "warning", "summary": "中盤で伸びが鈍い", "evidence": ["chapter-4"]},
+                "emotional_progression": {"status": "ok", "summary": "感情線は前進している", "evidence": []},
+                "foreshadowing_coverage": {"status": "warning", "summary": "伏線回収が遅れている", "evidence": ["seed-1"]},
+                "unresolved_thread_load": {"status": "ok", "summary": "未解決 thread は許容範囲", "evidence": []},
+                "climax_readiness": {"status": "warning", "summary": "終盤準備がまだ弱い", "evidence": ["chapter-5"]},
+            },
+            "issue_codes": ["foreshadowing_coverage_gap", "climax_readiness_low"],
+            "recommended_action": "replan",
+        }
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            target = save_progress_report(Path(tmp_dir), payload, "json")
+            loaded = load_progress_report(Path(tmp_dir))
+
+            self.assertEqual(target.name, "progress_report.json")
+            self.assertEqual(loaded, payload)
+
+    def test_save_progress_report_validates_required_fields(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            with self.assertRaisesRegex(
+                ValueError,
+                "Invalid progress_report: missing required fields: checks",
+            ):
+                save_progress_report(
+                    Path(tmp_dir),
+                    {
+                        "schema_name": "progress_report",
+                        "schema_version": "1.0",
+                        "evaluated_through_chapter": 5,
+                        "issue_codes": [],
+                        "recommended_action": "continue",
+                    },
+                )
+
+    def test_load_progress_report_rejects_missing_named_check(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            save_artifact(
+                Path(tmp_dir),
+                "progress_report",
+                {
+                    "schema_name": "progress_report",
+                    "schema_version": "1.0",
+                    "evaluated_through_chapter": 5,
+                    "checks": {
+                        "chapter_role_coverage": {"status": "ok", "summary": "ok", "evidence": []},
+                        "escalation_pace": {"status": "ok", "summary": "ok", "evidence": []},
+                        "emotional_progression": {"status": "ok", "summary": "ok", "evidence": []},
+                        "foreshadowing_coverage": {"status": "ok", "summary": "ok", "evidence": []},
+                        "unresolved_thread_load": {"status": "ok", "summary": "ok", "evidence": []},
+                    },
+                    "issue_codes": [],
+                    "recommended_action": "continue",
+                },
+            )
+
+            with self.assertRaisesRegex(
+                ValueError,
+                "Invalid progress_report: checks is missing required fields: climax_readiness",
+            ):
+                load_progress_report(Path(tmp_dir))
+
+    def test_save_replan_history_round_trips_valid_payload(self) -> None:
+        payload = {
+            "schema_name": "replan_history",
+            "schema_version": "1.0",
+            "replans": [
+                {
+                    "replan_id": "replan-001",
+                    "trigger_chapter_number": 5,
+                    "reason": "progress_report が中盤停滞を示したため",
+                    "issue_codes": ["escalation_pace_flat", "climax_readiness_low"],
+                    "impact_scope": {
+                        "from_chapter": 6,
+                        "to_chapter": 8,
+                        "chapter_numbers": [6, 7, 8],
+                    },
+                    "updated_artifacts": ["chapter_briefs", "scene_cards"],
+                    "change_summary": ["第6章の役割を再定義した", "第7章の伏線回収を前倒しした"],
+                }
+            ],
+        }
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            target = save_replan_history(Path(tmp_dir), payload, "json")
+            loaded = load_replan_history(Path(tmp_dir))
+
+            self.assertEqual(target.name, "replan_history.json")
+            self.assertEqual(loaded, payload)
+
+    def test_save_replan_history_validates_required_fields(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            with self.assertRaisesRegex(
+                ValueError,
+                "Invalid replan_history: missing required fields: replans",
+            ):
+                save_replan_history(
+                    Path(tmp_dir),
+                    {
+                        "schema_name": "replan_history",
+                        "schema_version": "1.0",
+                    },
+                )
+
+    def test_load_replan_history_rejects_missing_impact_scope_field(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            save_artifact(
+                Path(tmp_dir),
+                "replan_history",
+                {
+                    "schema_name": "replan_history",
+                    "schema_version": "1.0",
+                    "replans": [
+                        {
+                            "replan_id": "replan-001",
+                            "trigger_chapter_number": 5,
+                            "reason": "理由",
+                            "issue_codes": ["code-1"],
+                            "impact_scope": {
+                                "from_chapter": 6,
+                                "chapter_numbers": [6, 7],
+                            },
+                            "updated_artifacts": ["chapter_briefs"],
+                            "change_summary": ["差分"],
+                        }
+                    ],
+                },
+            )
+
+            with self.assertRaisesRegex(
+                ValueError,
+                "Invalid replan_history: replans\\[0\\].impact_scope is missing required fields: to_chapter",
+            ):
+                load_replan_history(Path(tmp_dir))
+
+    def test_upsert_replan_history_entry_creates_new_history_when_missing(self) -> None:
+        entry = {
+            "replan_id": "replan-001",
+            "trigger_chapter_number": 5,
+            "reason": "理由",
+            "issue_codes": ["code-1"],
+            "impact_scope": {"from_chapter": 6, "to_chapter": 7, "chapter_numbers": [6, 7]},
+            "updated_artifacts": ["chapter_briefs"],
+            "change_summary": ["差分"],
+        }
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            upsert_replan_history_entry(Path(tmp_dir), entry)
+            loaded = load_replan_history(Path(tmp_dir))
+
+            self.assertEqual(len(loaded["replans"]), 1)
+            self.assertEqual(loaded["replans"][0]["replan_id"], "replan-001")
+
+    def test_upsert_replan_history_entry_appends_new_replan(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            save_replan_history(
+                Path(tmp_dir),
+                {
+                    "schema_name": "replan_history",
+                    "schema_version": "1.0",
+                    "replans": [
+                        {
+                            "replan_id": "replan-001",
+                            "trigger_chapter_number": 5,
+                            "reason": "理由1",
+                            "issue_codes": ["code-1"],
+                            "impact_scope": {"from_chapter": 6, "to_chapter": 7, "chapter_numbers": [6, 7]},
+                            "updated_artifacts": ["chapter_briefs"],
+                            "change_summary": ["差分1"],
+                        }
+                    ],
+                },
+            )
+
+            upsert_replan_history_entry(
+                Path(tmp_dir),
+                {
+                    "replan_id": "replan-002",
+                    "trigger_chapter_number": 7,
+                    "reason": "理由2",
+                    "issue_codes": ["code-2"],
+                    "impact_scope": {"from_chapter": 8, "to_chapter": 9, "chapter_numbers": [8, 9]},
+                    "updated_artifacts": ["scene_cards"],
+                    "change_summary": ["差分2"],
+                },
+            )
+            loaded = load_replan_history(Path(tmp_dir))
+
+            self.assertEqual([entry["replan_id"] for entry in loaded["replans"]], ["replan-001", "replan-002"])
+
+    def test_upsert_replan_history_entry_replaces_existing_replan(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            save_replan_history(
+                Path(tmp_dir),
+                {
+                    "schema_name": "replan_history",
+                    "schema_version": "1.0",
+                    "replans": [
+                        {
+                            "replan_id": "replan-001",
+                            "trigger_chapter_number": 5,
+                            "reason": "古い理由",
+                            "issue_codes": ["code-1"],
+                            "impact_scope": {"from_chapter": 6, "to_chapter": 7, "chapter_numbers": [6, 7]},
+                            "updated_artifacts": ["chapter_briefs"],
+                            "change_summary": ["古い差分"],
+                        }
+                    ],
+                },
+            )
+
+            upsert_replan_history_entry(
+                Path(tmp_dir),
+                {
+                    "replan_id": "replan-001",
+                    "trigger_chapter_number": 5,
+                    "reason": "新しい理由",
+                    "issue_codes": ["code-1", "code-2"],
+                    "impact_scope": {"from_chapter": 6, "to_chapter": 8, "chapter_numbers": [6, 7, 8]},
+                    "updated_artifacts": ["chapter_briefs", "scene_cards"],
+                    "change_summary": ["新しい差分"],
+                },
+            )
+            loaded = load_replan_history(Path(tmp_dir))
+
+            self.assertEqual(len(loaded["replans"]), 1)
+            self.assertEqual(loaded["replans"][0]["reason"], "新しい理由")
+            self.assertEqual(loaded["replans"][0]["impact_scope"]["to_chapter"], 8)
+
+    def test_save_chapter_handoff_packet_round_trips_valid_payload(self) -> None:
+        payload = {
+            "schema_name": "chapter_handoff_packet",
+            "schema_version": "1.0",
+            "chapter_number": 2,
+            "current_chapter_brief": {
+                "chapter_number": 2,
+                "purpose": "転機",
+                "goal": "秘密の扉を開く",
+                "conflict": "仲間を信じ切れない",
+                "turn": "鍵の正体に気づく",
+                "must_include": ["壊れた鍵"],
+                "continuity_dependencies": ["ミナト"],
+                "foreshadowing_targets": ["seed-1"],
+                "arc_progress": "疑いから決意へ進む",
+                "target_length_guidance": "standard",
+            },
+            "relevant_scene_cards": [
+                {
+                    "chapter_number": 2,
+                    "scene_number": 1,
+                    "scene_goal": "地下書庫へ入る",
+                    "scene_conflict": "警報が鳴る",
+                    "scene_turn": "鍵が反応する",
+                    "pov_character": "ミナト",
+                    "participants": ["ミナト", "相棒"],
+                    "setting": "地下書庫",
+                    "must_include": ["壊れた鍵"],
+                    "continuity_refs": ["chapter_briefs[1]"],
+                    "foreshadowing_action": "鍵穴を調べる",
+                    "exit_state": "真相に一歩近づく",
+                }
+            ],
+            "relevant_canon_facts": ["第1章で鍵を拾っている"],
+            "unresolved_threads": ["seed-1"],
+            "previous_chapter_summary": "主人公は鍵を拾い、異変の始まりを知った。",
+            "style_constraints": {
+                "tone": "静謐",
+                "point_of_view": "ミナト",
+                "tense": "past",
+            },
+        }
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            target = save_chapter_handoff_packet(Path(tmp_dir), payload, "json")
+            loaded = load_chapter_handoff_packet(Path(tmp_dir))
+
+            self.assertEqual(target.name, "chapter_handoff_packet.json")
+            self.assertEqual(loaded, payload)
+
+    def test_save_chapter_handoff_packet_validates_required_fields(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            with self.assertRaisesRegex(
+                ValueError,
+                "Invalid chapter_handoff_packet: missing required fields: style_constraints",
+            ):
+                save_chapter_handoff_packet(
+                    Path(tmp_dir),
+                    {
+                        "schema_name": "chapter_handoff_packet",
+                        "schema_version": "1.0",
+                        "chapter_number": 1,
+                        "current_chapter_brief": {},
+                        "relevant_scene_cards": [],
+                        "relevant_canon_facts": [],
+                        "unresolved_threads": [],
+                        "previous_chapter_summary": "",
+                    },
+                    "json",
+                )
+
+    def test_load_chapter_handoff_packet_rejects_missing_style_constraint_field(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            save_artifact(
+                Path(tmp_dir),
+                "chapter_handoff_packet",
+                {
+                    "schema_name": "chapter_handoff_packet",
+                    "schema_version": "1.0",
+                    "chapter_number": 1,
+                    "current_chapter_brief": {
+                        "chapter_number": 1,
+                        "purpose": "導入",
+                        "goal": "異変に気づく",
+                        "conflict": "状況が飲み込めない",
+                        "turn": "時計が逆回転する",
+                        "must_include": ["壊れた時計"],
+                        "continuity_dependencies": ["ミナト"],
+                        "foreshadowing_targets": ["seed-1"],
+                        "arc_progress": "平穏から不安へ移る",
+                        "target_length_guidance": "standard",
+                    },
+                    "relevant_scene_cards": [],
+                    "relevant_canon_facts": [],
+                    "unresolved_threads": [],
+                    "previous_chapter_summary": "",
+                    "style_constraints": {
+                        "tone": "静謐",
+                        "point_of_view": "ミナト",
+                    },
+                },
+                "json",
+            )
+
+            with self.assertRaisesRegex(
+                ValueError,
+                "Invalid chapter_handoff_packet: style_constraints is missing required fields: tense",
+            ):
+                load_chapter_handoff_packet(Path(tmp_dir))
 
     def test_save_story_bible_writes_story_design_contract(self) -> None:
         payload = {
@@ -649,6 +1357,82 @@ class SaveArtifactTest(unittest.TestCase):
 
             with self.assertRaisesRegex(ValueError, "world_rules must be a list"):
                 load_story_bible(Path(tmp_dir))
+
+    def test_load_canon_ledger_rejects_unsupported_schema_version(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            save_artifact(
+                Path(tmp_dir),
+                "canon_ledger",
+                {
+                    "schema_name": "canon_ledger",
+                    "schema_version": "9.9",
+                    "chapters": [
+                        {
+                            "chapter_number": 1,
+                            "new_facts": [],
+                            "changed_facts": [],
+                            "open_questions": [],
+                            "timeline_events": [],
+                        }
+                    ],
+                },
+                "json",
+            )
+
+            with self.assertRaisesRegex(ValueError, "schema_version='9.9' is not supported; expected '1.0'"):
+                load_canon_ledger(Path(tmp_dir))
+
+    def test_load_thread_registry_rejects_invalid_status(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            save_artifact(
+                Path(tmp_dir),
+                "thread_registry",
+                {
+                    "schema_name": "thread_registry",
+                    "schema_version": "1.0",
+                    "threads": [
+                        {
+                            "thread_id": "watch-mystery",
+                            "label": "壊れた腕時計の謎",
+                            "status": "paused",
+                            "introduced_in_chapter": 1,
+                            "last_updated_in_chapter": 1,
+                            "related_characters": ["ミナト"],
+                            "notes": ["駅前で逆回転が初登場した。"],
+                        }
+                    ],
+                },
+                "json",
+            )
+
+            with self.assertRaisesRegex(ValueError, "threads\\[0\\]\\.status must be one of: seeded, progressed, resolved, dropped"):
+                load_thread_registry(Path(tmp_dir))
+
+    def test_load_thread_registry_rejects_unsupported_schema_version(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            save_artifact(
+                Path(tmp_dir),
+                "thread_registry",
+                {
+                    "schema_name": "thread_registry",
+                    "schema_version": "9.9",
+                    "threads": [
+                        {
+                            "thread_id": "watch-mystery",
+                            "label": "壊れた腕時計の謎",
+                            "status": "seeded",
+                            "introduced_in_chapter": 1,
+                            "last_updated_in_chapter": 1,
+                            "related_characters": ["ミナト"],
+                            "notes": ["駅前で逆回転が初登場した。"],
+                        }
+                    ],
+                },
+                "json",
+            )
+
+            with self.assertRaisesRegex(ValueError, "schema_version='9.9' is not supported; expected '1.0'"):
+                load_thread_registry(Path(tmp_dir))
 
     def test_load_project_manifest_validates_required_fields(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

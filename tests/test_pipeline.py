@@ -5,12 +5,15 @@ from pathlib import Path
 
 from novel_writer.llm_client import MockLLMClient
 from novel_writer.pipeline import PIPELINE_STEP_ORDER, StoryPipeline
+from novel_writer.rerun_policy import ContinuityRerunPolicy
 from novel_writer.schema import StoryInput
+from novel_writer.storage import load_replan_history, save_canon_ledger, save_thread_registry
 
 
 class RecordingDraftContextLLMClient(MockLLMClient):
     def __init__(self) -> None:
         self.draft_calls: list[dict] = []
+        self.revise_calls: list[dict] = []
 
     def generate_chapter_draft(
         self,
@@ -21,14 +24,20 @@ class RecordingDraftContextLLMClient(MockLLMClient):
         chapter_plan,
         chapter_briefs,
         scene_cards,
+        canon_ledger,
+        thread_registry,
         chapter_index=0,
+        chapter_handoff_packet=None,
     ):
         self.draft_calls.append(
             {
                 "three_act_plot": three_act_plot,
+                "chapter_handoff_packet": chapter_handoff_packet,
                 "chapter_plan": chapter_plan,
                 "chapter_briefs": chapter_briefs,
                 "scene_cards": scene_cards,
+                "canon_ledger": canon_ledger,
+                "thread_registry": thread_registry,
                 "chapter_index": chapter_index,
             }
         )
@@ -40,7 +49,37 @@ class RecordingDraftContextLLMClient(MockLLMClient):
             chapter_plan,
             chapter_briefs,
             scene_cards,
+            canon_ledger,
+            thread_registry,
             chapter_index=chapter_index,
+            chapter_handoff_packet=chapter_handoff_packet,
+        )
+
+    def revise_chapter_draft(
+        self,
+        story_input,
+        chapter_plan,
+        chapter_draft,
+        continuity_report,
+        chapter_index=0,
+        chapter_handoff_packet=None,
+    ):
+        self.revise_calls.append(
+            {
+                "chapter_plan": chapter_plan,
+                "chapter_draft": chapter_draft,
+                "continuity_report": continuity_report,
+                "chapter_index": chapter_index,
+                "chapter_handoff_packet": chapter_handoff_packet,
+            }
+        )
+        return super().revise_chapter_draft(
+            story_input,
+            chapter_plan,
+            chapter_draft,
+            continuity_report,
+            chapter_index=chapter_index,
+            chapter_handoff_packet=chapter_handoff_packet,
         )
 
 
@@ -81,6 +120,56 @@ class NoRerunContinuityChecker:
             "issues": [],
         }
 
+    def build_progress_report(self, artifacts, thread_registry):
+        return {
+            "schema_name": "progress_report",
+            "schema_version": "1.0",
+            "evaluated_through_chapter": len(artifacts.chapter_plan),
+            "checks": {
+                "chapter_role_coverage": {"status": "ok", "summary": "ok", "evidence": []},
+                "escalation_pace": {"status": "ok", "summary": "ok", "evidence": []},
+                "emotional_progression": {"status": "ok", "summary": "ok", "evidence": []},
+                "foreshadowing_coverage": {"status": "ok", "summary": "ok", "evidence": []},
+                "unresolved_thread_load": {"status": "ok", "summary": "ok", "evidence": []},
+                "climax_readiness": {"status": "ok", "summary": "ok", "evidence": []},
+            },
+            "issue_codes": [],
+            "recommended_action": "continue",
+        }
+
+
+class StopBeforeRevisionContinuityChecker(NoRerunContinuityChecker):
+    def build_report(self, artifacts, chapter_index=0):
+        return {
+            "chapter_index": chapter_index,
+            "severity": "high",
+            "missing_fields": [{"reason": "missing"}],
+            "character_name_mismatches": [],
+            "plot_to_plan_gaps": [],
+            "plan_to_draft_gaps": [],
+            "length_warnings": [],
+            "issue_counts": {
+                "missing_fields": 1,
+                "character_name_mismatches": 0,
+                "plot_to_plan_gaps": 0,
+                "plan_to_draft_gaps": 0,
+                "length_warnings": 0,
+            },
+        }
+
+
+class ReplanTriggerContinuityChecker(NoRerunContinuityChecker):
+    def build_progress_report(self, artifacts, thread_registry):
+        report = super().build_progress_report(artifacts, thread_registry)
+        report["issue_codes"] = ["climax_readiness_low"]
+        report["recommended_action"] = "replan"
+        report["checks"]["climax_readiness"] = {
+            "status": "warning",
+            "summary": "終盤準備が不足している",
+            "evidence": ["chapter-3"],
+        }
+        return report
+
 
 class StoryPipelineTest(unittest.TestCase):
     def test_pipeline_writes_all_phases(self) -> None:
@@ -101,6 +190,9 @@ class StoryPipelineTest(unittest.TestCase):
                 "04_chapter_plan.json",
                 "chapter_briefs.json",
                 "scene_cards.json",
+                "chapter_1_handoff_packet.json",
+                "chapter_2_handoff_packet.json",
+                "chapter_3_handoff_packet.json",
                 "05_chapter_1_draft.json",
                 "chapter_1_draft.json",
                 "chapter_2_draft.json",
@@ -112,6 +204,7 @@ class StoryPipelineTest(unittest.TestCase):
                 "revised_chapter_3_draft.json",
                 "story_summary.json",
                 "project_quality_report.json",
+                "progress_report.json",
                 "publish_ready_bundle.json",
                 "manifest.json",
             ]
@@ -128,6 +221,7 @@ class StoryPipelineTest(unittest.TestCase):
             project_quality_report = json.loads(
                 (output_dir / "project_quality_report.json").read_text(encoding="utf-8")
             )
+            progress_report = json.loads((output_dir / "progress_report.json").read_text(encoding="utf-8"))
             publish_ready_bundle = json.loads(
                 (output_dir / "publish_ready_bundle.json").read_text(encoding="utf-8")
             )
@@ -175,6 +269,8 @@ class StoryPipelineTest(unittest.TestCase):
             self.assertEqual(artifacts.project_quality_report, project_quality_report)
             self.assertEqual(manifest["artifacts"]["project_quality_report"], project_quality_report)
             self.assertIn("checks", project_quality_report)
+            self.assertEqual(progress_report["schema_name"], "progress_report")
+            self.assertEqual(manifest["artifacts"]["progress_report"], progress_report)
             self.assertEqual(artifacts.publish_ready_bundle, publish_ready_bundle)
             self.assertEqual(manifest["artifacts"]["publish_ready_bundle"], publish_ready_bundle)
             self.assertEqual(publish_ready_bundle["schema_version"], "1.0")
@@ -303,6 +399,7 @@ class StoryPipelineTest(unittest.TestCase):
             "revised_chapter_drafts",
             "story_summary",
             "project_quality_report",
+            "progress_report",
             "publish_ready_bundle",
         ]
 
@@ -321,6 +418,49 @@ class StoryPipelineTest(unittest.TestCase):
             self.assertEqual([checkpoint["step"] for checkpoint in manifest["checkpoints"]], expected_step_order)
             self.assertEqual(len(artifacts.chapter_briefs), len(artifacts.chapter_plan))
             self.assertEqual(len(artifacts.scene_cards), len(artifacts.chapter_plan))
+
+    def test_pipeline_builds_chapter_handoff_packets_before_drafts(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            output_dir = Path(tmp_dir)
+
+            artifacts = StoryPipeline(
+                MockLLMClient(),
+                output_dir,
+                "json",
+                continuity_checker=StopBeforeRevisionContinuityChecker(),
+                rerun_policy=ContinuityRerunPolicy(
+                    {
+                        **ContinuityRerunPolicy().config,
+                        "long_run": {
+                            "max_high_severity_chapters": 1,
+                            "max_total_rerun_attempts": 99,
+                        },
+                    }
+                ),
+            ).run(
+                StoryInput(theme="記憶", genre="SF", tone="ビター", target_length=8000)
+            )
+
+            chapter_1_packet = json.loads((output_dir / "chapter_1_handoff_packet.json").read_text(encoding="utf-8"))
+            chapter_2_packet = json.loads((output_dir / "chapter_2_handoff_packet.json").read_text(encoding="utf-8"))
+
+            self.assertEqual(chapter_1_packet["schema_name"], "chapter_handoff_packet")
+            self.assertEqual(chapter_1_packet["chapter_number"], 1)
+            self.assertEqual(chapter_1_packet["current_chapter_brief"], artifacts.chapter_briefs[0])
+            self.assertEqual(chapter_1_packet["relevant_scene_cards"], artifacts.scene_cards[0]["scenes"])
+            self.assertEqual(chapter_1_packet["previous_chapter_summary"], "")
+            self.assertEqual(chapter_1_packet["style_constraints"]["tone"], "ビター")
+            self.assertEqual(
+                chapter_1_packet["style_constraints"]["point_of_view"],
+                artifacts.chapter_plan[0]["point_of_view"],
+            )
+            self.assertEqual(chapter_1_packet["style_constraints"]["tense"], "past")
+
+            self.assertEqual(chapter_2_packet["chapter_number"], 2)
+            self.assertEqual(
+                chapter_2_packet["previous_chapter_summary"],
+                artifacts.chapter_drafts[0]["summary"],
+            )
 
     def test_pipeline_resume_fails_fast_when_scene_cards_missing_before_chapter_drafts(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -355,10 +495,277 @@ class StoryPipelineTest(unittest.TestCase):
             self.assertEqual(len(client.draft_calls), len(artifacts.chapter_plan))
             for chapter_index, call in enumerate(client.draft_calls):
                 self.assertEqual(call["three_act_plot"], artifacts.three_act_plot)
+                self.assertEqual(
+                    call["chapter_handoff_packet"]["chapter_number"],
+                    chapter_index + 1,
+                )
                 self.assertEqual(call["chapter_plan"], artifacts.chapter_plan)
                 self.assertEqual(call["chapter_briefs"], artifacts.chapter_briefs)
                 self.assertEqual(call["scene_cards"], artifacts.scene_cards)
+                self.assertEqual(
+                    call["canon_ledger"],
+                    {"schema_name": "canon_ledger", "schema_version": "1.0", "chapters": []},
+                )
+                self.assertEqual(
+                    call["thread_registry"],
+                    {"schema_name": "thread_registry", "schema_version": "1.0", "threads": []},
+                )
                 self.assertEqual(call["chapter_index"], chapter_index)
+
+    def test_pipeline_passes_saved_memory_artifacts_to_chapter_drafts(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            output_dir = Path(tmp_dir)
+            client = RecordingDraftContextLLMClient()
+            save_canon_ledger(
+                output_dir,
+                {
+                    "schema_name": "canon_ledger",
+                    "schema_version": "1.0",
+                    "chapters": [
+                        {
+                            "chapter_number": 1,
+                            "new_facts": ["主人公は腕時計の逆回転を見た。"],
+                            "changed_facts": [],
+                            "open_questions": ["なぜ時計が逆回転したのか。"],
+                            "timeline_events": ["駅前で異変が起きた。"],
+                        }
+                    ],
+                },
+            )
+            save_thread_registry(
+                output_dir,
+                {
+                    "schema_name": "thread_registry",
+                    "schema_version": "1.0",
+                    "threads": [
+                        {
+                            "thread_id": "watch-mystery",
+                            "label": "壊れた腕時計の謎",
+                            "status": "seeded",
+                            "introduced_in_chapter": 1,
+                            "last_updated_in_chapter": 1,
+                            "related_characters": ["篠崎 遥"],
+                            "notes": ["駅前で逆回転が初登場した。"],
+                        }
+                    ],
+                },
+            )
+
+            StoryPipeline(
+                client,
+                output_dir,
+                "json",
+                continuity_checker=NoRerunContinuityChecker(),
+            ).run(
+                StoryInput(theme="記憶", genre="SF", tone="ビター", target_length=8000)
+            )
+
+            self.assertTrue(client.draft_calls)
+            for call in client.draft_calls:
+                self.assertEqual(call["canon_ledger"]["chapters"][0]["chapter_number"], 1)
+                self.assertEqual(call["thread_registry"]["threads"][0]["thread_id"], "watch-mystery")
+
+    def test_pipeline_passes_chapter_handoff_packet_to_revision_loop(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            output_dir = Path(tmp_dir)
+            client = RecordingDraftContextLLMClient()
+
+            artifacts = StoryPipeline(
+                client,
+                output_dir,
+                "json",
+                continuity_checker=NoRerunContinuityChecker(),
+            ).run(
+                StoryInput(theme="記憶", genre="SF", tone="ビター", target_length=8000)
+            )
+
+            self.assertEqual(len(client.revise_calls), len(artifacts.chapter_plan))
+            for chapter_index, call in enumerate(client.revise_calls):
+                self.assertEqual(call["chapter_plan"], artifacts.chapter_plan)
+                self.assertEqual(call["chapter_index"], chapter_index)
+                self.assertEqual(
+                    call["chapter_handoff_packet"]["chapter_number"],
+                    chapter_index + 1,
+                )
+                self.assertEqual(
+                    call["chapter_handoff_packet"]["current_chapter_brief"],
+                    artifacts.chapter_briefs[chapter_index],
+                )
+
+    def test_pipeline_updates_memory_artifacts_after_chapter_drafts(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            output_dir = Path(tmp_dir)
+
+            artifacts = StoryPipeline(
+                MockLLMClient(),
+                output_dir,
+                "json",
+                continuity_checker=StopBeforeRevisionContinuityChecker(),
+                rerun_policy=ContinuityRerunPolicy(
+                    {
+                        **ContinuityRerunPolicy().config,
+                        "long_run": {
+                            "max_high_severity_chapters": 1,
+                            "max_total_rerun_attempts": 99,
+                        },
+                    }
+                ),
+            ).run(
+                StoryInput(theme="記憶", genre="SF", tone="ビター", target_length=8000)
+            )
+
+            canon_ledger = json.loads((output_dir / "canon_ledger.json").read_text(encoding="utf-8"))
+            thread_registry = json.loads((output_dir / "thread_registry.json").read_text(encoding="utf-8"))
+
+            self.assertEqual(canon_ledger["schema_name"], "canon_ledger")
+            self.assertEqual(len(canon_ledger["chapters"]), len(artifacts.chapter_plan))
+            self.assertEqual(canon_ledger["chapters"][0]["chapter_number"], 1)
+            self.assertEqual(canon_ledger["chapters"][0]["new_facts"], [artifacts.chapter_drafts[0]["summary"]])
+            self.assertEqual(
+                canon_ledger["chapters"][0]["timeline_events"],
+                [artifacts.scene_cards[0]["scenes"][0]["exit_state"]],
+            )
+            self.assertFalse(artifacts.revised_chapter_drafts)
+
+            self.assertEqual(thread_registry["schema_name"], "thread_registry")
+            self.assertTrue(thread_registry["threads"])
+            self.assertEqual(
+                thread_registry["threads"][0]["thread_id"],
+                artifacts.chapter_briefs[0]["foreshadowing_targets"][0],
+            )
+            self.assertEqual(thread_registry["threads"][0]["status"], "seeded")
+            self.assertEqual(thread_registry["threads"][0]["introduced_in_chapter"], 1)
+
+    def test_pipeline_updates_memory_artifacts_after_revised_chapter_drafts(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            output_dir = Path(tmp_dir)
+
+            artifacts = StoryPipeline(
+                MockLLMClient(),
+                output_dir,
+                "json",
+                continuity_checker=NoRerunContinuityChecker(),
+            ).run(
+                StoryInput(theme="記憶", genre="SF", tone="ビター", target_length=8000)
+            )
+
+            canon_ledger = json.loads((output_dir / "canon_ledger.json").read_text(encoding="utf-8"))
+            thread_registry = json.loads((output_dir / "thread_registry.json").read_text(encoding="utf-8"))
+
+            self.assertEqual(
+                canon_ledger["chapters"][0]["new_facts"],
+                [artifacts.revised_chapter_drafts[0]["summary"]],
+            )
+            self.assertEqual(
+                thread_registry["threads"][0]["notes"],
+                [artifacts.revised_chapter_drafts[-1]["summary"]],
+            )
+            self.assertEqual(thread_registry["threads"][0]["introduced_in_chapter"], 1)
+            self.assertEqual(
+                thread_registry["threads"][0]["last_updated_in_chapter"],
+                len(artifacts.chapter_plan),
+            )
+
+    def test_pipeline_records_replan_history_when_progress_report_recommends_replan(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            output_dir = Path(tmp_dir)
+
+            artifacts = StoryPipeline(
+                MockLLMClient(),
+                output_dir,
+                "json",
+                continuity_checker=ReplanTriggerContinuityChecker(),
+            ).run(
+                StoryInput(theme="記憶", genre="SF", tone="ビター", target_length=8000)
+            )
+
+            replan_history = load_replan_history(output_dir)
+
+            self.assertEqual(replan_history["schema_name"], "replan_history")
+            self.assertEqual(len(replan_history["replans"]), 1)
+            self.assertEqual(
+                replan_history["replans"][0]["trigger_chapter_number"],
+                len(artifacts.chapter_plan),
+            )
+            self.assertEqual(
+                replan_history["replans"][0]["updated_artifacts"],
+                ["chapter_briefs", "scene_cards"],
+            )
+
+    def test_rerun_chapter_updates_memory_artifacts_for_target_chapter(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            output_dir = Path(tmp_dir)
+            pipeline = StoryPipeline(
+                MockLLMClient(),
+                output_dir,
+                "json",
+                continuity_checker=NoRerunContinuityChecker(),
+            )
+            pipeline.run(StoryInput(theme="記憶", genre="SF", tone="ビター", target_length=8000))
+
+            save_canon_ledger(
+                output_dir,
+                {
+                    "schema_name": "canon_ledger",
+                    "schema_version": "1.0",
+                    "chapters": [
+                        {
+                            "chapter_number": 1,
+                            "new_facts": ["古い要約 1"],
+                            "changed_facts": [],
+                            "open_questions": ["seed-1"],
+                            "timeline_events": ["古いイベント 1"],
+                        },
+                        {
+                            "chapter_number": 2,
+                            "new_facts": ["古い要約 2"],
+                            "changed_facts": [],
+                            "open_questions": ["seed-1"],
+                            "timeline_events": ["古いイベント 2"],
+                        },
+                        {
+                            "chapter_number": 3,
+                            "new_facts": ["古い要約 3"],
+                            "changed_facts": [],
+                            "open_questions": ["seed-1"],
+                            "timeline_events": ["古いイベント 3"],
+                        },
+                    ],
+                },
+            )
+            save_thread_registry(
+                output_dir,
+                {
+                    "schema_name": "thread_registry",
+                    "schema_version": "1.0",
+                    "threads": [
+                        {
+                            "thread_id": "seed-1",
+                            "label": "seed-1",
+                            "status": "seeded",
+                            "introduced_in_chapter": 1,
+                            "last_updated_in_chapter": 3,
+                            "related_characters": ["篠崎 遥"],
+                            "notes": ["古い thread note"],
+                        }
+                    ],
+                },
+            )
+
+            rerun_artifacts = pipeline.rerun_chapter(output_dir, 2)
+            canon_ledger = json.loads((output_dir / "canon_ledger.json").read_text(encoding="utf-8"))
+            thread_registry = json.loads((output_dir / "thread_registry.json").read_text(encoding="utf-8"))
+
+            self.assertEqual(
+                canon_ledger["chapters"][1]["new_facts"],
+                [rerun_artifacts.revised_chapter_drafts[1]["summary"]],
+            )
+            self.assertEqual(
+                thread_registry["threads"][0]["notes"],
+                [rerun_artifacts.revised_chapter_drafts[1]["summary"]],
+            )
+            self.assertEqual(thread_registry["threads"][0]["introduced_in_chapter"], 1)
+            self.assertEqual(thread_registry["threads"][0]["last_updated_in_chapter"], 2)
 
     def test_resume_normalizes_compatibility_only_manifest_to_chapter_arrays(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

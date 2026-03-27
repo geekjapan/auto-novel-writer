@@ -6,10 +6,18 @@ from pathlib import Path
 from typing import Any
 
 from novel_writer.schema import (
+    validate_canon_ledger,
+    validate_canon_ledger_chapter,
+    validate_chapter_handoff_packet,
     validate_chapter_briefs,
+    validate_progress_report,
+    validate_replan_entry,
+    validate_replan_history,
     project_manifest_contract,
     validate_scene_cards,
     validate_story_bible,
+    validate_thread_registry_entry,
+    validate_thread_registry,
     validate_project_manifest,
     validate_publish_ready_bundle,
     validate_run_comparison_summary,
@@ -100,6 +108,150 @@ def save_project_manifest(
 def save_story_bible(output_dir: Path, payload: Any, file_format: str = "json") -> Path:
     validate_story_bible(payload)
     return save_artifact(output_dir, "story_bible", payload, file_format)
+
+
+def save_chapter_handoff_packet(output_dir: Path, payload: Any, file_format: str = "json") -> Path:
+    validate_chapter_handoff_packet(payload)
+    return save_artifact(output_dir, "chapter_handoff_packet", payload, file_format)
+
+
+def load_chapter_handoff_packet(output_dir: Path, file_format: str | None = None) -> dict[str, Any]:
+    payload = load_artifact(output_dir, "chapter_handoff_packet", file_format)
+    validate_chapter_handoff_packet(payload)
+    return payload
+
+
+def save_progress_report(output_dir: Path, payload: Any, file_format: str = "json") -> Path:
+    validate_progress_report(payload)
+    return save_artifact(output_dir, "progress_report", payload, file_format)
+
+
+def load_progress_report(output_dir: Path, file_format: str | None = None) -> dict[str, Any]:
+    payload = load_artifact(output_dir, "progress_report", file_format)
+    validate_progress_report(payload)
+    return payload
+
+
+def save_replan_history(output_dir: Path, payload: Any, file_format: str = "json") -> Path:
+    validate_replan_history(payload)
+    return save_artifact(output_dir, "replan_history", payload, file_format)
+
+
+def load_replan_history(output_dir: Path, file_format: str | None = None) -> dict[str, Any]:
+    payload = load_artifact(output_dir, "replan_history", file_format)
+    validate_replan_history(payload)
+    return payload
+
+
+def upsert_replan_history_entry(
+    output_dir: Path,
+    replan_payload: Any,
+    file_format: str = "json",
+) -> Path:
+    validated_replan = validate_replan_entry(replan_payload, "replan_payload")
+    try:
+        history_payload = load_replan_history(output_dir, file_format)
+    except FileNotFoundError:
+        history_payload = {
+            "schema_name": "replan_history",
+            "schema_version": "1.0",
+            "replans": [],
+        }
+
+    replans = list(history_payload["replans"])
+    target_replan_id = validated_replan["replan_id"]
+    for index, existing_replan in enumerate(replans):
+        if existing_replan.get("replan_id") == target_replan_id:
+            replans[index] = validated_replan
+            history_payload["replans"] = replans
+            return save_replan_history(output_dir, history_payload, file_format)
+
+    replans.append(validated_replan)
+    history_payload["replans"] = replans
+    return save_replan_history(output_dir, history_payload, file_format)
+
+
+def save_canon_ledger(output_dir: Path, payload: Any, file_format: str = "json") -> Path:
+    validate_canon_ledger(payload)
+    return save_artifact(output_dir, "canon_ledger", payload, file_format)
+
+
+def load_canon_ledger(output_dir: Path, file_format: str | None = None) -> dict[str, Any]:
+    payload = load_artifact(output_dir, "canon_ledger", file_format)
+    validate_canon_ledger(payload)
+    return payload
+
+
+def save_thread_registry(output_dir: Path, payload: Any, file_format: str = "json") -> Path:
+    validate_thread_registry(payload)
+    return save_artifact(output_dir, "thread_registry", payload, file_format)
+
+
+def load_thread_registry(output_dir: Path, file_format: str | None = None) -> dict[str, Any]:
+    payload = load_artifact(output_dir, "thread_registry", file_format)
+    validate_thread_registry(payload)
+    return payload
+
+
+def upsert_thread_registry_entry(
+    output_dir: Path,
+    thread_payload: Any,
+    file_format: str = "json",
+) -> Path:
+    validated_thread = validate_thread_registry_entry(thread_payload, "thread_payload")
+    try:
+        registry_payload = load_thread_registry(output_dir, file_format)
+    except FileNotFoundError:
+        registry_payload = {
+            "schema_name": "thread_registry",
+            "schema_version": "1.0",
+            "threads": [],
+        }
+
+    threads = list(registry_payload["threads"])
+    target_thread_id = validated_thread["thread_id"]
+    for index, existing_thread in enumerate(threads):
+        if existing_thread.get("thread_id") == target_thread_id:
+            threads[index] = validated_thread
+            registry_payload["threads"] = threads
+            return save_thread_registry(output_dir, registry_payload, file_format)
+
+    threads.append(validated_thread)
+    registry_payload["threads"] = threads
+    return save_thread_registry(output_dir, registry_payload, file_format)
+
+
+def upsert_canon_ledger_chapter(
+    output_dir: Path,
+    chapter_payload: Any,
+    file_format: str = "json",
+) -> Path:
+    validated_chapter = validate_canon_ledger_chapter(chapter_payload, "chapter_payload")
+    try:
+        ledger_payload = load_canon_ledger(output_dir, file_format)
+    except FileNotFoundError:
+        ledger_payload = {
+            "schema_name": "canon_ledger",
+            "schema_version": "1.0",
+            "chapters": [],
+        }
+
+    chapters = list(ledger_payload["chapters"])
+    target_number = validated_chapter["chapter_number"]
+    for index, existing_chapter in enumerate(chapters):
+        if existing_chapter.get("chapter_number") == target_number:
+            chapters[index] = validated_chapter
+            ledger_payload["chapters"] = chapters
+            return save_canon_ledger(output_dir, ledger_payload, file_format)
+
+    if chapters and target_number != len(chapters) + 1:
+        raise ValueError(
+            f"Invalid canon_ledger: chapter_number {target_number} cannot be appended after existing chapter {len(chapters)}."
+        )
+
+    chapters.append(validated_chapter)
+    ledger_payload["chapters"] = chapters
+    return save_canon_ledger(output_dir, ledger_payload, file_format)
 
 
 def load_story_bible(output_dir: Path, file_format: str | None = None) -> dict[str, Any]:

@@ -259,7 +259,10 @@ class MockLLMClient(BaseLLMClient):
         chapter_plan: list[dict[str, Any]],
         chapter_briefs: list[dict[str, Any]],
         scene_cards: list[dict[str, Any]],
+        canon_ledger: dict[str, Any],
+        thread_registry: dict[str, Any],
         chapter_index: int = 0,
+        chapter_handoff_packet: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         if chapter_index < 0 or chapter_index >= len(chapter_plan):
             raise ValueError(f"chapter_plan must contain an entry for chapter_index={chapter_index}.")
@@ -271,11 +274,29 @@ class MockLLMClient(BaseLLMClient):
         chapter = chapter_plan[chapter_index]
         brief = chapter_briefs[chapter_index]
         packet = scene_cards[chapter_index]
+        if chapter_handoff_packet:
+            brief = chapter_handoff_packet.get("current_chapter_brief", brief)
+            packet = {"scenes": chapter_handoff_packet.get("relevant_scene_cards", packet["scenes"])}
+        relevant_fact = ""
+        if canon_ledger.get("chapters"):
+            relevant_fact = str(canon_ledger["chapters"][0].get("new_facts", [""])[0]).strip()
+        relevant_thread = ""
+        if thread_registry.get("threads"):
+            relevant_thread = str(thread_registry["threads"][0].get("label", "")).strip()
+        memory_context = " ".join(part for part in [relevant_fact, relevant_thread] if part).strip()
         return {
             "chapter_number": chapter["chapter_number"],
             "title": chapter["title"],
             "summary": brief["goal"],
-            "text": f"{brief['purpose']}。{packet['scenes'][0]['exit_state']}へ向かう本文。",
+            "text": " ".join(
+                part
+                for part in [
+                    f"{brief['purpose']}。",
+                    memory_context,
+                    f"{packet['scenes'][0]['exit_state']}へ向かう本文。",
+                ]
+                if part
+            ).strip(),
         }
 
     def revise_chapter_draft(
@@ -285,8 +306,14 @@ class MockLLMClient(BaseLLMClient):
         chapter_draft: dict[str, Any],
         continuity_report: dict[str, Any],
         chapter_index: int = 0,
+        chapter_handoff_packet: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         target_plan = chapter_plan[chapter_index] if chapter_plan else {}
+        if chapter_handoff_packet:
+            target_plan = {
+                **target_plan,
+                **chapter_handoff_packet.get("current_chapter_brief", {}),
+            }
         original_text = str(chapter_draft.get("text", ""))
         cleaned_text = self._dedupe_sentences(original_text)
         summary = str(target_plan.get("purpose") or chapter_draft.get("summary", ""))

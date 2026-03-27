@@ -1,3 +1,4 @@
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -36,6 +37,23 @@ class SequencedContinuityChecker:
             "checks": {},
             "issue_count": 0,
             "issues": [],
+        }
+
+    def build_progress_report(self, artifacts, thread_registry) -> dict:
+        return {
+            "schema_name": "progress_report",
+            "schema_version": "1.0",
+            "evaluated_through_chapter": len(artifacts.chapter_plan),
+            "checks": {
+                "chapter_role_coverage": {"status": "ok", "summary": "ok", "evidence": []},
+                "escalation_pace": {"status": "ok", "summary": "ok", "evidence": []},
+                "emotional_progression": {"status": "ok", "summary": "ok", "evidence": []},
+                "foreshadowing_coverage": {"status": "ok", "summary": "ok", "evidence": []},
+                "unresolved_thread_load": {"status": "ok", "summary": "ok", "evidence": []},
+                "climax_readiness": {"status": "ok", "summary": "ok", "evidence": []},
+            },
+            "issue_codes": [],
+            "recommended_action": "continue",
         }
 
 
@@ -189,7 +207,10 @@ class CountingLLMClient:
         chapter_plan,
         chapter_briefs,
         scene_cards,
+        canon_ledger,
+        thread_registry,
         chapter_index=0,
+        chapter_handoff_packet=None,
     ):
         self.chapter_draft_calls += 1
         chapter = chapter_plan[chapter_index]
@@ -213,6 +234,7 @@ class CountingLLMClient:
         chapter_draft,
         continuity_report,
         chapter_index=0,
+        chapter_handoff_packet=None,
     ):
         self.revise_calls += 1
         return {
@@ -370,6 +392,8 @@ class ContinuityRerunPolicyTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp_dir:
             pipeline = StoryPipeline(client, Path(tmp_dir), continuity_checker=checker)
             artifacts = pipeline.run(StoryInput(theme="記憶", genre="SF", tone="静謐", target_length=5000))
+            canon_ledger = json.loads((Path(tmp_dir) / "canon_ledger.json").read_text(encoding="utf-8"))
+            thread_registry = json.loads((Path(tmp_dir) / "thread_registry.json").read_text(encoding="utf-8"))
 
         self.assertEqual(client.chapter_plan_calls, 1)
         self.assertEqual(client.chapter_draft_calls, 3)
@@ -382,6 +406,11 @@ class ContinuityRerunPolicyTest(unittest.TestCase):
         self.assertEqual(artifacts.revised_chapter_1_draft["summary"], "setup 記憶 を通じて変化を描く。")
         self.assertEqual(artifacts.revised_chapter_1_draft["chapter_index"], 0)
         self.assertEqual(artifacts.revised_chapter_drafts[1]["chapter_index"], 1)
+        self.assertEqual(
+            canon_ledger["chapters"][1]["new_facts"],
+            [artifacts.revised_chapter_drafts[1]["summary"]],
+        )
+        self.assertEqual(thread_registry["threads"][0]["last_updated_in_chapter"], 2)
 
     def test_high_reruns_from_chapter_plan(self) -> None:
         client = CountingLLMClient()
@@ -435,6 +464,8 @@ class ContinuityRerunPolicyTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp_dir:
             pipeline = StoryPipeline(client, Path(tmp_dir), continuity_checker=checker)
             artifacts = pipeline.run(StoryInput(theme="記憶", genre="SF", tone="静謐", target_length=5000))
+            canon_ledger = json.loads((Path(tmp_dir) / "canon_ledger.json").read_text(encoding="utf-8"))
+            thread_registry = json.loads((Path(tmp_dir) / "thread_registry.json").read_text(encoding="utf-8"))
 
         self.assertEqual(client.chapter_plan_calls, 2)
         self.assertEqual(client.chapter_draft_calls, 4)
@@ -442,6 +473,11 @@ class ContinuityRerunPolicyTest(unittest.TestCase):
         self.assertEqual(artifacts.rerun_history[0]["severity"], "high")
         self.assertEqual(artifacts.rerun_history[1]["action_taken"], "reran_from_chapter_plan")
         self.assertEqual(artifacts.rerun_history[1]["chapter_index"], 0)
+        self.assertEqual(
+            canon_ledger["chapters"][0]["new_facts"],
+            [artifacts.revised_chapter_drafts[0]["summary"]],
+        )
+        self.assertEqual(thread_registry["threads"][0]["introduced_in_chapter"], 1)
 
     def test_revision_loop_uses_per_chapter_quality_reports(self) -> None:
         client = CountingLLMClient()
@@ -601,12 +637,19 @@ class ContinuityRerunPolicyTest(unittest.TestCase):
             pipeline = StoryPipeline(client, Path(tmp_dir), continuity_checker=checker, rerun_policy=policy)
             artifacts = pipeline.run(StoryInput(theme="記憶", genre="SF", tone="静謐", target_length=5000))
             manifest = Path(tmp_dir) / "manifest.json"
+            canon_ledger = json.loads((Path(tmp_dir) / "canon_ledger.json").read_text(encoding="utf-8"))
+            thread_registry = json.loads((Path(tmp_dir) / "thread_registry.json").read_text(encoding="utf-8"))
 
             self.assertTrue(manifest.exists())
             self.assertEqual(client.revise_calls, 0)
             self.assertFalse(artifacts.revised_chapter_drafts)
             self.assertFalse(artifacts.story_summary)
             self.assertFalse(artifacts.project_quality_report)
+            self.assertEqual(
+                canon_ledger["chapters"][0]["new_facts"],
+                [artifacts.chapter_drafts[0]["summary"]],
+            )
+            self.assertEqual(thread_registry["threads"][0]["introduced_in_chapter"], 1)
             self.assertIn('"should_stop": true', manifest.read_text(encoding="utf-8").lower())
             self.assertIn('"stop_after_step": "continuity_report"', manifest.read_text(encoding="utf-8"))
 
