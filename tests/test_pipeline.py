@@ -7,7 +7,14 @@ from novel_writer.llm_client import MockLLMClient
 from novel_writer.pipeline import PIPELINE_STEP_ORDER, StoryPipeline
 from novel_writer.rerun_policy import ContinuityRerunPolicy
 from novel_writer.schema import StoryInput
-from novel_writer.storage import load_replan_history, save_canon_ledger, save_thread_registry
+from novel_writer.storage import (
+    load_chapter_briefs,
+    load_next_action_decision,
+    load_replan_history,
+    load_scene_cards,
+    save_canon_ledger,
+    save_thread_registry,
+)
 
 
 class RecordingDraftContextLLMClient(MockLLMClient):
@@ -171,6 +178,119 @@ class ReplanTriggerContinuityChecker(NoRerunContinuityChecker):
         return report
 
 
+class EarlyReplanTriggerContinuityChecker(NoRerunContinuityChecker):
+    def build_progress_report(self, artifacts, thread_registry):
+        report = super().build_progress_report(artifacts, thread_registry)
+        report["evaluated_through_chapter"] = 1
+        report["issue_codes"] = ["escalation_pace_flat"]
+        report["recommended_action"] = "replan"
+        report["checks"]["escalation_pace"] = {
+            "status": "warning",
+            "summary": "第2章以降の役割を組み替える必要がある",
+            "evidence": ["chapter-1"],
+        }
+        return report
+
+
+class ReviseTriggerContinuityChecker(NoRerunContinuityChecker):
+    def build_progress_report(self, artifacts, thread_registry):
+        report = super().build_progress_report(artifacts, thread_registry)
+        report["evaluated_through_chapter"] = 2
+        report["issue_codes"] = ["emotional_progression_stall"]
+        report["recommended_action"] = "revise"
+        report["checks"]["emotional_progression"] = {
+            "status": "warning",
+            "summary": "感情変化が弱く改稿が必要である",
+            "evidence": ["chapter-2"],
+        }
+        return report
+
+
+class RerunTriggerContinuityChecker(NoRerunContinuityChecker):
+    def build_progress_report(self, artifacts, thread_registry):
+        report = super().build_progress_report(artifacts, thread_registry)
+        report["evaluated_through_chapter"] = 2
+        report["issue_codes"] = ["chapter_role_coverage_gap"]
+        report["recommended_action"] = "rerun"
+        report["checks"]["chapter_role_coverage"] = {
+            "status": "warning",
+            "summary": "章役割が崩れており再実行が必要である",
+            "evidence": ["chapter-2"],
+        }
+        return report
+
+
+class StopForReviewContinuityChecker(NoRerunContinuityChecker):
+    def build_progress_report(self, artifacts, thread_registry):
+        report = super().build_progress_report(artifacts, thread_registry)
+        report["issue_codes"] = ["human_review_required"]
+        report["recommended_action"] = "stop_for_review"
+        report["checks"]["unresolved_thread_load"] = {
+            "status": "warning",
+            "summary": "保留案件が多く人手確認が必要である",
+            "evidence": ["chapter-3"],
+        }
+        return report
+
+
+class ReplanningMockLLMClient(MockLLMClient):
+    def __init__(self) -> None:
+        super().__init__()
+        self.chapter_briefs_calls = 0
+        self.scene_cards_calls = 0
+
+    def generate_chapter_briefs(
+        self,
+        story_input,
+        logline,
+        characters,
+        three_act_plot,
+        story_bible,
+        chapter_plan,
+    ):
+        briefs = super().generate_chapter_briefs(
+            story_input,
+            logline,
+            characters,
+            three_act_plot,
+            story_bible,
+            chapter_plan,
+        )
+        self.chapter_briefs_calls += 1
+        if self.chapter_briefs_calls >= 2:
+            for brief in briefs[1:]:
+                brief["purpose"] = f"REPLAN {brief['purpose']}"
+                brief["goal"] = f"REPLAN {brief['goal']}"
+                brief["turn"] = f"REPLAN {brief['turn']}"
+        return briefs
+
+    def generate_scene_cards(
+        self,
+        story_input,
+        logline,
+        characters,
+        three_act_plot,
+        story_bible,
+        chapter_plan,
+        chapter_briefs,
+    ):
+        packets = super().generate_scene_cards(
+            story_input,
+            logline,
+            characters,
+            three_act_plot,
+            story_bible,
+            chapter_plan,
+            chapter_briefs,
+        )
+        self.scene_cards_calls += 1
+        if self.scene_cards_calls >= 2:
+            for packet in packets[1:]:
+                packet["scenes"][0]["scene_goal"] = f"REPLAN {packet['scenes'][0]['scene_goal']}"
+                packet["scenes"][0]["exit_state"] = f"REPLAN {packet['scenes'][0]['exit_state']}"
+        return packets
+
+
 class StoryPipelineTest(unittest.TestCase):
     def test_pipeline_writes_all_phases(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -205,6 +325,7 @@ class StoryPipelineTest(unittest.TestCase):
                 "story_summary.json",
                 "project_quality_report.json",
                 "progress_report.json",
+                "next_action_decision.json",
                 "publish_ready_bundle.json",
                 "manifest.json",
             ]
@@ -222,6 +343,9 @@ class StoryPipelineTest(unittest.TestCase):
                 (output_dir / "project_quality_report.json").read_text(encoding="utf-8")
             )
             progress_report = json.loads((output_dir / "progress_report.json").read_text(encoding="utf-8"))
+            next_action_decision = json.loads(
+                (output_dir / "next_action_decision.json").read_text(encoding="utf-8")
+            )
             publish_ready_bundle = json.loads(
                 (output_dir / "publish_ready_bundle.json").read_text(encoding="utf-8")
             )
@@ -271,6 +395,9 @@ class StoryPipelineTest(unittest.TestCase):
             self.assertIn("checks", project_quality_report)
             self.assertEqual(progress_report["schema_name"], "progress_report")
             self.assertEqual(manifest["artifacts"]["progress_report"], progress_report)
+            self.assertEqual(next_action_decision["schema_name"], "next_action_decision")
+            self.assertEqual(artifacts.next_action_decision, next_action_decision)
+            self.assertEqual(manifest["artifacts"]["next_action_decision"], next_action_decision)
             self.assertEqual(artifacts.publish_ready_bundle, publish_ready_bundle)
             self.assertEqual(manifest["artifacts"]["publish_ready_bundle"], publish_ready_bundle)
             self.assertEqual(publish_ready_bundle["schema_version"], "1.0")
@@ -680,6 +807,7 @@ class StoryPipelineTest(unittest.TestCase):
             )
 
             replan_history = load_replan_history(output_dir)
+            next_action_decision = load_next_action_decision(output_dir)
 
             self.assertEqual(replan_history["schema_name"], "replan_history")
             self.assertEqual(len(replan_history["replans"]), 1)
@@ -691,6 +819,167 @@ class StoryPipelineTest(unittest.TestCase):
                 replan_history["replans"][0]["updated_artifacts"],
                 ["chapter_briefs", "scene_cards"],
             )
+            self.assertEqual(next_action_decision["action"], "stop_for_review")
+            self.assertEqual(next_action_decision["target_chapters"], [])
+            self.assertEqual(
+                next_action_decision["reason"],
+                "progress_report recommended replan but no future chapters remain",
+            )
+
+    def test_pipeline_applies_replan_updates_to_future_planning_artifacts(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            output_dir = Path(tmp_dir)
+
+            artifacts = StoryPipeline(
+                ReplanningMockLLMClient(),
+                output_dir,
+                "json",
+                continuity_checker=EarlyReplanTriggerContinuityChecker(),
+            ).run(
+                StoryInput(theme="記憶", genre="SF", tone="ビター", target_length=8000)
+            )
+
+            replan_history = load_replan_history(output_dir)
+            chapter_briefs = load_chapter_briefs(output_dir)
+            scene_cards = load_scene_cards(output_dir)
+
+            self.assertEqual(replan_history["replans"][0]["trigger_chapter_number"], 1)
+            self.assertEqual(
+                replan_history["replans"][0]["impact_scope"]["chapter_numbers"],
+                list(range(2, len(artifacts.chapter_plan) + 1)),
+            )
+            self.assertIn(
+                "chapter_briefs updated for chapters: 2, 3, 4",
+                replan_history["replans"][0]["change_summary"],
+            )
+            self.assertIn(
+                "scene_cards updated for chapters: 2, 3, 4",
+                replan_history["replans"][0]["change_summary"],
+            )
+            self.assertEqual(chapter_briefs[0]["purpose"], artifacts.chapter_plan[0]["purpose"])
+            self.assertTrue(chapter_briefs[1]["purpose"].startswith("REPLAN "))
+            self.assertTrue(chapter_briefs[2]["purpose"].startswith("REPLAN "))
+            self.assertFalse(scene_cards[0]["scenes"][0]["scene_goal"].startswith("REPLAN "))
+            self.assertTrue(scene_cards[1]["scenes"][0]["scene_goal"].startswith("REPLAN "))
+            self.assertTrue(scene_cards[2]["scenes"][0]["exit_state"].startswith("REPLAN "))
+
+    def test_pipeline_saves_next_action_decision_after_progress_report(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            output_dir = Path(tmp_dir)
+
+            artifacts = StoryPipeline(
+                MockLLMClient(),
+                output_dir,
+                "json",
+                continuity_checker=NoRerunContinuityChecker(),
+            ).run(
+                StoryInput(theme="記憶", genre="SF", tone="ビター", target_length=8000)
+            )
+
+            next_action_decision = load_next_action_decision(output_dir)
+
+            self.assertTrue((output_dir / "next_action_decision.json").exists())
+            self.assertEqual(next_action_decision["evaluated_through_chapter"], len(artifacts.chapter_plan))
+            self.assertEqual(next_action_decision["action"], "continue")
+            self.assertEqual(next_action_decision["reason"], "progress_report recommended continue")
+            self.assertEqual(next_action_decision["issue_codes"], [])
+            self.assertEqual(next_action_decision["target_chapters"], [])
+            self.assertEqual(next_action_decision["policy_budget"]["max_high_severity_chapters"], 10)
+            self.assertEqual(next_action_decision["policy_budget"]["max_total_rerun_attempts"], 20)
+            self.assertEqual(next_action_decision["decision_trace"][0]["code"], "chapter_role_coverage")
+            self.assertEqual(next_action_decision["decision_trace"][0]["summary"], "ok")
+            self.assertEqual(next_action_decision["decision_trace"][0]["value"], "ok")
+
+    def test_pipeline_maps_replan_recommended_action_to_replan_future_decision(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            output_dir = Path(tmp_dir)
+
+            artifacts = StoryPipeline(
+                MockLLMClient(),
+                output_dir,
+                "json",
+                continuity_checker=EarlyReplanTriggerContinuityChecker(),
+            ).run(
+                StoryInput(theme="記憶", genre="SF", tone="ビター", target_length=8000)
+            )
+
+            next_action_decision = load_next_action_decision(output_dir)
+
+            self.assertEqual(next_action_decision["action"], "replan_future")
+            self.assertEqual(next_action_decision["issue_codes"], ["escalation_pace_flat"])
+            self.assertEqual(
+                next_action_decision["target_chapters"],
+                list(range(2, len(artifacts.chapter_plan) + 1)),
+            )
+            self.assertEqual(
+                next_action_decision["reason"],
+                "progress_report recommended replan",
+            )
+            self.assertIn(
+                {
+                    "code": "escalation_pace",
+                    "summary": "第2章以降の役割を組み替える必要がある",
+                    "value": "warning",
+                },
+                next_action_decision["decision_trace"],
+            )
+
+    def test_pipeline_maps_revise_recommended_action_to_revise_decision(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            output_dir = Path(tmp_dir)
+
+            StoryPipeline(
+                MockLLMClient(),
+                output_dir,
+                "json",
+                continuity_checker=ReviseTriggerContinuityChecker(),
+            ).run(
+                StoryInput(theme="記憶", genre="SF", tone="ビター", target_length=8000)
+            )
+
+            next_action_decision = load_next_action_decision(output_dir)
+
+            self.assertEqual(next_action_decision["action"], "revise")
+            self.assertEqual(next_action_decision["target_chapters"], [2])
+            self.assertEqual(next_action_decision["issue_codes"], ["emotional_progression_stall"])
+
+    def test_pipeline_maps_rerun_recommended_action_to_rerun_chapter_decision(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            output_dir = Path(tmp_dir)
+
+            StoryPipeline(
+                MockLLMClient(),
+                output_dir,
+                "json",
+                continuity_checker=RerunTriggerContinuityChecker(),
+            ).run(
+                StoryInput(theme="記憶", genre="SF", tone="ビター", target_length=8000)
+            )
+
+            next_action_decision = load_next_action_decision(output_dir)
+
+            self.assertEqual(next_action_decision["action"], "rerun_chapter")
+            self.assertEqual(next_action_decision["target_chapters"], [2])
+            self.assertEqual(next_action_decision["issue_codes"], ["chapter_role_coverage_gap"])
+
+    def test_pipeline_maps_stop_for_review_recommended_action_to_same_decision(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            output_dir = Path(tmp_dir)
+
+            StoryPipeline(
+                MockLLMClient(),
+                output_dir,
+                "json",
+                continuity_checker=StopForReviewContinuityChecker(),
+            ).run(
+                StoryInput(theme="記憶", genre="SF", tone="ビター", target_length=8000)
+            )
+
+            next_action_decision = load_next_action_decision(output_dir)
+
+            self.assertEqual(next_action_decision["action"], "stop_for_review")
+            self.assertEqual(next_action_decision["target_chapters"], [])
+            self.assertEqual(next_action_decision["issue_codes"], ["human_review_required"])
 
     def test_rerun_chapter_updates_memory_artifacts_for_target_chapter(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

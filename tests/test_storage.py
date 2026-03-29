@@ -6,6 +6,7 @@ from pathlib import Path
 
 from novel_writer.schema import StoryArtifacts, StoryInput
 from novel_writer.storage import (
+    apply_replan_updates,
     build_project_layout,
     load_artifact,
     load_canon_ledger,
@@ -16,6 +17,7 @@ from novel_writer.storage import (
     load_scene_cards,
     load_project_manifest,
     load_publish_ready_bundle,
+    load_next_action_decision,
     load_run_comparison_summary,
     load_story_bible,
     load_thread_registry,
@@ -32,6 +34,7 @@ from novel_writer.storage import (
     save_project_manifest,
     save_run_comparison_summary,
     save_story_bible,
+    save_next_action_decision,
     save_thread_registry,
     upsert_canon_ledger_chapter,
     upsert_replan_history_entry,
@@ -628,6 +631,8 @@ class SaveArtifactTest(unittest.TestCase):
         self.assertEqual(contract["canon_ledger"]["schema_version"], "1.0")
         self.assertEqual(contract["chapter_handoff_packet"]["schema_name"], "chapter_handoff_packet")
         self.assertEqual(contract["chapter_handoff_packet"]["schema_version"], "1.0")
+        self.assertEqual(contract["next_action_decision"]["schema_name"], "next_action_decision")
+        self.assertEqual(contract["next_action_decision"]["schema_version"], "1.0")
         self.assertEqual(contract["progress_report"]["schema_name"], "progress_report")
         self.assertEqual(contract["progress_report"]["schema_version"], "1.0")
         self.assertEqual(contract["replan_history"]["schema_name"], "replan_history")
@@ -658,6 +663,191 @@ class SaveArtifactTest(unittest.TestCase):
 
             self.assertEqual(target.name, "progress_report.json")
             self.assertEqual(loaded, payload)
+
+    def test_save_next_action_decision_round_trips_valid_payload(self) -> None:
+        payload = {
+            "schema_name": "next_action_decision",
+            "schema_version": "1.0",
+            "evaluated_through_chapter": 5,
+            "action": "replan_future",
+            "reason": "中盤停滞のため future chapter を再計画する",
+            "issue_codes": ["escalation_pace_flat", "climax_readiness_low"],
+            "target_chapters": [6, 7, 8],
+            "policy_budget": {
+                "max_high_severity_chapters": 10,
+                "max_total_rerun_attempts": 20,
+                "remaining_high_severity_chapter_budget": 7,
+                "remaining_rerun_attempt_budget": 14,
+            },
+            "decision_trace": [
+                {
+                    "code": "escalation_pace_flat",
+                    "summary": "中盤の伸びが止まっている",
+                    "value": "chapter-5",
+                },
+                {
+                    "code": "climax_readiness_low",
+                    "summary": "終盤準備が不足している",
+                    "value": "chapter-5",
+                },
+            ],
+        }
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            target = save_next_action_decision(Path(tmp_dir), payload, "json")
+            loaded = load_next_action_decision(Path(tmp_dir))
+
+            self.assertEqual(target.name, "next_action_decision.json")
+            self.assertEqual(loaded, payload)
+
+    def test_save_next_action_decision_validates_allowed_action(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            with self.assertRaisesRegex(
+                ValueError,
+                "Invalid next_action_decision: action must be one of: continue, revise, rerun_chapter, replan_future, stop_for_review",
+            ):
+                save_next_action_decision(
+                    Path(tmp_dir),
+                    {
+                        "schema_name": "next_action_decision",
+                        "schema_version": "1.0",
+                        "evaluated_through_chapter": 5,
+                        "action": "rerun",
+                        "reason": "旧 action 名を使っている",
+                        "issue_codes": [],
+                        "target_chapters": [5],
+                        "policy_budget": {
+                            "max_high_severity_chapters": 10,
+                            "max_total_rerun_attempts": 20,
+                            "remaining_high_severity_chapter_budget": 7,
+                            "remaining_rerun_attempt_budget": 14,
+                        },
+                        "decision_trace": [],
+                    },
+                )
+
+    def test_save_next_action_decision_validates_trace_entry_fields(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            with self.assertRaisesRegex(
+                ValueError,
+                "Invalid next_action_decision: decision_trace\\[0\\] is missing required fields: summary",
+            ):
+                save_next_action_decision(
+                    Path(tmp_dir),
+                    {
+                        "schema_name": "next_action_decision",
+                        "schema_version": "1.0",
+                        "evaluated_through_chapter": 5,
+                        "action": "replan_future",
+                        "reason": "根拠を保存する",
+                        "issue_codes": ["escalation_pace_flat"],
+                        "target_chapters": [6, 7, 8],
+                        "policy_budget": {
+                            "max_high_severity_chapters": 10,
+                            "max_total_rerun_attempts": 20,
+                            "remaining_high_severity_chapter_budget": 7,
+                            "remaining_rerun_attempt_budget": 14,
+                        },
+                        "decision_trace": [
+                            {
+                                "code": "escalation_pace_flat",
+                                "value": "chapter-5",
+                            }
+                        ],
+                    },
+                )
+
+    def test_save_next_action_decision_rejects_target_chapters_for_continue_and_stop(self) -> None:
+        invalid_cases = [
+            ("continue", "continue must not have target_chapters"),
+            ("stop_for_review", "stop_for_review must not have target_chapters"),
+        ]
+
+        for action, expected_message in invalid_cases:
+            with self.subTest(action=action):
+                with tempfile.TemporaryDirectory() as tmp_dir:
+                    with self.assertRaisesRegex(
+                        ValueError,
+                        expected_message,
+                    ):
+                        save_next_action_decision(
+                            Path(tmp_dir),
+                            {
+                                "schema_name": "next_action_decision",
+                                "schema_version": "1.0",
+                                "evaluated_through_chapter": 5,
+                                "action": action,
+                                "reason": "不要な target_chapters が入っている",
+                                "issue_codes": [],
+                                "target_chapters": [5],
+                                "policy_budget": {
+                                    "max_high_severity_chapters": 10,
+                                    "max_total_rerun_attempts": 20,
+                                    "remaining_high_severity_chapter_budget": 7,
+                                    "remaining_rerun_attempt_budget": 14,
+                                },
+                                "decision_trace": [],
+                            },
+                        )
+
+    def test_save_next_action_decision_requires_single_target_for_revise_and_rerun(self) -> None:
+        invalid_cases = [
+            ("revise", [], "revise must have exactly one target chapter"),
+            ("rerun_chapter", [4, 5], "rerun_chapter must have exactly one target chapter"),
+        ]
+
+        for action, target_chapters, expected_message in invalid_cases:
+            with self.subTest(action=action):
+                with tempfile.TemporaryDirectory() as tmp_dir:
+                    with self.assertRaisesRegex(
+                        ValueError,
+                        expected_message,
+                    ):
+                        save_next_action_decision(
+                            Path(tmp_dir),
+                            {
+                                "schema_name": "next_action_decision",
+                                "schema_version": "1.0",
+                                "evaluated_through_chapter": 5,
+                                "action": action,
+                                "reason": "target chapter 数が不正である",
+                                "issue_codes": ["needs_followup"],
+                                "target_chapters": target_chapters,
+                                "policy_budget": {
+                                    "max_high_severity_chapters": 10,
+                                    "max_total_rerun_attempts": 20,
+                                    "remaining_high_severity_chapter_budget": 7,
+                                    "remaining_rerun_attempt_budget": 14,
+                                },
+                                "decision_trace": [],
+                            },
+                        )
+
+    def test_save_next_action_decision_requires_future_targets_for_replan(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            with self.assertRaisesRegex(
+                ValueError,
+                "replan_future must have at least one target chapter",
+            ):
+                save_next_action_decision(
+                    Path(tmp_dir),
+                    {
+                        "schema_name": "next_action_decision",
+                        "schema_version": "1.0",
+                        "evaluated_through_chapter": 5,
+                        "action": "replan_future",
+                        "reason": "future chapter が指定されていない",
+                        "issue_codes": ["escalation_pace_flat"],
+                        "target_chapters": [],
+                        "policy_budget": {
+                            "max_high_severity_chapters": 10,
+                            "max_total_rerun_attempts": 20,
+                            "remaining_high_severity_chapter_budget": 7,
+                            "remaining_rerun_attempt_budget": 14,
+                        },
+                        "decision_trace": [],
+                    },
+                )
 
     def test_save_progress_report_validates_required_fields(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -869,6 +1059,645 @@ class SaveArtifactTest(unittest.TestCase):
             self.assertEqual(len(loaded["replans"]), 1)
             self.assertEqual(loaded["replans"][0]["reason"], "新しい理由")
             self.assertEqual(loaded["replans"][0]["impact_scope"]["to_chapter"], 8)
+
+    def test_apply_replan_updates_replaces_only_future_chapters(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            save_chapter_briefs(
+                Path(tmp_dir),
+                [
+                    {
+                        "chapter_number": 1,
+                        "purpose": "導入",
+                        "goal": "異変に気づく",
+                        "conflict": "記憶が曖昧になる",
+                        "turn": "腕時計が逆回転する",
+                        "must_include": ["壊れた腕時計"],
+                        "continuity_dependencies": [],
+                        "foreshadowing_targets": ["seed-1"],
+                        "arc_progress": "受け身",
+                        "target_length_guidance": "短め",
+                    },
+                    {
+                        "chapter_number": 2,
+                        "purpose": "探索",
+                        "goal": "手がかりを集める",
+                        "conflict": "相棒を信じ切れない",
+                        "turn": "古い記録が見つかる",
+                        "must_include": ["古い記録"],
+                        "continuity_dependencies": ["chapter-1"],
+                        "foreshadowing_targets": ["seed-2"],
+                        "arc_progress": "疑いが強まる",
+                        "target_length_guidance": "標準",
+                    },
+                    {
+                        "chapter_number": 3,
+                        "purpose": "対立",
+                        "goal": "敵の正体へ迫る",
+                        "conflict": "情報が食い違う",
+                        "turn": "味方の裏切りが示唆される",
+                        "must_include": ["地下書庫"],
+                        "continuity_dependencies": ["chapter-2"],
+                        "foreshadowing_targets": ["seed-3"],
+                        "arc_progress": "受け身から決意へ",
+                        "target_length_guidance": "長め",
+                    },
+                ],
+            )
+            save_scene_cards(
+                Path(tmp_dir),
+                [
+                    {
+                        "chapter_number": 1,
+                        "scenes": [
+                            {
+                                "chapter_number": 1,
+                                "scene_number": 1,
+                                "scene_goal": "異変に気づく",
+                                "scene_conflict": "記憶が揺らぐ",
+                                "scene_turn": "腕時計が震える",
+                                "pov_character": "ミナト",
+                                "participants": ["ミナト"],
+                                "setting": "駅前",
+                                "must_include": ["腕時計"],
+                                "continuity_refs": [],
+                                "foreshadowing_action": "時計を見る",
+                                "exit_state": "違和感を抱える",
+                            },
+                            {
+                                "chapter_number": 1,
+                                "scene_number": 2,
+                                "scene_goal": "相談相手を探す",
+                                "scene_conflict": "誰も信じられない",
+                                "scene_turn": "古い噂を聞く",
+                                "pov_character": "ミナト",
+                                "participants": ["ミナト", "店主"],
+                                "setting": "喫茶店",
+                                "must_include": ["古い噂"],
+                                "continuity_refs": ["scene 1"],
+                                "foreshadowing_action": "メモを取る",
+                                "exit_state": "次の目的地が決まる",
+                            },
+                            {
+                                "chapter_number": 1,
+                                "scene_number": 3,
+                                "scene_goal": "次章へつなぐ",
+                                "scene_conflict": "尾行に気づく",
+                                "scene_turn": "誰かが主人公を見ている",
+                                "pov_character": "ミナト",
+                                "participants": ["ミナト", "尾行者"],
+                                "setting": "高架下",
+                                "must_include": ["足音"],
+                                "continuity_refs": ["scene 2"],
+                                "foreshadowing_action": "振り返る",
+                                "exit_state": "危機が近づく",
+                            },
+                        ],
+                    },
+                    {
+                        "chapter_number": 2,
+                        "scenes": [
+                            {
+                                "chapter_number": 2,
+                                "scene_number": 1,
+                                "scene_goal": "旧計画を実行する",
+                                "scene_conflict": "警戒が強い",
+                                "scene_turn": "想定外の警報が鳴る",
+                                "pov_character": "ミナト",
+                                "participants": ["ミナト", "相棒"],
+                                "setting": "旧研究棟",
+                                "must_include": ["警報"],
+                                "continuity_refs": ["chapter-1"],
+                                "foreshadowing_action": "資料棚を見る",
+                                "exit_state": "退路が閉ざされる",
+                            },
+                            {
+                                "chapter_number": 2,
+                                "scene_number": 2,
+                                "scene_goal": "資料を持ち出す",
+                                "scene_conflict": "時間が足りない",
+                                "scene_turn": "偽装文書を見抜く",
+                                "pov_character": "ミナト",
+                                "participants": ["ミナト"],
+                                "setting": "保管室",
+                                "must_include": ["偽装文書"],
+                                "continuity_refs": ["scene 1"],
+                                "foreshadowing_action": "印を見る",
+                                "exit_state": "本命の手がかりが残る",
+                            },
+                            {
+                                "chapter_number": 2,
+                                "scene_number": 3,
+                                "scene_goal": "脱出する",
+                                "scene_conflict": "出口が封鎖される",
+                                "scene_turn": "地下通路を見つける",
+                                "pov_character": "ミナト",
+                                "participants": ["ミナト", "相棒"],
+                                "setting": "旧研究棟",
+                                "must_include": ["地下通路"],
+                                "continuity_refs": ["scene 2"],
+                                "foreshadowing_action": "床を調べる",
+                                "exit_state": "地下へ向かう",
+                            },
+                        ],
+                    },
+                    {
+                        "chapter_number": 3,
+                        "scenes": [
+                            {
+                                "chapter_number": 3,
+                                "scene_number": 1,
+                                "scene_goal": "地下で情報を探す",
+                                "scene_conflict": "停電で進めない",
+                                "scene_turn": "非常灯が点く",
+                                "pov_character": "ミナト",
+                                "participants": ["ミナト"],
+                                "setting": "地下通路",
+                                "must_include": ["非常灯"],
+                                "continuity_refs": ["chapter-2"],
+                                "foreshadowing_action": "壁を見る",
+                                "exit_state": "先へ進む",
+                            },
+                            {
+                                "chapter_number": 3,
+                                "scene_number": 2,
+                                "scene_goal": "真相へ近づく",
+                                "scene_conflict": "証言が食い違う",
+                                "scene_turn": "録音が見つかる",
+                                "pov_character": "ミナト",
+                                "participants": ["ミナト", "案内人"],
+                                "setting": "制御室",
+                                "must_include": ["録音"],
+                                "continuity_refs": ["scene 1"],
+                                "foreshadowing_action": "再生する",
+                                "exit_state": "疑いが深まる",
+                            },
+                            {
+                                "chapter_number": 3,
+                                "scene_number": 3,
+                                "scene_goal": "対立を深める",
+                                "scene_conflict": "味方を疑う",
+                                "scene_turn": "裏切りの証拠が出る",
+                                "pov_character": "ミナト",
+                                "participants": ["ミナト", "相棒"],
+                                "setting": "制御室前",
+                                "must_include": ["証拠写真"],
+                                "continuity_refs": ["scene 2"],
+                                "foreshadowing_action": "写真を確かめる",
+                                "exit_state": "次章へ不信感を持ち越す",
+                            },
+                        ],
+                    },
+                ],
+            )
+
+            result = apply_replan_updates(
+                Path(tmp_dir),
+                {
+                    "replan_id": "replan-001",
+                    "trigger_chapter_number": 1,
+                    "reason": "中盤の役割を前倒しで組み替える",
+                    "issue_codes": ["escalation_pace_flat"],
+                    "impact_scope": {"from_chapter": 2, "to_chapter": 3, "chapter_numbers": [2, 3]},
+                    "updated_artifacts": ["chapter_briefs", "scene_cards"],
+                    "change_summary": ["第2章と第3章の役割を再構成する"],
+                },
+                chapter_brief_updates=[
+                    {
+                        "chapter_number": 2,
+                        "purpose": "再計画後の探索",
+                        "goal": "伏線を前倒しで回収する",
+                        "conflict": "相棒との不信が露呈する",
+                        "turn": "録音の一部が先に見つかる",
+                        "must_include": ["録音の断片"],
+                        "continuity_dependencies": ["chapter-1"],
+                        "foreshadowing_targets": ["seed-2", "seed-3"],
+                        "arc_progress": "疑いを言語化する",
+                        "target_length_guidance": "標準",
+                    },
+                    {
+                        "chapter_number": 3,
+                        "purpose": "対立の加速",
+                        "goal": "裏切りの核心へ近づく",
+                        "conflict": "証拠が相棒を指す",
+                        "turn": "証拠の出所に矛盾が見つかる",
+                        "must_include": ["証拠写真", "録音"],
+                        "continuity_dependencies": ["chapter-2"],
+                        "foreshadowing_targets": ["seed-4"],
+                        "arc_progress": "決意へ踏み込む",
+                        "target_length_guidance": "長め",
+                    },
+                ],
+                scene_card_updates=[
+                    {
+                        "chapter_number": 2,
+                        "scenes": [
+                            {
+                                "chapter_number": 2,
+                                "scene_number": 1,
+                                "scene_goal": "録音の断片を追う",
+                                "scene_conflict": "相棒が行き先を隠す",
+                                "scene_turn": "断片が旧研究棟を示す",
+                                "pov_character": "ミナト",
+                                "participants": ["ミナト", "相棒"],
+                                "setting": "商店街",
+                                "must_include": ["録音の断片"],
+                                "continuity_refs": ["chapter-1"],
+                                "foreshadowing_action": "波形を確認する",
+                                "exit_state": "旧研究棟へ向かう",
+                            },
+                            {
+                                "chapter_number": 2,
+                                "scene_number": 2,
+                                "scene_goal": "相棒を問い詰める",
+                                "scene_conflict": "言い訳が二転三転する",
+                                "scene_turn": "証拠写真の存在が示唆される",
+                                "pov_character": "ミナト",
+                                "participants": ["ミナト", "相棒"],
+                                "setting": "歩道橋",
+                                "must_include": ["証拠写真"],
+                                "continuity_refs": ["scene 1"],
+                                "foreshadowing_action": "写真の話を聞き返す",
+                                "exit_state": "不信感が確信へ変わる",
+                            },
+                            {
+                                "chapter_number": 2,
+                                "scene_number": 3,
+                                "scene_goal": "次章の対立へつなぐ",
+                                "scene_conflict": "別勢力が介入する",
+                                "scene_turn": "黒幕側の監視を知る",
+                                "pov_character": "ミナト",
+                                "participants": ["ミナト", "監視者"],
+                                "setting": "旧研究棟前",
+                                "must_include": ["監視メモ"],
+                                "continuity_refs": ["scene 2"],
+                                "foreshadowing_action": "監視記録を拾う",
+                                "exit_state": "三者対立の兆候が生まれる",
+                            },
+                        ],
+                    },
+                    {
+                        "chapter_number": 3,
+                        "scenes": [
+                            {
+                                "chapter_number": 3,
+                                "scene_number": 1,
+                                "scene_goal": "証拠の出所を追う",
+                                "scene_conflict": "記録が改ざんされている",
+                                "scene_turn": "録音の欠落箇所が見つかる",
+                                "pov_character": "ミナト",
+                                "participants": ["ミナト"],
+                                "setting": "資料室",
+                                "must_include": ["改ざん記録"],
+                                "continuity_refs": ["chapter-2"],
+                                "foreshadowing_action": "改ざん時刻を見る",
+                                "exit_state": "黒幕候補が絞られる",
+                            },
+                            {
+                                "chapter_number": 3,
+                                "scene_number": 2,
+                                "scene_goal": "相棒と再対峙する",
+                                "scene_conflict": "相棒が沈黙する",
+                                "scene_turn": "別の犯人像が浮かぶ",
+                                "pov_character": "ミナト",
+                                "participants": ["ミナト", "相棒"],
+                                "setting": "屋上",
+                                "must_include": ["録音"],
+                                "continuity_refs": ["scene 1"],
+                                "foreshadowing_action": "録音を再生する",
+                                "exit_state": "疑い先が揺らぐ",
+                            },
+                            {
+                                "chapter_number": 3,
+                                "scene_number": 3,
+                                "scene_goal": "次の山場を準備する",
+                                "scene_conflict": "真相がまだ届かない",
+                                "scene_turn": "監視者の正体に手がかりが出る",
+                                "pov_character": "ミナト",
+                                "participants": ["ミナト", "監視者"],
+                                "setting": "非常階段",
+                                "must_include": ["監視メモ"],
+                                "continuity_refs": ["scene 2"],
+                                "foreshadowing_action": "メモを照合する",
+                                "exit_state": "次章の追跡目標が定まる",
+                            },
+                        ],
+                    },
+                ],
+            )
+
+            briefs = load_chapter_briefs(Path(tmp_dir))
+            scenes = load_scene_cards(Path(tmp_dir))
+
+            self.assertEqual(result["chapter_briefs"].name, "chapter_briefs.json")
+            self.assertEqual(result["scene_cards"].name, "scene_cards.json")
+            self.assertEqual(briefs[0]["purpose"], "導入")
+            self.assertEqual(briefs[1]["purpose"], "再計画後の探索")
+            self.assertEqual(briefs[2]["purpose"], "対立の加速")
+            self.assertEqual(scenes[0]["scenes"][0]["scene_goal"], "異変に気づく")
+            self.assertEqual(scenes[1]["scenes"][0]["scene_goal"], "録音の断片を追う")
+            self.assertEqual(scenes[2]["scenes"][1]["scene_turn"], "別の犯人像が浮かぶ")
+
+    def test_apply_replan_updates_rejects_non_future_chapter_scope(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            save_chapter_briefs(
+                Path(tmp_dir),
+                [
+                    {
+                        "chapter_number": 1,
+                        "purpose": "導入",
+                        "goal": "異変に気づく",
+                        "conflict": "記憶が揺らぐ",
+                        "turn": "腕時計が逆回転する",
+                        "must_include": ["腕時計"],
+                        "continuity_dependencies": [],
+                        "foreshadowing_targets": ["seed-1"],
+                        "arc_progress": "受け身",
+                        "target_length_guidance": "短め",
+                    }
+                ],
+            )
+            save_scene_cards(
+                Path(tmp_dir),
+                [
+                    {
+                        "chapter_number": 1,
+                        "scenes": [
+                            {
+                                "chapter_number": 1,
+                                "scene_number": 1,
+                                "scene_goal": "異変に気づく",
+                                "scene_conflict": "記憶が揺らぐ",
+                                "scene_turn": "腕時計が逆回転する",
+                                "pov_character": "ミナト",
+                                "participants": ["ミナト"],
+                                "setting": "駅前",
+                                "must_include": ["腕時計"],
+                                "continuity_refs": [],
+                                "foreshadowing_action": "時計を見る",
+                                "exit_state": "違和感を抱える",
+                            },
+                            {
+                                "chapter_number": 1,
+                                "scene_number": 2,
+                                "scene_goal": "相談相手を探す",
+                                "scene_conflict": "誰も信じられない",
+                                "scene_turn": "古い噂を聞く",
+                                "pov_character": "ミナト",
+                                "participants": ["ミナト", "店主"],
+                                "setting": "喫茶店",
+                                "must_include": ["噂"],
+                                "continuity_refs": ["scene 1"],
+                                "foreshadowing_action": "メモを取る",
+                                "exit_state": "次の目的地が決まる",
+                            },
+                            {
+                                "chapter_number": 1,
+                                "scene_number": 3,
+                                "scene_goal": "次章へつなぐ",
+                                "scene_conflict": "尾行に気づく",
+                                "scene_turn": "誰かが主人公を見ている",
+                                "pov_character": "ミナト",
+                                "participants": ["ミナト", "尾行者"],
+                                "setting": "高架下",
+                                "must_include": ["足音"],
+                                "continuity_refs": ["scene 2"],
+                                "foreshadowing_action": "振り返る",
+                                "exit_state": "危機が近づく",
+                            },
+                        ],
+                    }
+                ],
+            )
+
+            with self.assertRaisesRegex(
+                ValueError,
+                "impact_scope.from_chapter must be greater than trigger_chapter_number",
+            ):
+                apply_replan_updates(
+                    Path(tmp_dir),
+                    {
+                        "replan_id": "replan-001",
+                        "trigger_chapter_number": 1,
+                        "reason": "過去章まで巻き戻そうとしている",
+                        "issue_codes": ["bad-scope"],
+                        "impact_scope": {"from_chapter": 1, "to_chapter": 1, "chapter_numbers": [1]},
+                        "updated_artifacts": ["chapter_briefs", "scene_cards"],
+                        "change_summary": ["第1章を書き換える"],
+                    },
+                    chapter_brief_updates=[],
+                    scene_card_updates=[],
+                )
+
+    def test_apply_replan_updates_rejects_scope_and_payload_mismatch(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            save_chapter_briefs(
+                Path(tmp_dir),
+                [
+                    {
+                        "chapter_number": 1,
+                        "purpose": "導入",
+                        "goal": "異変に気づく",
+                        "conflict": "記憶が揺らぐ",
+                        "turn": "腕時計が逆回転する",
+                        "must_include": ["腕時計"],
+                        "continuity_dependencies": [],
+                        "foreshadowing_targets": ["seed-1"],
+                        "arc_progress": "受け身",
+                        "target_length_guidance": "短め",
+                    },
+                    {
+                        "chapter_number": 2,
+                        "purpose": "探索",
+                        "goal": "手がかりを集める",
+                        "conflict": "相棒を信じ切れない",
+                        "turn": "古い記録が見つかる",
+                        "must_include": ["古い記録"],
+                        "continuity_dependencies": ["chapter-1"],
+                        "foreshadowing_targets": ["seed-2"],
+                        "arc_progress": "疑いが強まる",
+                        "target_length_guidance": "標準",
+                    },
+                ],
+            )
+            save_scene_cards(
+                Path(tmp_dir),
+                [
+                    {
+                        "chapter_number": 1,
+                        "scenes": [
+                            {
+                                "chapter_number": 1,
+                                "scene_number": 1,
+                                "scene_goal": "異変に気づく",
+                                "scene_conflict": "記憶が揺らぐ",
+                                "scene_turn": "腕時計が逆回転する",
+                                "pov_character": "ミナト",
+                                "participants": ["ミナト"],
+                                "setting": "駅前",
+                                "must_include": ["腕時計"],
+                                "continuity_refs": [],
+                                "foreshadowing_action": "時計を見る",
+                                "exit_state": "違和感を抱える",
+                            },
+                            {
+                                "chapter_number": 1,
+                                "scene_number": 2,
+                                "scene_goal": "相談相手を探す",
+                                "scene_conflict": "誰も信じられない",
+                                "scene_turn": "古い噂を聞く",
+                                "pov_character": "ミナト",
+                                "participants": ["ミナト", "店主"],
+                                "setting": "喫茶店",
+                                "must_include": ["噂"],
+                                "continuity_refs": ["scene 1"],
+                                "foreshadowing_action": "メモを取る",
+                                "exit_state": "次の目的地が決まる",
+                            },
+                            {
+                                "chapter_number": 1,
+                                "scene_number": 3,
+                                "scene_goal": "次章へつなぐ",
+                                "scene_conflict": "尾行に気づく",
+                                "scene_turn": "誰かが主人公を見ている",
+                                "pov_character": "ミナト",
+                                "participants": ["ミナト", "尾行者"],
+                                "setting": "高架下",
+                                "must_include": ["足音"],
+                                "continuity_refs": ["scene 2"],
+                                "foreshadowing_action": "振り返る",
+                                "exit_state": "危機が近づく",
+                            },
+                        ],
+                    },
+                    {
+                        "chapter_number": 2,
+                        "scenes": [
+                            {
+                                "chapter_number": 2,
+                                "scene_number": 1,
+                                "scene_goal": "旧計画を実行する",
+                                "scene_conflict": "警戒が強い",
+                                "scene_turn": "想定外の警報が鳴る",
+                                "pov_character": "ミナト",
+                                "participants": ["ミナト", "相棒"],
+                                "setting": "旧研究棟",
+                                "must_include": ["警報"],
+                                "continuity_refs": ["chapter-1"],
+                                "foreshadowing_action": "資料棚を見る",
+                                "exit_state": "退路が閉ざされる",
+                            },
+                            {
+                                "chapter_number": 2,
+                                "scene_number": 2,
+                                "scene_goal": "資料を持ち出す",
+                                "scene_conflict": "時間が足りない",
+                                "scene_turn": "偽装文書を見抜く",
+                                "pov_character": "ミナト",
+                                "participants": ["ミナト"],
+                                "setting": "保管室",
+                                "must_include": ["偽装文書"],
+                                "continuity_refs": ["scene 1"],
+                                "foreshadowing_action": "印を見る",
+                                "exit_state": "本命の手がかりが残る",
+                            },
+                            {
+                                "chapter_number": 2,
+                                "scene_number": 3,
+                                "scene_goal": "脱出する",
+                                "scene_conflict": "出口が封鎖される",
+                                "scene_turn": "地下通路を見つける",
+                                "pov_character": "ミナト",
+                                "participants": ["ミナト", "相棒"],
+                                "setting": "旧研究棟",
+                                "must_include": ["地下通路"],
+                                "continuity_refs": ["scene 2"],
+                                "foreshadowing_action": "床を調べる",
+                                "exit_state": "地下へ向かう",
+                            },
+                        ],
+                    },
+                ],
+            )
+
+            with self.assertRaisesRegex(
+                ValueError,
+                "chapter_brief_updates chapter numbers must match impact_scope.chapter_numbers",
+            ):
+                apply_replan_updates(
+                    Path(tmp_dir),
+                    {
+                        "replan_id": "replan-002",
+                        "trigger_chapter_number": 1,
+                        "reason": "対象章の差し替えが足りない",
+                        "issue_codes": ["scope-mismatch"],
+                        "impact_scope": {"from_chapter": 2, "to_chapter": 2, "chapter_numbers": [2]},
+                        "updated_artifacts": ["chapter_briefs", "scene_cards"],
+                        "change_summary": ["第2章だけ差し替える"],
+                    },
+                    chapter_brief_updates=[
+                        {
+                            "chapter_number": 1,
+                            "purpose": "誤った章番号",
+                            "goal": "誤更新",
+                            "conflict": "誤更新",
+                            "turn": "誤更新",
+                            "must_include": [],
+                            "continuity_dependencies": [],
+                            "foreshadowing_targets": [],
+                            "arc_progress": "誤更新",
+                            "target_length_guidance": "短め",
+                        }
+                    ],
+                    scene_card_updates=[
+                        {
+                            "chapter_number": 2,
+                            "scenes": [
+                                {
+                                    "chapter_number": 2,
+                                    "scene_number": 1,
+                                    "scene_goal": "再計画",
+                                    "scene_conflict": "再計画",
+                                    "scene_turn": "再計画",
+                                    "pov_character": "ミナト",
+                                    "participants": ["ミナト"],
+                                    "setting": "駅前",
+                                    "must_include": [],
+                                    "continuity_refs": [],
+                                    "foreshadowing_action": "見る",
+                                    "exit_state": "進む",
+                                },
+                                {
+                                    "chapter_number": 2,
+                                    "scene_number": 2,
+                                    "scene_goal": "再計画",
+                                    "scene_conflict": "再計画",
+                                    "scene_turn": "再計画",
+                                    "pov_character": "ミナト",
+                                    "participants": ["ミナト"],
+                                    "setting": "喫茶店",
+                                    "must_include": [],
+                                    "continuity_refs": ["scene 1"],
+                                    "foreshadowing_action": "話す",
+                                    "exit_state": "進む",
+                                },
+                                {
+                                    "chapter_number": 2,
+                                    "scene_number": 3,
+                                    "scene_goal": "再計画",
+                                    "scene_conflict": "再計画",
+                                    "scene_turn": "再計画",
+                                    "pov_character": "ミナト",
+                                    "participants": ["ミナト"],
+                                    "setting": "高架下",
+                                    "must_include": [],
+                                    "continuity_refs": ["scene 2"],
+                                    "foreshadowing_action": "進む",
+                                    "exit_state": "終える",
+                                },
+                            ],
+                        }
+                    ],
+                )
 
     def test_save_chapter_handoff_packet_round_trips_valid_payload(self) -> None:
         payload = {

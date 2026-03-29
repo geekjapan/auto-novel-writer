@@ -4,7 +4,68 @@
 ここでの task は、1 回で安全に実装・テスト・docs 更新・コミットできる粒度へ分割する。
 
 ## In Progress
-- [ ] M62d: future chapter の `chapter_briefs` / `scene_cards` を更新する helper を追加する
+
+## Ready
+
+## Done
+
+- [x] M63e: next action decision の target_chapters contract を固定する
+  - Title: autonomy decision target chapter validator を追加する
+  - Milestone: M63 Autonomous Policy
+  - Purpose: action ごとの `target_chapters` 期待値を schema / storage validator でも fail-fast に固定する
+  - Target files or directories: `src/novel_writer/schema.py`, `tests/test_storage.py`, `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
+  - Done when: `continue`, `stop_for_review`, `revise`, `rerun_chapter`, `replan_future` の target chapter ルールが validator / tests / docs で固定される
+  - Required tests: `./venv/bin/python -m unittest tests.test_storage -v`, `./venv/bin/python -m unittest discover -s tests -v`
+  - Docs to update: `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
+- [x] M63d: progress_report action mapping を列挙全件で固定する
+  - Title: autonomy decision action mapping tests を追加する
+  - Milestone: M63 Autonomous Policy
+  - Purpose: `progress_report.recommended_action` から `next_action_decision.action` への mapping を全列挙型で fail-fast に固定する
+  - Target files or directories: `tests/test_pipeline.py`, `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
+  - Done when: `continue`, `revise`, `rerun`, `replan`, `stop_for_review` の mapping が tests / docs で固定される
+  - Required tests: `./venv/bin/python -m unittest tests.test_pipeline -v`, `./venv/bin/python -m unittest discover -s tests -v`
+  - Docs to update: `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
+- [x] M63c: pipeline から next action decision artifact を保存する
+  - Title: autonomy decision save 導線を追加する
+  - Milestone: M63 Autonomous Policy
+  - Purpose: `progress_report` と long-run budget をもとに next action decision を保存できる最小導線を pipeline に追加する
+  - Target files or directories: `src/novel_writer/pipeline.py`, `tests/test_pipeline.py`, `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
+  - Done when: pipeline 実行後に next action decision artifact が保存される最小ケースが tests / docs で固定される
+  - Required tests: `./venv/bin/python -m unittest tests.test_pipeline -v`, `./venv/bin/python -m unittest discover -s tests -v`
+  - Docs to update: `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
+- [x] M63b: next action decision に policy budget と detail trace を追加する
+  - Title: autonomy decision detail contract を拡張する
+  - Milestone: M63 Autonomous Policy
+  - Purpose: 次 action の判断根拠と残り budget を machine-readable に保存できるようにする
+  - Target files or directories: `src/novel_writer/schema.py`, `src/novel_writer/storage.py`, `tests/test_storage.py`, `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
+  - Done when: next action decision artifact に budget / detail trace field を追加した contract が tests / docs で固定される
+  - Required tests: `./venv/bin/python -m unittest tests.test_storage -v`, `./venv/bin/python -m unittest discover -s tests -v`
+  - Docs to update: `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
+- [x] M63a: next action decision artifact の schema を固定する
+  - Title: autonomy decision contract を追加する
+  - Milestone: M63 Autonomous Policy
+  - Purpose: `continue` / `revise` / `rerun_chapter` / `replan_future` / `stop_for_review` を機械可読に表現する最小 contract を定める
+  - Target files or directories: `src/novel_writer/schema.py`, `src/novel_writer/storage.py`, `tests/test_storage.py`, `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
+  - Done when: next action decision artifact の schema / save-load contract が tests / docs で固定される
+  - Required tests: `./venv/bin/python -m unittest tests.test_storage -v`, `./venv/bin/python -m unittest discover -s tests -v`
+  - Docs to update: `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
+- [x] M62f: replan apply 結果を `replan_history.change_summary` に反映する
+  - Title: replan apply summary を履歴へ残す
+  - Milestone: M62 Replan Loop
+  - Purpose: decision trace だけでなく、実際にどの future chapter planning artifact を更新したかを `replan_history` から追えるようにする
+  - Target files or directories: `src/novel_writer/pipeline.py`, `tests/test_pipeline.py`, `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
+  - Done when: pipeline 経由の replan apply 後に `change_summary` へ artifact 別の更新章要約が残ることが tests / docs で固定される
+  - Required tests: `./venv/bin/python -m unittest tests.test_pipeline -v`, `./venv/bin/python -m unittest discover -s tests -v`
+  - Docs to update: `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
+- [x] M62e: pipeline から replan apply helper を呼び出せるようにする
+  - Title: replan artifact apply を pipeline に接続する
+  - Milestone: M62 Replan Loop
+  - Purpose: `replan_history` の decision trace 保存だけでなく、future chapter の planning artifact 更新まで pipeline から一貫して進められるようにする
+  - Target files or directories: `src/novel_writer/pipeline.py`, `src/novel_writer/storage.py`, `tests/test_pipeline.py`, `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
+  - Done when: `progress_report.recommended_action=replan` の経路で apply helper を呼び出せる最小導線が tests / docs で固定される
+  - Required tests: `./venv/bin/python -m unittest tests.test_pipeline -v`, `./venv/bin/python -m unittest discover -s tests -v`
+  - Docs to update: `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
+- [x] M62d: future chapter の `chapter_briefs` / `scene_cards` を更新する helper を追加する
   - Title: replan apply helper を追加する
   - Milestone: M62 Replan Loop
   - Purpose: decision trace だけでなく、future chapter の実際の planning artifact を安全に更新できる helper を整える
@@ -12,11 +73,6 @@
   - Done when: 指定 chapter 以降の `chapter_briefs` / `scene_cards` を fail-fast に差し替える helper が tests / docs で固定される
   - Required tests: `./venv/bin/python -m unittest tests.test_storage -v`, `./venv/bin/python -m unittest discover -s tests -v`
   - Docs to update: `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
-
-## Ready
-
-## Done
-
 - [x] M62c: `recommended_action=replan` を `replan_history` へ保存できるようにする
 - [x] M62b: `replan_history` へ entry を追記できる helper を追加する
 - [x] M62a: `replan_history` の schema と storage contract を固定する

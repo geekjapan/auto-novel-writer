@@ -266,15 +266,34 @@ CLI から小説プロジェクトを作成し、長編小説を
 - top-level は `schema_name`, `schema_version`, `replans` に固定した
 - 各 replan entry は `replan_id`, `trigger_chapter_number`, `reason`, `issue_codes`, `impact_scope`, `updated_artifacts`, `change_summary` を required field に固定した
 - `impact_scope` は `from_chapter`, `to_chapter`, `chapter_numbers` を持ち、future chapter への影響範囲を machine-readable に表現する
+- `impact_scope.chapter_numbers` は `from_chapter..to_chapter` の連番と一致しない場合に fail fast で停止する
 - `replan_id` を主キーにした upsert helper で、未作成 history からの新規生成、既存 entry の置換、新規 entry の追記ができる
 - pipeline は `progress_report.recommended_action=replan` を検出すると `replan_history` へ decision trace を保存できる
-- 初版では `chapter_briefs` / `scene_cards` を更新対象 artifact として記録し、trigger chapter と impact scope を残す
-- 次は実際に future chapter の `chapter_briefs` / `scene_cards` を更新する helper を導入する段階である
+- `apply_replan_updates()` により、既存 `chapter_briefs` / `scene_cards` を読み込んだうえで impact scope に含まれる future chapter だけを置換できる
+- pipeline は replan 推奨時に `chapter_briefs` / `scene_cards` を再生成し、future chapter 分だけを apply helper 経由で自動適用できる
+- apply 後の `replan_history.change_summary` には、artifact ごとの更新章要約を追記できる
+- helper は past / current chapter への更新、impact scope と update payload の章番号不一致、既存 artifact 範囲外の更新を fail fast で拒否する
+- rerun は現行 planning artifact のまま対象章を再生成する操作、replan は future chapter の planning artifact 自体を更新する操作として境界を分ける
+- 次は M63 として、continue / revise / rerun / replan / stop の判断を自律的に扱う制御層へ進む段階である
 
 ### M63. 自律実行ポリシーを導入する
 
 目的:
 人手なしで「続行 / 改稿 / 再実行 / 再計画 / 停止」を判断できる制御層を作る。
+
+進捗:
+
+- `next_action_decision` の schema / storage contract は導入済み
+- top-level は `schema_name`, `schema_version`, `evaluated_through_chapter`, `action`, `reason`, `issue_codes`, `target_chapters`, `policy_budget`, `decision_trace` に固定した
+- `action` は `continue`, `revise`, `rerun_chapter`, `replan_future`, `stop_for_review` の列挙型に固定した
+- `policy_budget` には long-run budget の max / remaining 値を保存できる
+- `decision_trace` は `code`, `summary`, `value` を持つ object 配列として判断根拠を保存できる
+- pipeline は `progress_report` 保存直後に `next_action_decision` も保存できる
+- `progress_report.recommended_action` は pipeline 内で `next_action_decision.action` へ明示マッピングする
+- `replan` の場合は future chapter 範囲を `target_chapters` に保存できる
+- `continue`, `revise`, `rerun`, `replan`, `stop_for_review` の mapping は pipeline tests で固定した
+- action ごとの `target_chapters` contract も validator で固定した
+- 次に進むには `autonomy level` の列挙値と保存先 contract を決める必要がある
 
 完了条件:
 

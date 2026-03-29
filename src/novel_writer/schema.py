@@ -143,6 +143,49 @@ def progress_report_contract() -> dict:
     }
 
 
+def next_action_decision_contract() -> dict:
+    return {
+        "schema_name": "next_action_decision",
+        "schema_version": "1.0",
+        "required_fields": [
+            "schema_name",
+            "schema_version",
+            "evaluated_through_chapter",
+            "action",
+            "reason",
+            "issue_codes",
+            "target_chapters",
+            "policy_budget",
+            "decision_trace",
+        ],
+        "allowed_actions": [
+            "continue",
+            "revise",
+            "rerun_chapter",
+            "replan_future",
+            "stop_for_review",
+        ],
+        "policy_budget_required_fields": [
+            "max_high_severity_chapters",
+            "max_total_rerun_attempts",
+            "remaining_high_severity_chapter_budget",
+            "remaining_rerun_attempt_budget",
+        ],
+        "decision_trace_required_fields": [
+            "code",
+            "summary",
+            "value",
+        ],
+        "target_chapter_rules": {
+            "continue": "empty",
+            "revise": "single",
+            "rerun_chapter": "single",
+            "replan_future": "non_empty",
+            "stop_for_review": "empty",
+        },
+    }
+
+
 def replan_history_contract() -> dict:
     return {
         "schema_name": "replan_history",
@@ -291,6 +334,102 @@ def validate_progress_report(payload: dict) -> dict:
     return payload
 
 
+def validate_next_action_decision(payload: dict) -> dict:
+    contract = next_action_decision_contract()
+    if not isinstance(payload, dict):
+        raise ValueError("Invalid next_action_decision: payload must be an object.")
+
+    missing_fields = [field for field in contract["required_fields"] if field not in payload]
+    if missing_fields:
+        missing = ", ".join(sorted(missing_fields))
+        raise ValueError(
+            "Invalid next_action_decision: missing required fields: "
+            f"{missing}. Regenerate the next action decision."
+        )
+
+    if payload.get("schema_name") != contract["schema_name"]:
+        raise ValueError(
+            "Invalid next_action_decision: "
+            f"schema_name={payload.get('schema_name')!r} is not supported; expected {contract['schema_name']!r}."
+        )
+
+    if payload.get("schema_version") != contract["schema_version"]:
+        raise ValueError(
+            "Invalid next_action_decision: "
+            f"schema_version={payload.get('schema_version')!r} is not supported; expected {contract['schema_version']!r}."
+        )
+
+    _validate_int_field(
+        payload.get("evaluated_through_chapter"),
+        "next_action_decision",
+        "evaluated_through_chapter",
+    )
+    _validate_str_field(payload.get("action"), "next_action_decision", "action")
+    if payload.get("action") not in contract["allowed_actions"]:
+        allowed = ", ".join(contract["allowed_actions"])
+        raise ValueError(f"Invalid next_action_decision: action must be one of: {allowed}.")
+
+    _validate_str_field(payload.get("reason"), "next_action_decision", "reason")
+    _validate_list_field(payload.get("issue_codes"), "next_action_decision", "issue_codes")
+    _validate_list_field(payload.get("target_chapters"), "next_action_decision", "target_chapters")
+    for index, chapter_number in enumerate(payload.get("target_chapters", [])):
+        _validate_int_field(
+            chapter_number,
+            "next_action_decision",
+            f"target_chapters[{index}]",
+        )
+        if chapter_number <= 0:
+            raise ValueError(
+                f"Invalid next_action_decision: target_chapters[{index}] must be greater than or equal to 1."
+            )
+
+    action = payload.get("action")
+    target_chapters = list(payload.get("target_chapters", []))
+    target_rule = contract["target_chapter_rules"][action]
+    if target_rule == "empty" and target_chapters:
+        raise ValueError(f"Invalid next_action_decision: {action} must not have target_chapters.")
+    if target_rule == "single" and len(target_chapters) != 1:
+        raise ValueError(f"Invalid next_action_decision: {action} must have exactly one target chapter.")
+    if target_rule == "non_empty" and not target_chapters:
+        raise ValueError(f"Invalid next_action_decision: {action} must have at least one target chapter.")
+
+    policy_budget = payload.get("policy_budget")
+    if not isinstance(policy_budget, dict):
+        raise ValueError("Invalid next_action_decision: policy_budget must be an object.")
+    missing_policy_fields = [
+        field for field in contract["policy_budget_required_fields"] if field not in policy_budget
+    ]
+    if missing_policy_fields:
+        missing = ", ".join(sorted(missing_policy_fields))
+        raise ValueError(
+            f"Invalid next_action_decision: policy_budget is missing required fields: {missing}."
+        )
+    for field_name in contract["policy_budget_required_fields"]:
+        _validate_int_field(
+            policy_budget.get(field_name),
+            "next_action_decision",
+            f"policy_budget.{field_name}",
+        )
+
+    decision_trace = payload.get("decision_trace")
+    _validate_list_field(decision_trace, "next_action_decision", "decision_trace")
+    for index, entry in enumerate(decision_trace):
+        if not isinstance(entry, dict):
+            raise ValueError(f"Invalid next_action_decision: decision_trace[{index}] must be an object.")
+        missing_trace_fields = [
+            field for field in contract["decision_trace_required_fields"] if field not in entry
+        ]
+        if missing_trace_fields:
+            missing = ", ".join(sorted(missing_trace_fields))
+            raise ValueError(
+                f"Invalid next_action_decision: decision_trace[{index}] is missing required fields: {missing}."
+            )
+        _validate_str_field(entry.get("code"), "next_action_decision", f"decision_trace[{index}].code")
+        _validate_str_field(entry.get("summary"), "next_action_decision", f"decision_trace[{index}].summary")
+
+    return payload
+
+
 def validate_replan_history(payload: dict) -> dict:
     contract = replan_history_contract()
     if not isinstance(payload, dict):
@@ -375,6 +514,12 @@ def validate_replan_entry(payload: dict, field_name: str = "replan") -> dict:
         "replan_history",
         f"{field_name}.impact_scope.chapter_numbers",
     )
+    chapter_numbers = impact_scope.get("chapter_numbers")
+    expected_chapters = list(range(impact_scope["from_chapter"], impact_scope["to_chapter"] + 1))
+    if chapter_numbers != expected_chapters:
+        raise ValueError(
+            f"Invalid replan_history: {field_name}.impact_scope.chapter_numbers must be {expected_chapters}."
+        )
 
     return payload
 
@@ -680,69 +825,74 @@ def validate_scene_cards(payload: list[dict]) -> list[dict]:
 
     contract = scene_cards_contract()
     for index, chapter_packet in enumerate(payload):
-        if not isinstance(chapter_packet, dict):
-            raise ValueError(f"Invalid scene_cards: scene_cards[{index}] must be an object.")
-
-        missing_fields = [field for field in contract["required_fields"] if field not in chapter_packet]
-        if missing_fields:
-            missing = ", ".join(sorted(missing_fields))
-            raise ValueError(
-                "Invalid scene_cards: "
-                f"scene_cards[{index}] is missing required fields: {missing}."
-            )
-
-        _validate_int_field(
-            chapter_packet.get("chapter_number"),
-            "scene_cards",
-            f"scene_cards[{index}].chapter_number",
-        )
+        validate_scene_card_packet(chapter_packet, f"scene_cards[{index}]")
         if chapter_packet.get("chapter_number") != index + 1:
             raise ValueError(
                 "Invalid scene_cards: "
                 f"scene_cards[{index}] chapter_number sequence must be 1..len(payload)."
             )
 
-        scenes = chapter_packet.get("scenes")
-        _validate_list_field(scenes, "scene_cards", f"scene_cards[{index}].scenes")
-        if not 3 <= len(scenes) <= 7:
+    return payload
+
+
+def validate_scene_card_packet(payload: dict, field_name: str) -> dict:
+    contract = scene_cards_contract()
+    if not isinstance(payload, dict):
+        raise ValueError(f"Invalid scene_cards: {field_name} must be an object.")
+
+    missing_fields = [field for field in contract["required_fields"] if field not in payload]
+    if missing_fields:
+        missing = ", ".join(sorted(missing_fields))
+        raise ValueError(
+            "Invalid scene_cards: "
+            f"{field_name} is missing required fields: {missing}."
+        )
+
+    _validate_int_field(
+        payload.get("chapter_number"),
+        "scene_cards",
+        f"{field_name}.chapter_number",
+    )
+
+    scenes = payload.get("scenes")
+    _validate_list_field(scenes, "scene_cards", f"{field_name}.scenes")
+    if not 3 <= len(scenes) <= 7:
+        raise ValueError(f"Invalid scene_cards: {field_name} must contain between 3 and 7 scenes.")
+
+    for scene_index, scene in enumerate(scenes):
+        validate_scene_card_entry(scene, f"{field_name}.scenes[{scene_index}]")
+        if scene.get("chapter_number") != payload.get("chapter_number"):
             raise ValueError(
-                f"Invalid scene_cards: scene_cards[{index}] must contain between 3 and 7 scenes."
+                "Invalid scene_cards: "
+                f"{field_name}.scenes[{scene_index}].chapter_number must match parent chapter_number."
+            )
+        for field_name_part in [
+            "scene_goal",
+            "scene_conflict",
+            "scene_turn",
+            "pov_character",
+            "setting",
+            "foreshadowing_action",
+            "exit_state",
+        ]:
+            _validate_str_field(
+                scene.get(field_name_part),
+                "scene_cards",
+                f"{field_name}.scenes[{scene_index}].{field_name_part}",
+            )
+        for field_name_part in ["participants", "must_include", "continuity_refs"]:
+            _validate_list_field(
+                scene.get(field_name_part),
+                "scene_cards",
+                f"{field_name}.scenes[{scene_index}].{field_name_part}",
             )
 
-        for scene_index, scene in enumerate(scenes):
-            validate_scene_card_entry(scene, f"scene_cards[{index}].scenes[{scene_index}]")
-            if scene.get("chapter_number") != chapter_packet.get("chapter_number"):
-                raise ValueError(
-                    "Invalid scene_cards: "
-                    f"scene_cards[{index}].scenes[{scene_index}].chapter_number must match parent chapter_number."
-                )
-            for field_name in [
-                "scene_goal",
-                "scene_conflict",
-                "scene_turn",
-                "pov_character",
-                "setting",
-                "foreshadowing_action",
-                "exit_state",
-            ]:
-                _validate_str_field(
-                    scene.get(field_name),
-                    "scene_cards",
-                    f"scene_cards[{index}].scenes[{scene_index}].{field_name}",
-                )
-            for field_name in ["participants", "must_include", "continuity_refs"]:
-                _validate_list_field(
-                    scene.get(field_name),
-                    "scene_cards",
-                    f"scene_cards[{index}].scenes[{scene_index}].{field_name}",
-                )
-
-        _validate_sequential_numbers(
-            [scene.get("scene_number") for scene in scenes],
-            "scene_cards",
-            f"scene_cards[{index}].scenes",
-            "scenes",
-        )
+    _validate_sequential_numbers(
+        [scene.get("scene_number") for scene in scenes],
+        "scene_cards",
+        f"{field_name}.scenes",
+        "scenes",
+    )
 
     return payload
 
@@ -1288,6 +1438,7 @@ class StoryArtifacts:
     story_summary: dict = field(default_factory=dict)
     project_quality_report: dict = field(default_factory=dict)
     progress_report: dict = field(default_factory=dict)
+    next_action_decision: dict = field(default_factory=dict)
     publish_ready_bundle: dict = field(default_factory=dict)
     rerun_history: list[dict] = field(default_factory=list)
     revise_history: list[dict] = field(default_factory=list)
@@ -1346,6 +1497,7 @@ class StoryArtifacts:
             "chapter_handoff_packet": chapter_handoff_packet_contract(),
             "canon_ledger": canon_ledger_contract(),
             "chapter_briefs": chapter_briefs_contract(),
+            "next_action_decision": next_action_decision_contract(),
             "progress_report": progress_report_contract(),
             "replan_history": replan_history_contract(),
             "scene_cards": scene_cards_contract(),
