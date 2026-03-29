@@ -6,7 +6,26 @@
 ## In Progress
 
 ## Ready
-- [ ] M62e: pipeline から replan apply helper を呼び出せるようにする
+- [ ] M63a: next action decision artifact の schema を固定する
+  - Title: autonomy decision contract を追加する
+  - Milestone: M63 Autonomous Policy
+  - Purpose: `continue` / `revise` / `rerun_chapter` / `replan_future` / `stop_for_review` を機械可読に表現する最小 contract を定める
+  - Target files or directories: `src/novel_writer/schema.py`, `src/novel_writer/storage.py`, `tests/test_storage.py`, `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
+  - Done when: next action decision artifact の schema / save-load contract が tests / docs で固定される
+  - Required tests: `./venv/bin/python -m unittest tests.test_storage -v`, `./venv/bin/python -m unittest discover -s tests -v`
+  - Docs to update: `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
+
+## Done
+
+- [x] M62f: replan apply 結果を `replan_history.change_summary` に反映する
+  - Title: replan apply summary を履歴へ残す
+  - Milestone: M62 Replan Loop
+  - Purpose: decision trace だけでなく、実際にどの future chapter planning artifact を更新したかを `replan_history` から追えるようにする
+  - Target files or directories: `src/novel_writer/pipeline.py`, `tests/test_pipeline.py`, `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
+  - Done when: pipeline 経由の replan apply 後に `change_summary` へ artifact 別の更新章要約が残ることが tests / docs で固定される
+  - Required tests: `./venv/bin/python -m unittest tests.test_pipeline -v`, `./venv/bin/python -m unittest discover -s tests -v`
+  - Docs to update: `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
+- [x] M62e: pipeline から replan apply helper を呼び出せるようにする
   - Title: replan artifact apply を pipeline に接続する
   - Milestone: M62 Replan Loop
   - Purpose: `replan_history` の decision trace 保存だけでなく、future chapter の planning artifact 更新まで pipeline から一貫して進められるようにする
@@ -14,9 +33,6 @@
   - Done when: `progress_report.recommended_action=replan` の経路で apply helper を呼び出せる最小導線が tests / docs で固定される
   - Required tests: `./venv/bin/python -m unittest tests.test_pipeline -v`, `./venv/bin/python -m unittest discover -s tests -v`
   - Docs to update: `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
-
-## Done
-
 - [x] M62d: future chapter の `chapter_briefs` / `scene_cards` を更新する helper を追加する
   - Title: replan apply helper を追加する
   - Milestone: M62 Replan Loop

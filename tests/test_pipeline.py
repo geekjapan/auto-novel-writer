@@ -7,7 +7,13 @@ from novel_writer.llm_client import MockLLMClient
 from novel_writer.pipeline import PIPELINE_STEP_ORDER, StoryPipeline
 from novel_writer.rerun_policy import ContinuityRerunPolicy
 from novel_writer.schema import StoryInput
-from novel_writer.storage import load_replan_history, save_canon_ledger, save_thread_registry
+from novel_writer.storage import (
+    load_chapter_briefs,
+    load_replan_history,
+    load_scene_cards,
+    save_canon_ledger,
+    save_thread_registry,
+)
 
 
 class RecordingDraftContextLLMClient(MockLLMClient):
@@ -169,6 +175,78 @@ class ReplanTriggerContinuityChecker(NoRerunContinuityChecker):
             "evidence": ["chapter-3"],
         }
         return report
+
+
+class EarlyReplanTriggerContinuityChecker(NoRerunContinuityChecker):
+    def build_progress_report(self, artifacts, thread_registry):
+        report = super().build_progress_report(artifacts, thread_registry)
+        report["evaluated_through_chapter"] = 1
+        report["issue_codes"] = ["escalation_pace_flat"]
+        report["recommended_action"] = "replan"
+        report["checks"]["escalation_pace"] = {
+            "status": "warning",
+            "summary": "第2章以降の役割を組み替える必要がある",
+            "evidence": ["chapter-1"],
+        }
+        return report
+
+
+class ReplanningMockLLMClient(MockLLMClient):
+    def __init__(self) -> None:
+        super().__init__()
+        self.chapter_briefs_calls = 0
+        self.scene_cards_calls = 0
+
+    def generate_chapter_briefs(
+        self,
+        story_input,
+        logline,
+        characters,
+        three_act_plot,
+        story_bible,
+        chapter_plan,
+    ):
+        briefs = super().generate_chapter_briefs(
+            story_input,
+            logline,
+            characters,
+            three_act_plot,
+            story_bible,
+            chapter_plan,
+        )
+        self.chapter_briefs_calls += 1
+        if self.chapter_briefs_calls >= 2:
+            for brief in briefs[1:]:
+                brief["purpose"] = f"REPLAN {brief['purpose']}"
+                brief["goal"] = f"REPLAN {brief['goal']}"
+                brief["turn"] = f"REPLAN {brief['turn']}"
+        return briefs
+
+    def generate_scene_cards(
+        self,
+        story_input,
+        logline,
+        characters,
+        three_act_plot,
+        story_bible,
+        chapter_plan,
+        chapter_briefs,
+    ):
+        packets = super().generate_scene_cards(
+            story_input,
+            logline,
+            characters,
+            three_act_plot,
+            story_bible,
+            chapter_plan,
+            chapter_briefs,
+        )
+        self.scene_cards_calls += 1
+        if self.scene_cards_calls >= 2:
+            for packet in packets[1:]:
+                packet["scenes"][0]["scene_goal"] = f"REPLAN {packet['scenes'][0]['scene_goal']}"
+                packet["scenes"][0]["exit_state"] = f"REPLAN {packet['scenes'][0]['exit_state']}"
+        return packets
 
 
 class StoryPipelineTest(unittest.TestCase):
@@ -691,6 +769,43 @@ class StoryPipelineTest(unittest.TestCase):
                 replan_history["replans"][0]["updated_artifacts"],
                 ["chapter_briefs", "scene_cards"],
             )
+
+    def test_pipeline_applies_replan_updates_to_future_planning_artifacts(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            output_dir = Path(tmp_dir)
+
+            artifacts = StoryPipeline(
+                ReplanningMockLLMClient(),
+                output_dir,
+                "json",
+                continuity_checker=EarlyReplanTriggerContinuityChecker(),
+            ).run(
+                StoryInput(theme="記憶", genre="SF", tone="ビター", target_length=8000)
+            )
+
+            replan_history = load_replan_history(output_dir)
+            chapter_briefs = load_chapter_briefs(output_dir)
+            scene_cards = load_scene_cards(output_dir)
+
+            self.assertEqual(replan_history["replans"][0]["trigger_chapter_number"], 1)
+            self.assertEqual(
+                replan_history["replans"][0]["impact_scope"]["chapter_numbers"],
+                list(range(2, len(artifacts.chapter_plan) + 1)),
+            )
+            self.assertIn(
+                "chapter_briefs updated for chapters: 2, 3, 4",
+                replan_history["replans"][0]["change_summary"],
+            )
+            self.assertIn(
+                "scene_cards updated for chapters: 2, 3, 4",
+                replan_history["replans"][0]["change_summary"],
+            )
+            self.assertEqual(chapter_briefs[0]["purpose"], artifacts.chapter_plan[0]["purpose"])
+            self.assertTrue(chapter_briefs[1]["purpose"].startswith("REPLAN "))
+            self.assertTrue(chapter_briefs[2]["purpose"].startswith("REPLAN "))
+            self.assertFalse(scene_cards[0]["scenes"][0]["scene_goal"].startswith("REPLAN "))
+            self.assertTrue(scene_cards[1]["scenes"][0]["scene_goal"].startswith("REPLAN "))
+            self.assertTrue(scene_cards[2]["scenes"][0]["exit_state"].startswith("REPLAN "))
 
     def test_rerun_chapter_updates_memory_artifacts_for_target_chapter(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

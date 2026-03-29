@@ -9,6 +9,7 @@ from novel_writer.llm_client import BaseLLMClient
 from novel_writer.rerun_policy import ContinuityRerunPolicy
 from novel_writer.schema import StoryArtifacts, StoryInput
 from novel_writer.storage import (
+    apply_replan_updates,
     load_canon_ledger,
     load_artifact,
     load_chapter_briefs,
@@ -221,7 +222,7 @@ class StoryPipeline:
             thread_registry,
         )
         save_progress_report(self.output_dir, artifacts.progress_report, "json")
-        self._record_replan_decision(artifacts.progress_report, artifacts)
+        self._record_replan_decision(artifacts.progress_report, artifacts, selected_logline)
 
         artifacts.publish_ready_bundle = {
             "title": artifacts.story_summary.get("title") or selected_logline.get("title"),
@@ -944,13 +945,26 @@ class StoryPipeline:
             thread_registry,
         )
         save_progress_report(self.output_dir, artifacts.progress_report, "json")
-        self._record_replan_decision(artifacts.progress_report, artifacts)
+        self._record_replan_decision(artifacts.progress_report, artifacts, selected_logline)
         self._mark_checkpoint("progress_report", checkpoints, artifacts, selected_logline)
 
-    def _record_replan_decision(self, progress_report: dict, artifacts: StoryArtifacts) -> None:
+    def _record_replan_decision(
+        self,
+        progress_report: dict,
+        artifacts: StoryArtifacts,
+        selected_logline: dict,
+    ) -> None:
         if progress_report.get("recommended_action") != "replan":
             return
 
+        replan_payload = self._build_replan_payload(progress_report, artifacts)
+        upsert_replan_history_entry(self.output_dir, replan_payload, self.file_format)
+        applied_summary = self._apply_replan_artifact_updates(replan_payload, artifacts, selected_logline)
+        if applied_summary:
+            replan_payload["change_summary"] = list(replan_payload["change_summary"]) + applied_summary
+            upsert_replan_history_entry(self.output_dir, replan_payload, self.file_format)
+
+    def _build_replan_payload(self, progress_report: dict, artifacts: StoryArtifacts) -> dict:
         trigger_chapter_number = int(progress_report.get("evaluated_through_chapter", 0))
         total_chapters = len(artifacts.chapter_plan)
         from_chapter = min(trigger_chapter_number + 1, total_chapters) if total_chapters else trigger_chapter_number
@@ -963,25 +977,67 @@ class StoryPipeline:
             from_chapter = trigger_chapter_number
             to_chapter = trigger_chapter_number
 
-        upsert_replan_history_entry(
-            self.output_dir,
-            {
-                "replan_id": f"replan-after-chapter-{trigger_chapter_number}",
-                "trigger_chapter_number": trigger_chapter_number,
-                "reason": "progress_report recommended replan",
-                "issue_codes": list(progress_report.get("issue_codes", [])),
-                "impact_scope": {
-                    "from_chapter": from_chapter,
-                    "to_chapter": to_chapter,
-                    "chapter_numbers": chapter_numbers,
-                },
-                "updated_artifacts": ["chapter_briefs", "scene_cards"],
-                "change_summary": [
-                    f"chapter {trigger_chapter_number} の progress_report が replan を推奨した",
-                ],
+        return {
+            "replan_id": f"replan-after-chapter-{trigger_chapter_number}",
+            "trigger_chapter_number": trigger_chapter_number,
+            "reason": "progress_report recommended replan",
+            "issue_codes": list(progress_report.get("issue_codes", [])),
+            "impact_scope": {
+                "from_chapter": from_chapter,
+                "to_chapter": to_chapter,
+                "chapter_numbers": chapter_numbers,
             },
-            self.file_format,
+            "updated_artifacts": ["chapter_briefs", "scene_cards"],
+            "change_summary": [
+                f"chapter {trigger_chapter_number} の progress_report が replan を推奨した",
+            ],
+        }
+
+    def _apply_replan_artifact_updates(
+        self,
+        replan_payload: dict,
+        artifacts: StoryArtifacts,
+        selected_logline: dict,
+    ) -> list[str]:
+        chapter_numbers = list(replan_payload["impact_scope"]["chapter_numbers"])
+        if not chapter_numbers:
+            return []
+        if chapter_numbers[0] <= replan_payload["trigger_chapter_number"]:
+            return []
+        if not artifacts.chapter_briefs or not artifacts.scene_cards:
+            raise ValueError("chapter_briefs and scene_cards are required before applying replan updates.")
+
+        regenerated_briefs = self.llm_client.generate_chapter_briefs(
+            artifacts.story_input,
+            selected_logline,
+            artifacts.characters,
+            artifacts.three_act_plot,
+            artifacts.story_bible,
+            artifacts.chapter_plan,
         )
+        regenerated_scene_cards = self.llm_client.generate_scene_cards(
+            artifacts.story_input,
+            selected_logline,
+            artifacts.characters,
+            artifacts.three_act_plot,
+            artifacts.story_bible,
+            artifacts.chapter_plan,
+            regenerated_briefs,
+        )
+        apply_replan_updates(
+            self.output_dir,
+            replan_payload,
+            chapter_brief_updates=[regenerated_briefs[number - 1] for number in chapter_numbers],
+            scene_card_updates=[regenerated_scene_cards[number - 1] for number in chapter_numbers],
+            file_format=self.file_format,
+        )
+        artifacts.chapter_briefs = load_chapter_briefs(self.output_dir, self.file_format)
+        artifacts.scene_cards = load_scene_cards(self.output_dir, self.file_format)
+        chapter_numbers_text = ", ".join(str(number) for number in chapter_numbers)
+        return [
+            f"chapter_briefs updated for chapters: {chapter_numbers_text}",
+            f"scene_cards updated for chapters: {chapter_numbers_text}",
+        ]
 
     def _run_publish_ready_bundle_step(
         self,
