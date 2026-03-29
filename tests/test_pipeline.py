@@ -192,6 +192,47 @@ class EarlyReplanTriggerContinuityChecker(NoRerunContinuityChecker):
         return report
 
 
+class ReviseTriggerContinuityChecker(NoRerunContinuityChecker):
+    def build_progress_report(self, artifacts, thread_registry):
+        report = super().build_progress_report(artifacts, thread_registry)
+        report["evaluated_through_chapter"] = 2
+        report["issue_codes"] = ["emotional_progression_stall"]
+        report["recommended_action"] = "revise"
+        report["checks"]["emotional_progression"] = {
+            "status": "warning",
+            "summary": "感情変化が弱く改稿が必要である",
+            "evidence": ["chapter-2"],
+        }
+        return report
+
+
+class RerunTriggerContinuityChecker(NoRerunContinuityChecker):
+    def build_progress_report(self, artifacts, thread_registry):
+        report = super().build_progress_report(artifacts, thread_registry)
+        report["evaluated_through_chapter"] = 2
+        report["issue_codes"] = ["chapter_role_coverage_gap"]
+        report["recommended_action"] = "rerun"
+        report["checks"]["chapter_role_coverage"] = {
+            "status": "warning",
+            "summary": "章役割が崩れており再実行が必要である",
+            "evidence": ["chapter-2"],
+        }
+        return report
+
+
+class StopForReviewContinuityChecker(NoRerunContinuityChecker):
+    def build_progress_report(self, artifacts, thread_registry):
+        report = super().build_progress_report(artifacts, thread_registry)
+        report["issue_codes"] = ["human_review_required"]
+        report["recommended_action"] = "stop_for_review"
+        report["checks"]["unresolved_thread_load"] = {
+            "status": "warning",
+            "summary": "保留案件が多く人手確認が必要である",
+            "evidence": ["chapter-3"],
+        }
+        return report
+
+
 class ReplanningMockLLMClient(MockLLMClient):
     def __init__(self) -> None:
         super().__init__()
@@ -875,6 +916,63 @@ class StoryPipelineTest(unittest.TestCase):
                 },
                 next_action_decision["decision_trace"],
             )
+
+    def test_pipeline_maps_revise_recommended_action_to_revise_decision(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            output_dir = Path(tmp_dir)
+
+            StoryPipeline(
+                MockLLMClient(),
+                output_dir,
+                "json",
+                continuity_checker=ReviseTriggerContinuityChecker(),
+            ).run(
+                StoryInput(theme="記憶", genre="SF", tone="ビター", target_length=8000)
+            )
+
+            next_action_decision = load_next_action_decision(output_dir)
+
+            self.assertEqual(next_action_decision["action"], "revise")
+            self.assertEqual(next_action_decision["target_chapters"], [2])
+            self.assertEqual(next_action_decision["issue_codes"], ["emotional_progression_stall"])
+
+    def test_pipeline_maps_rerun_recommended_action_to_rerun_chapter_decision(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            output_dir = Path(tmp_dir)
+
+            StoryPipeline(
+                MockLLMClient(),
+                output_dir,
+                "json",
+                continuity_checker=RerunTriggerContinuityChecker(),
+            ).run(
+                StoryInput(theme="記憶", genre="SF", tone="ビター", target_length=8000)
+            )
+
+            next_action_decision = load_next_action_decision(output_dir)
+
+            self.assertEqual(next_action_decision["action"], "rerun_chapter")
+            self.assertEqual(next_action_decision["target_chapters"], [2])
+            self.assertEqual(next_action_decision["issue_codes"], ["chapter_role_coverage_gap"])
+
+    def test_pipeline_maps_stop_for_review_recommended_action_to_same_decision(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            output_dir = Path(tmp_dir)
+
+            StoryPipeline(
+                MockLLMClient(),
+                output_dir,
+                "json",
+                continuity_checker=StopForReviewContinuityChecker(),
+            ).run(
+                StoryInput(theme="記憶", genre="SF", tone="ビター", target_length=8000)
+            )
+
+            next_action_decision = load_next_action_decision(output_dir)
+
+            self.assertEqual(next_action_decision["action"], "stop_for_review")
+            self.assertEqual(next_action_decision["target_chapters"], [])
+            self.assertEqual(next_action_decision["issue_codes"], ["human_review_required"])
 
     def test_rerun_chapter_updates_memory_artifacts_for_target_chapter(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
