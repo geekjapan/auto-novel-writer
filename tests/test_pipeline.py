@@ -9,6 +9,7 @@ from novel_writer.rerun_policy import ContinuityRerunPolicy
 from novel_writer.schema import StoryInput
 from novel_writer.storage import (
     load_chapter_briefs,
+    load_next_action_decision,
     load_replan_history,
     load_scene_cards,
     save_canon_ledger,
@@ -283,6 +284,7 @@ class StoryPipelineTest(unittest.TestCase):
                 "story_summary.json",
                 "project_quality_report.json",
                 "progress_report.json",
+                "next_action_decision.json",
                 "publish_ready_bundle.json",
                 "manifest.json",
             ]
@@ -300,6 +302,9 @@ class StoryPipelineTest(unittest.TestCase):
                 (output_dir / "project_quality_report.json").read_text(encoding="utf-8")
             )
             progress_report = json.loads((output_dir / "progress_report.json").read_text(encoding="utf-8"))
+            next_action_decision = json.loads(
+                (output_dir / "next_action_decision.json").read_text(encoding="utf-8")
+            )
             publish_ready_bundle = json.loads(
                 (output_dir / "publish_ready_bundle.json").read_text(encoding="utf-8")
             )
@@ -349,6 +354,9 @@ class StoryPipelineTest(unittest.TestCase):
             self.assertIn("checks", project_quality_report)
             self.assertEqual(progress_report["schema_name"], "progress_report")
             self.assertEqual(manifest["artifacts"]["progress_report"], progress_report)
+            self.assertEqual(next_action_decision["schema_name"], "next_action_decision")
+            self.assertEqual(artifacts.next_action_decision, next_action_decision)
+            self.assertEqual(manifest["artifacts"]["next_action_decision"], next_action_decision)
             self.assertEqual(artifacts.publish_ready_bundle, publish_ready_bundle)
             self.assertEqual(manifest["artifacts"]["publish_ready_bundle"], publish_ready_bundle)
             self.assertEqual(publish_ready_bundle["schema_version"], "1.0")
@@ -806,6 +814,67 @@ class StoryPipelineTest(unittest.TestCase):
             self.assertFalse(scene_cards[0]["scenes"][0]["scene_goal"].startswith("REPLAN "))
             self.assertTrue(scene_cards[1]["scenes"][0]["scene_goal"].startswith("REPLAN "))
             self.assertTrue(scene_cards[2]["scenes"][0]["exit_state"].startswith("REPLAN "))
+
+    def test_pipeline_saves_next_action_decision_after_progress_report(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            output_dir = Path(tmp_dir)
+
+            artifacts = StoryPipeline(
+                MockLLMClient(),
+                output_dir,
+                "json",
+                continuity_checker=NoRerunContinuityChecker(),
+            ).run(
+                StoryInput(theme="記憶", genre="SF", tone="ビター", target_length=8000)
+            )
+
+            next_action_decision = load_next_action_decision(output_dir)
+
+            self.assertTrue((output_dir / "next_action_decision.json").exists())
+            self.assertEqual(next_action_decision["evaluated_through_chapter"], len(artifacts.chapter_plan))
+            self.assertEqual(next_action_decision["action"], "continue")
+            self.assertEqual(next_action_decision["reason"], "progress_report recommended continue")
+            self.assertEqual(next_action_decision["issue_codes"], [])
+            self.assertEqual(next_action_decision["target_chapters"], [])
+            self.assertEqual(next_action_decision["policy_budget"]["max_high_severity_chapters"], 10)
+            self.assertEqual(next_action_decision["policy_budget"]["max_total_rerun_attempts"], 20)
+            self.assertEqual(next_action_decision["decision_trace"][0]["code"], "chapter_role_coverage")
+            self.assertEqual(next_action_decision["decision_trace"][0]["summary"], "ok")
+            self.assertEqual(next_action_decision["decision_trace"][0]["value"], "ok")
+
+    def test_pipeline_maps_replan_recommended_action_to_replan_future_decision(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            output_dir = Path(tmp_dir)
+
+            artifacts = StoryPipeline(
+                MockLLMClient(),
+                output_dir,
+                "json",
+                continuity_checker=EarlyReplanTriggerContinuityChecker(),
+            ).run(
+                StoryInput(theme="記憶", genre="SF", tone="ビター", target_length=8000)
+            )
+
+            next_action_decision = load_next_action_decision(output_dir)
+
+            self.assertEqual(next_action_decision["action"], "replan_future")
+            self.assertEqual(next_action_decision["issue_codes"], ["escalation_pace_flat"])
+            self.assertEqual(
+                next_action_decision["target_chapters"],
+                list(range(2, len(artifacts.chapter_plan) + 1)),
+            )
+            self.assertEqual(
+                next_action_decision["reason"],
+                "progress_report recommended replan",
+            )
+            self.assertIn(
+                {
+                    "code": "escalation_pace",
+                    "summary": "第2章以降の役割を組み替える必要がある",
+                    "value": "warning",
+                },
+                next_action_decision["decision_trace"],
+            )
 
     def test_rerun_chapter_updates_memory_artifacts_for_target_chapter(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

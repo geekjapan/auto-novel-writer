@@ -288,7 +288,10 @@ CLI から小説プロジェクトを作成し、長編小説を
 - `action` は `continue`, `revise`, `rerun_chapter`, `replan_future`, `stop_for_review` の列挙型に固定した
 - `policy_budget` には long-run budget の max / remaining 値を保存できる
 - `decision_trace` は `code`, `summary`, `value` を持つ object 配列として判断根拠を保存できる
-- 次は pipeline から decision を保存する段階である
+- pipeline は `progress_report` 保存直後に `next_action_decision` も保存できる
+- `progress_report.recommended_action` は pipeline 内で `next_action_decision.action` へ明示マッピングする
+- `replan` の場合は future chapter 範囲を `target_chapters` に保存できる
+- 次は action mapping の列挙全件を tests で固定する段階である
 
 完了条件:
 

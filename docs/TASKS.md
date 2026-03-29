@@ -6,7 +6,18 @@
 ## In Progress
 
 ## Ready
-- [ ] M63c: pipeline から next action decision artifact を保存する
+- [ ] M63d: progress_report action mapping を列挙全件で固定する
+  - Title: autonomy decision action mapping tests を追加する
+  - Milestone: M63 Autonomous Policy
+  - Purpose: `progress_report.recommended_action` から `next_action_decision.action` への mapping を全列挙型で fail-fast に固定する
+  - Target files or directories: `tests/test_pipeline.py`, `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
+  - Done when: `continue`, `revise`, `rerun`, `replan`, `stop_for_review` の mapping が tests / docs で固定される
+  - Required tests: `./venv/bin/python -m unittest tests.test_pipeline -v`, `./venv/bin/python -m unittest discover -s tests -v`
+  - Docs to update: `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
+
+## Done
+
+- [x] M63c: pipeline から next action decision artifact を保存する
   - Title: autonomy decision save 導線を追加する
   - Milestone: M63 Autonomous Policy
   - Purpose: `progress_report` と long-run budget をもとに next action decision を保存できる最小導線を pipeline に追加する
@@ -14,9 +25,6 @@
   - Done when: pipeline 実行後に next action decision artifact が保存される最小ケースが tests / docs で固定される
   - Required tests: `./venv/bin/python -m unittest tests.test_pipeline -v`, `./venv/bin/python -m unittest discover -s tests -v`
   - Docs to update: `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
-
-## Done
-
 - [x] M63b: next action decision に policy budget と detail trace を追加する
   - Title: autonomy decision detail contract を拡張する
   - Milestone: M63 Autonomous Policy

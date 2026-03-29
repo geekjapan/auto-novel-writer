@@ -20,6 +20,7 @@ from novel_writer.storage import (
     save_artifact,
     save_chapter_handoff_packet,
     save_chapter_briefs,
+    save_next_action_decision,
     save_progress_report,
     save_publish_ready_bundle,
     save_scene_cards,
@@ -67,6 +68,13 @@ class StoryPipeline:
         self.continuity_checker = continuity_checker or ContinuityChecker()
         self.rerun_policy = rerun_policy or ContinuityRerunPolicy()
         self.long_run_status = self._default_long_run_status()
+        self.next_action_map = {
+            "continue": "continue",
+            "revise": "revise",
+            "rerun": "rerun_chapter",
+            "replan": "replan_future",
+            "stop_for_review": "stop_for_review",
+        }
 
     def _default_canon_ledger(self) -> dict:
         return {"schema_name": "canon_ledger", "schema_version": "1.0", "chapters": []}
@@ -945,8 +953,63 @@ class StoryPipeline:
             thread_registry,
         )
         save_progress_report(self.output_dir, artifacts.progress_report, "json")
+        self._save_next_action_decision(artifacts.progress_report, artifacts)
         self._record_replan_decision(artifacts.progress_report, artifacts, selected_logline)
         self._mark_checkpoint("progress_report", checkpoints, artifacts, selected_logline)
+
+    def _save_next_action_decision(self, progress_report: dict, artifacts: StoryArtifacts) -> None:
+        next_action_decision = self._build_next_action_decision(progress_report, artifacts)
+        artifacts.next_action_decision = next_action_decision
+        save_next_action_decision(self.output_dir, next_action_decision, "json")
+
+    def _build_next_action_decision(self, progress_report: dict, artifacts: StoryArtifacts) -> dict:
+        recommended_action = str(progress_report.get("recommended_action"))
+        action = self.next_action_map.get(recommended_action)
+        if action is None:
+            raise ValueError(f"Unsupported progress_report recommended_action: {recommended_action}")
+
+        return {
+            "schema_name": "next_action_decision",
+            "schema_version": "1.0",
+            "evaluated_through_chapter": int(progress_report.get("evaluated_through_chapter", 0)),
+            "action": action,
+            "reason": f"progress_report recommended {recommended_action}",
+            "issue_codes": list(progress_report.get("issue_codes", [])),
+            "target_chapters": self._build_next_action_target_chapters(progress_report, artifacts),
+            "policy_budget": {
+                "max_high_severity_chapters": int(self.long_run_status.get("max_high_severity_chapters", 0)),
+                "max_total_rerun_attempts": int(self.long_run_status.get("max_total_rerun_attempts", 0)),
+                "remaining_high_severity_chapter_budget": int(
+                    self.long_run_status.get("remaining_high_severity_chapter_budget", 0)
+                ),
+                "remaining_rerun_attempt_budget": int(
+                    self.long_run_status.get("remaining_rerun_attempt_budget", 0)
+                ),
+            },
+            "decision_trace": self._build_next_action_decision_trace(progress_report),
+        }
+
+    def _build_next_action_target_chapters(self, progress_report: dict, artifacts: StoryArtifacts) -> list[int]:
+        recommended_action = progress_report.get("recommended_action")
+        evaluated_through_chapter = int(progress_report.get("evaluated_through_chapter", 0))
+        total_chapters = len(artifacts.chapter_plan)
+
+        if recommended_action == "replan" and evaluated_through_chapter < total_chapters:
+            return list(range(evaluated_through_chapter + 1, total_chapters + 1))
+        if recommended_action in {"revise", "rerun"} and evaluated_through_chapter > 0:
+            return [evaluated_through_chapter]
+        return []
+
+    def _build_next_action_decision_trace(self, progress_report: dict) -> list[dict]:
+        checks = progress_report.get("checks", {})
+        return [
+            {
+                "code": check_name,
+                "summary": str(check_payload.get("summary", "")),
+                "value": str(check_payload.get("status", "")),
+            }
+            for check_name, check_payload in checks.items()
+        ]
 
     def _record_replan_decision(
         self,

@@ -1417,6 +1417,7 @@ class StoryArtifacts:
     story_summary: dict = field(default_factory=dict)
     project_quality_report: dict = field(default_factory=dict)
     progress_report: dict = field(default_factory=dict)
+    next_action_decision: dict = field(default_factory=dict)
     publish_ready_bundle: dict = field(default_factory=dict)
     rerun_history: list[dict] = field(default_factory=list)
     revise_history: list[dict] = field(default_factory=list)
