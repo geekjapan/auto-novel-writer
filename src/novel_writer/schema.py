@@ -375,6 +375,12 @@ def validate_replan_entry(payload: dict, field_name: str = "replan") -> dict:
         "replan_history",
         f"{field_name}.impact_scope.chapter_numbers",
     )
+    chapter_numbers = impact_scope.get("chapter_numbers")
+    expected_chapters = list(range(impact_scope["from_chapter"], impact_scope["to_chapter"] + 1))
+    if chapter_numbers != expected_chapters:
+        raise ValueError(
+            f"Invalid replan_history: {field_name}.impact_scope.chapter_numbers must be {expected_chapters}."
+        )
 
     return payload
 
@@ -680,69 +686,74 @@ def validate_scene_cards(payload: list[dict]) -> list[dict]:
 
     contract = scene_cards_contract()
     for index, chapter_packet in enumerate(payload):
-        if not isinstance(chapter_packet, dict):
-            raise ValueError(f"Invalid scene_cards: scene_cards[{index}] must be an object.")
-
-        missing_fields = [field for field in contract["required_fields"] if field not in chapter_packet]
-        if missing_fields:
-            missing = ", ".join(sorted(missing_fields))
-            raise ValueError(
-                "Invalid scene_cards: "
-                f"scene_cards[{index}] is missing required fields: {missing}."
-            )
-
-        _validate_int_field(
-            chapter_packet.get("chapter_number"),
-            "scene_cards",
-            f"scene_cards[{index}].chapter_number",
-        )
+        validate_scene_card_packet(chapter_packet, f"scene_cards[{index}]")
         if chapter_packet.get("chapter_number") != index + 1:
             raise ValueError(
                 "Invalid scene_cards: "
                 f"scene_cards[{index}] chapter_number sequence must be 1..len(payload)."
             )
 
-        scenes = chapter_packet.get("scenes")
-        _validate_list_field(scenes, "scene_cards", f"scene_cards[{index}].scenes")
-        if not 3 <= len(scenes) <= 7:
+    return payload
+
+
+def validate_scene_card_packet(payload: dict, field_name: str) -> dict:
+    contract = scene_cards_contract()
+    if not isinstance(payload, dict):
+        raise ValueError(f"Invalid scene_cards: {field_name} must be an object.")
+
+    missing_fields = [field for field in contract["required_fields"] if field not in payload]
+    if missing_fields:
+        missing = ", ".join(sorted(missing_fields))
+        raise ValueError(
+            "Invalid scene_cards: "
+            f"{field_name} is missing required fields: {missing}."
+        )
+
+    _validate_int_field(
+        payload.get("chapter_number"),
+        "scene_cards",
+        f"{field_name}.chapter_number",
+    )
+
+    scenes = payload.get("scenes")
+    _validate_list_field(scenes, "scene_cards", f"{field_name}.scenes")
+    if not 3 <= len(scenes) <= 7:
+        raise ValueError(f"Invalid scene_cards: {field_name} must contain between 3 and 7 scenes.")
+
+    for scene_index, scene in enumerate(scenes):
+        validate_scene_card_entry(scene, f"{field_name}.scenes[{scene_index}]")
+        if scene.get("chapter_number") != payload.get("chapter_number"):
             raise ValueError(
-                f"Invalid scene_cards: scene_cards[{index}] must contain between 3 and 7 scenes."
+                "Invalid scene_cards: "
+                f"{field_name}.scenes[{scene_index}].chapter_number must match parent chapter_number."
+            )
+        for field_name_part in [
+            "scene_goal",
+            "scene_conflict",
+            "scene_turn",
+            "pov_character",
+            "setting",
+            "foreshadowing_action",
+            "exit_state",
+        ]:
+            _validate_str_field(
+                scene.get(field_name_part),
+                "scene_cards",
+                f"{field_name}.scenes[{scene_index}].{field_name_part}",
+            )
+        for field_name_part in ["participants", "must_include", "continuity_refs"]:
+            _validate_list_field(
+                scene.get(field_name_part),
+                "scene_cards",
+                f"{field_name}.scenes[{scene_index}].{field_name_part}",
             )
 
-        for scene_index, scene in enumerate(scenes):
-            validate_scene_card_entry(scene, f"scene_cards[{index}].scenes[{scene_index}]")
-            if scene.get("chapter_number") != chapter_packet.get("chapter_number"):
-                raise ValueError(
-                    "Invalid scene_cards: "
-                    f"scene_cards[{index}].scenes[{scene_index}].chapter_number must match parent chapter_number."
-                )
-            for field_name in [
-                "scene_goal",
-                "scene_conflict",
-                "scene_turn",
-                "pov_character",
-                "setting",
-                "foreshadowing_action",
-                "exit_state",
-            ]:
-                _validate_str_field(
-                    scene.get(field_name),
-                    "scene_cards",
-                    f"scene_cards[{index}].scenes[{scene_index}].{field_name}",
-                )
-            for field_name in ["participants", "must_include", "continuity_refs"]:
-                _validate_list_field(
-                    scene.get(field_name),
-                    "scene_cards",
-                    f"scene_cards[{index}].scenes[{scene_index}].{field_name}",
-                )
-
-        _validate_sequential_numbers(
-            [scene.get("scene_number") for scene in scenes],
-            "scene_cards",
-            f"scene_cards[{index}].scenes",
-            "scenes",
-        )
+    _validate_sequential_numbers(
+        [scene.get("scene_number") for scene in scenes],
+        "scene_cards",
+        f"{field_name}.scenes",
+        "scenes",
+    )
 
     return payload
 

@@ -266,10 +266,12 @@ CLI から小説プロジェクトを作成し、長編小説を
 - top-level は `schema_name`, `schema_version`, `replans` に固定した
 - 各 replan entry は `replan_id`, `trigger_chapter_number`, `reason`, `issue_codes`, `impact_scope`, `updated_artifacts`, `change_summary` を required field に固定した
 - `impact_scope` は `from_chapter`, `to_chapter`, `chapter_numbers` を持ち、future chapter への影響範囲を machine-readable に表現する
+- `impact_scope.chapter_numbers` は `from_chapter..to_chapter` の連番と一致しない場合に fail fast で停止する
 - `replan_id` を主キーにした upsert helper で、未作成 history からの新規生成、既存 entry の置換、新規 entry の追記ができる
 - pipeline は `progress_report.recommended_action=replan` を検出すると `replan_history` へ decision trace を保存できる
-- 初版では `chapter_briefs` / `scene_cards` を更新対象 artifact として記録し、trigger chapter と impact scope を残す
-- 次は実際に future chapter の `chapter_briefs` / `scene_cards` を更新する helper を導入する段階である
+- `apply_replan_updates()` により、既存 `chapter_briefs` / `scene_cards` を読み込んだうえで impact scope に含まれる future chapter だけを置換できる
+- helper は past / current chapter への更新、impact scope と update payload の章番号不一致、既存 artifact 範囲外の更新を fail fast で拒否する
+- 次は pipeline からこの helper を呼び出し、replan の decision trace だけでなく artifact 差し替えまで自動化する段階である
 
 ### M63. 自律実行ポリシーを導入する
 

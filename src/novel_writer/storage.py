@@ -8,12 +8,14 @@ from typing import Any
 from novel_writer.schema import (
     validate_canon_ledger,
     validate_canon_ledger_chapter,
+    validate_chapter_brief_entry,
     validate_chapter_handoff_packet,
     validate_chapter_briefs,
     validate_progress_report,
     validate_replan_entry,
     validate_replan_history,
     project_manifest_contract,
+    validate_scene_card_packet,
     validate_scene_cards,
     validate_story_bible,
     validate_thread_registry_entry,
@@ -171,6 +173,46 @@ def upsert_replan_history_entry(
     return save_replan_history(output_dir, history_payload, file_format)
 
 
+def apply_replan_updates(
+    output_dir: Path,
+    replan_payload: Any,
+    chapter_brief_updates: list[dict[str, Any]],
+    scene_card_updates: list[dict[str, Any]],
+    file_format: str = "json",
+) -> dict[str, Path]:
+    validated_replan = validate_replan_entry(replan_payload, "replan_payload")
+    _validate_replan_apply_targets(validated_replan)
+
+    chapter_numbers = list(validated_replan["impact_scope"]["chapter_numbers"])
+    existing_briefs = load_chapter_briefs(output_dir, file_format)
+    existing_scene_cards = load_scene_cards(output_dir, file_format)
+
+    if chapter_numbers[-1] > len(existing_briefs):
+        raise ValueError(
+            f"Cannot apply replan updates: chapter_briefs ends at chapter {len(existing_briefs)}."
+        )
+    if chapter_numbers[-1] > len(existing_scene_cards):
+        raise ValueError(
+            f"Cannot apply replan updates: scene_cards ends at chapter {len(existing_scene_cards)}."
+        )
+
+    validated_brief_updates = _validate_replan_chapter_brief_updates(chapter_brief_updates, chapter_numbers)
+    validated_scene_updates = _validate_replan_scene_card_updates(scene_card_updates, chapter_numbers)
+
+    next_briefs = list(existing_briefs)
+    for chapter_brief in validated_brief_updates:
+        next_briefs[chapter_brief["chapter_number"] - 1] = chapter_brief
+
+    next_scene_cards = list(existing_scene_cards)
+    for scene_packet in validated_scene_updates:
+        next_scene_cards[scene_packet["chapter_number"] - 1] = scene_packet
+
+    return {
+        "chapter_briefs": save_chapter_briefs(output_dir, next_briefs, file_format),
+        "scene_cards": save_scene_cards(output_dir, next_scene_cards, file_format),
+    }
+
+
 def save_canon_ledger(output_dir: Path, payload: Any, file_format: str = "json") -> Path:
     validate_canon_ledger(payload)
     return save_artifact(output_dir, "canon_ledger", payload, file_format)
@@ -258,6 +300,57 @@ def load_story_bible(output_dir: Path, file_format: str | None = None) -> dict[s
     payload = load_artifact(output_dir, "story_bible", file_format)
     validate_story_bible(payload)
     return payload
+
+
+def _validate_replan_apply_targets(replan_payload: dict[str, Any]) -> None:
+    impact_scope = replan_payload["impact_scope"]
+    if impact_scope["from_chapter"] <= replan_payload["trigger_chapter_number"]:
+        raise ValueError(
+            "Cannot apply replan updates: impact_scope.from_chapter must be greater than trigger_chapter_number."
+        )
+
+    updated_artifacts = set(replan_payload["updated_artifacts"])
+    required_artifacts = {"chapter_briefs", "scene_cards"}
+    if updated_artifacts != required_artifacts:
+        raise ValueError(
+            "Cannot apply replan updates: updated_artifacts must be exactly ['chapter_briefs', 'scene_cards']."
+        )
+
+
+def _validate_replan_chapter_brief_updates(
+    chapter_brief_updates: list[dict[str, Any]],
+    chapter_numbers: list[int],
+) -> list[dict[str, Any]]:
+    if not isinstance(chapter_brief_updates, list):
+        raise ValueError("Cannot apply replan updates: chapter_brief_updates must be a list.")
+
+    validated_updates = [
+        validate_chapter_brief_entry(chapter_brief, f"chapter_brief_updates[{index}]")
+        for index, chapter_brief in enumerate(chapter_brief_updates)
+    ]
+    if [chapter_brief["chapter_number"] for chapter_brief in validated_updates] != chapter_numbers:
+        raise ValueError(
+            "Cannot apply replan updates: chapter_brief_updates chapter numbers must match impact_scope.chapter_numbers."
+        )
+    return validated_updates
+
+
+def _validate_replan_scene_card_updates(
+    scene_card_updates: list[dict[str, Any]],
+    chapter_numbers: list[int],
+) -> list[dict[str, Any]]:
+    if not isinstance(scene_card_updates, list):
+        raise ValueError("Cannot apply replan updates: scene_card_updates must be a list.")
+
+    validated_updates = [
+        validate_scene_card_packet(scene_packet, f"scene_card_updates[{index}]")
+        for index, scene_packet in enumerate(scene_card_updates)
+    ]
+    if [scene_packet["chapter_number"] for scene_packet in validated_updates] != chapter_numbers:
+        raise ValueError(
+            "Cannot apply replan updates: scene_card_updates chapter numbers must match impact_scope.chapter_numbers."
+        )
+    return validated_updates
 
 
 def save_chapter_briefs(output_dir: Path, payload: Any, file_format: str = "json") -> Path:
