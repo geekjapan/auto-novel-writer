@@ -176,6 +176,13 @@ def next_action_decision_contract() -> dict:
             "summary",
             "value",
         ],
+        "target_chapter_rules": {
+            "continue": "empty",
+            "revise": "single",
+            "rerun_chapter": "single",
+            "replan_future": "non_empty",
+            "stop_for_review": "empty",
+        },
     }
 
 
@@ -371,6 +378,20 @@ def validate_next_action_decision(payload: dict) -> dict:
             "next_action_decision",
             f"target_chapters[{index}]",
         )
+        if chapter_number <= 0:
+            raise ValueError(
+                f"Invalid next_action_decision: target_chapters[{index}] must be greater than or equal to 1."
+            )
+
+    action = payload.get("action")
+    target_chapters = list(payload.get("target_chapters", []))
+    target_rule = contract["target_chapter_rules"][action]
+    if target_rule == "empty" and target_chapters:
+        raise ValueError(f"Invalid next_action_decision: {action} must not have target_chapters.")
+    if target_rule == "single" and len(target_chapters) != 1:
+        raise ValueError(f"Invalid next_action_decision: {action} must have exactly one target chapter.")
+    if target_rule == "non_empty" and not target_chapters:
+        raise ValueError(f"Invalid next_action_decision: {action} must have at least one target chapter.")
 
     policy_budget = payload.get("policy_budget")
     if not isinstance(policy_budget, dict):

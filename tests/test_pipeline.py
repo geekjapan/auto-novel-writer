@@ -807,6 +807,7 @@ class StoryPipelineTest(unittest.TestCase):
             )
 
             replan_history = load_replan_history(output_dir)
+            next_action_decision = load_next_action_decision(output_dir)
 
             self.assertEqual(replan_history["schema_name"], "replan_history")
             self.assertEqual(len(replan_history["replans"]), 1)
@@ -817,6 +818,12 @@ class StoryPipelineTest(unittest.TestCase):
             self.assertEqual(
                 replan_history["replans"][0]["updated_artifacts"],
                 ["chapter_briefs", "scene_cards"],
+            )
+            self.assertEqual(next_action_decision["action"], "stop_for_review")
+            self.assertEqual(next_action_decision["target_chapters"], [])
+            self.assertEqual(
+                next_action_decision["reason"],
+                "progress_report recommended replan but no future chapters remain",
             )
 
     def test_pipeline_applies_replan_updates_to_future_planning_artifacts(self) -> None:

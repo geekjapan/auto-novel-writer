@@ -6,7 +6,10 @@
 ## In Progress
 
 ## Ready
-- [ ] M63e: next action decision の target_chapters contract を固定する
+
+## Done
+
+- [x] M63e: next action decision の target_chapters contract を固定する
   - Title: autonomy decision target chapter validator を追加する
   - Milestone: M63 Autonomous Policy
   - Purpose: action ごとの `target_chapters` 期待値を schema / storage validator でも fail-fast に固定する
@@ -14,9 +17,6 @@
   - Done when: `continue`, `stop_for_review`, `revise`, `rerun_chapter`, `replan_future` の target chapter ルールが validator / tests / docs で固定される
   - Required tests: `./venv/bin/python -m unittest tests.test_storage -v`, `./venv/bin/python -m unittest discover -s tests -v`
   - Docs to update: `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
-
-## Done
-
 - [x] M63d: progress_report action mapping を列挙全件で固定する
   - Title: autonomy decision action mapping tests を追加する
   - Milestone: M63 Autonomous Policy

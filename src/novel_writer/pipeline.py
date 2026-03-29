@@ -967,15 +967,21 @@ class StoryPipeline:
         action = self.next_action_map.get(recommended_action)
         if action is None:
             raise ValueError(f"Unsupported progress_report recommended_action: {recommended_action}")
+        target_chapters = self._build_next_action_target_chapters(progress_report, artifacts)
+        reason = f"progress_report recommended {recommended_action}"
+
+        if action == "replan_future" and not target_chapters:
+            action = "stop_for_review"
+            reason = "progress_report recommended replan but no future chapters remain"
 
         return {
             "schema_name": "next_action_decision",
             "schema_version": "1.0",
             "evaluated_through_chapter": int(progress_report.get("evaluated_through_chapter", 0)),
             "action": action,
-            "reason": f"progress_report recommended {recommended_action}",
+            "reason": reason,
             "issue_codes": list(progress_report.get("issue_codes", [])),
-            "target_chapters": self._build_next_action_target_chapters(progress_report, artifacts),
+            "target_chapters": target_chapters,
             "policy_budget": {
                 "max_high_severity_chapters": int(self.long_run_status.get("max_high_severity_chapters", 0)),
                 "max_total_rerun_attempts": int(self.long_run_status.get("max_total_rerun_attempts", 0)),

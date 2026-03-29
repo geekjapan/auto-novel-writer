@@ -757,6 +757,98 @@ class SaveArtifactTest(unittest.TestCase):
                     },
                 )
 
+    def test_save_next_action_decision_rejects_target_chapters_for_continue_and_stop(self) -> None:
+        invalid_cases = [
+            ("continue", "continue must not have target_chapters"),
+            ("stop_for_review", "stop_for_review must not have target_chapters"),
+        ]
+
+        for action, expected_message in invalid_cases:
+            with self.subTest(action=action):
+                with tempfile.TemporaryDirectory() as tmp_dir:
+                    with self.assertRaisesRegex(
+                        ValueError,
+                        expected_message,
+                    ):
+                        save_next_action_decision(
+                            Path(tmp_dir),
+                            {
+                                "schema_name": "next_action_decision",
+                                "schema_version": "1.0",
+                                "evaluated_through_chapter": 5,
+                                "action": action,
+                                "reason": "不要な target_chapters が入っている",
+                                "issue_codes": [],
+                                "target_chapters": [5],
+                                "policy_budget": {
+                                    "max_high_severity_chapters": 10,
+                                    "max_total_rerun_attempts": 20,
+                                    "remaining_high_severity_chapter_budget": 7,
+                                    "remaining_rerun_attempt_budget": 14,
+                                },
+                                "decision_trace": [],
+                            },
+                        )
+
+    def test_save_next_action_decision_requires_single_target_for_revise_and_rerun(self) -> None:
+        invalid_cases = [
+            ("revise", [], "revise must have exactly one target chapter"),
+            ("rerun_chapter", [4, 5], "rerun_chapter must have exactly one target chapter"),
+        ]
+
+        for action, target_chapters, expected_message in invalid_cases:
+            with self.subTest(action=action):
+                with tempfile.TemporaryDirectory() as tmp_dir:
+                    with self.assertRaisesRegex(
+                        ValueError,
+                        expected_message,
+                    ):
+                        save_next_action_decision(
+                            Path(tmp_dir),
+                            {
+                                "schema_name": "next_action_decision",
+                                "schema_version": "1.0",
+                                "evaluated_through_chapter": 5,
+                                "action": action,
+                                "reason": "target chapter 数が不正である",
+                                "issue_codes": ["needs_followup"],
+                                "target_chapters": target_chapters,
+                                "policy_budget": {
+                                    "max_high_severity_chapters": 10,
+                                    "max_total_rerun_attempts": 20,
+                                    "remaining_high_severity_chapter_budget": 7,
+                                    "remaining_rerun_attempt_budget": 14,
+                                },
+                                "decision_trace": [],
+                            },
+                        )
+
+    def test_save_next_action_decision_requires_future_targets_for_replan(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            with self.assertRaisesRegex(
+                ValueError,
+                "replan_future must have at least one target chapter",
+            ):
+                save_next_action_decision(
+                    Path(tmp_dir),
+                    {
+                        "schema_name": "next_action_decision",
+                        "schema_version": "1.0",
+                        "evaluated_through_chapter": 5,
+                        "action": "replan_future",
+                        "reason": "future chapter が指定されていない",
+                        "issue_codes": ["escalation_pace_flat"],
+                        "target_chapters": [],
+                        "policy_budget": {
+                            "max_high_severity_chapters": 10,
+                            "max_total_rerun_attempts": 20,
+                            "remaining_high_severity_chapter_budget": 7,
+                            "remaining_rerun_attempt_budget": 14,
+                        },
+                        "decision_trace": [],
+                    },
+                )
+
     def test_save_progress_report_validates_required_fields(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             with self.assertRaisesRegex(

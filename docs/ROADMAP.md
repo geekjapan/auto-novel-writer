@@ -292,7 +292,8 @@ CLI から小説プロジェクトを作成し、長編小説を
 - `progress_report.recommended_action` は pipeline 内で `next_action_decision.action` へ明示マッピングする
 - `replan` の場合は future chapter 範囲を `target_chapters` に保存できる
 - `continue`, `revise`, `rerun`, `replan`, `stop_for_review` の mapping は pipeline tests で固定した
-- 次は action ごとの `target_chapters` contract を validator でも固定する段階である
+- action ごとの `target_chapters` contract も validator で固定した
+- 次に進むには `autonomy level` の列挙値と保存先 contract を決める必要がある
 
 完了条件:
 
