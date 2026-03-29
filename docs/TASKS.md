@@ -6,7 +6,18 @@
 ## In Progress
 
 ## Ready
-- [ ] M63b: next action decision に policy budget と detail trace を追加する
+- [ ] M63c: pipeline から next action decision artifact を保存する
+  - Title: autonomy decision save 導線を追加する
+  - Milestone: M63 Autonomous Policy
+  - Purpose: `progress_report` と long-run budget をもとに next action decision を保存できる最小導線を pipeline に追加する
+  - Target files or directories: `src/novel_writer/pipeline.py`, `tests/test_pipeline.py`, `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
+  - Done when: pipeline 実行後に next action decision artifact が保存される最小ケースが tests / docs で固定される
+  - Required tests: `./venv/bin/python -m unittest tests.test_pipeline -v`, `./venv/bin/python -m unittest discover -s tests -v`
+  - Docs to update: `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
+
+## Done
+
+- [x] M63b: next action decision に policy budget と detail trace を追加する
   - Title: autonomy decision detail contract を拡張する
   - Milestone: M63 Autonomous Policy
   - Purpose: 次 action の判断根拠と残り budget を machine-readable に保存できるようにする
@@ -14,9 +25,6 @@
   - Done when: next action decision artifact に budget / detail trace field を追加した contract が tests / docs で固定される
   - Required tests: `./venv/bin/python -m unittest tests.test_storage -v`, `./venv/bin/python -m unittest discover -s tests -v`
   - Docs to update: `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
-
-## Done
-
 - [x] M63a: next action decision artifact の schema を固定する
   - Title: autonomy decision contract を追加する
   - Milestone: M63 Autonomous Policy

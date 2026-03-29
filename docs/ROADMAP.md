@@ -284,9 +284,11 @@ CLI から小説プロジェクトを作成し、長編小説を
 進捗:
 
 - `next_action_decision` の schema / storage contract は導入済み
-- top-level は `schema_name`, `schema_version`, `evaluated_through_chapter`, `action`, `reason`, `issue_codes`, `target_chapters` に固定した
+- top-level は `schema_name`, `schema_version`, `evaluated_through_chapter`, `action`, `reason`, `issue_codes`, `target_chapters`, `policy_budget`, `decision_trace` に固定した
 - `action` は `continue`, `revise`, `rerun_chapter`, `replan_future`, `stop_for_review` の列挙型に固定した
-- 次は policy budget と decision trace を artifact へ拡張し、pipeline から decision を保存する段階である
+- `policy_budget` には long-run budget の max / remaining 値を保存できる
+- `decision_trace` は `code`, `summary`, `value` を持つ object 配列として判断根拠を保存できる
+- 次は pipeline から decision を保存する段階である
 
 完了条件:
 

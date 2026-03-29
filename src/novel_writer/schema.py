@@ -155,6 +155,8 @@ def next_action_decision_contract() -> dict:
             "reason",
             "issue_codes",
             "target_chapters",
+            "policy_budget",
+            "decision_trace",
         ],
         "allowed_actions": [
             "continue",
@@ -162,6 +164,17 @@ def next_action_decision_contract() -> dict:
             "rerun_chapter",
             "replan_future",
             "stop_for_review",
+        ],
+        "policy_budget_required_fields": [
+            "max_high_severity_chapters",
+            "max_total_rerun_attempts",
+            "remaining_high_severity_chapter_budget",
+            "remaining_rerun_attempt_budget",
+        ],
+        "decision_trace_required_fields": [
+            "code",
+            "summary",
+            "value",
         ],
     }
 
@@ -358,6 +371,40 @@ def validate_next_action_decision(payload: dict) -> dict:
             "next_action_decision",
             f"target_chapters[{index}]",
         )
+
+    policy_budget = payload.get("policy_budget")
+    if not isinstance(policy_budget, dict):
+        raise ValueError("Invalid next_action_decision: policy_budget must be an object.")
+    missing_policy_fields = [
+        field for field in contract["policy_budget_required_fields"] if field not in policy_budget
+    ]
+    if missing_policy_fields:
+        missing = ", ".join(sorted(missing_policy_fields))
+        raise ValueError(
+            f"Invalid next_action_decision: policy_budget is missing required fields: {missing}."
+        )
+    for field_name in contract["policy_budget_required_fields"]:
+        _validate_int_field(
+            policy_budget.get(field_name),
+            "next_action_decision",
+            f"policy_budget.{field_name}",
+        )
+
+    decision_trace = payload.get("decision_trace")
+    _validate_list_field(decision_trace, "next_action_decision", "decision_trace")
+    for index, entry in enumerate(decision_trace):
+        if not isinstance(entry, dict):
+            raise ValueError(f"Invalid next_action_decision: decision_trace[{index}] must be an object.")
+        missing_trace_fields = [
+            field for field in contract["decision_trace_required_fields"] if field not in entry
+        ]
+        if missing_trace_fields:
+            missing = ", ".join(sorted(missing_trace_fields))
+            raise ValueError(
+                f"Invalid next_action_decision: decision_trace[{index}] is missing required fields: {missing}."
+            )
+        _validate_str_field(entry.get("code"), "next_action_decision", f"decision_trace[{index}].code")
+        _validate_str_field(entry.get("summary"), "next_action_decision", f"decision_trace[{index}].summary")
 
     return payload
 

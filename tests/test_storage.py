@@ -673,6 +673,24 @@ class SaveArtifactTest(unittest.TestCase):
             "reason": "中盤停滞のため future chapter を再計画する",
             "issue_codes": ["escalation_pace_flat", "climax_readiness_low"],
             "target_chapters": [6, 7, 8],
+            "policy_budget": {
+                "max_high_severity_chapters": 10,
+                "max_total_rerun_attempts": 20,
+                "remaining_high_severity_chapter_budget": 7,
+                "remaining_rerun_attempt_budget": 14,
+            },
+            "decision_trace": [
+                {
+                    "code": "escalation_pace_flat",
+                    "summary": "中盤の伸びが止まっている",
+                    "value": "chapter-5",
+                },
+                {
+                    "code": "climax_readiness_low",
+                    "summary": "終盤準備が不足している",
+                    "value": "chapter-5",
+                },
+            ],
         }
 
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -698,6 +716,44 @@ class SaveArtifactTest(unittest.TestCase):
                         "reason": "旧 action 名を使っている",
                         "issue_codes": [],
                         "target_chapters": [5],
+                        "policy_budget": {
+                            "max_high_severity_chapters": 10,
+                            "max_total_rerun_attempts": 20,
+                            "remaining_high_severity_chapter_budget": 7,
+                            "remaining_rerun_attempt_budget": 14,
+                        },
+                        "decision_trace": [],
+                    },
+                )
+
+    def test_save_next_action_decision_validates_trace_entry_fields(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            with self.assertRaisesRegex(
+                ValueError,
+                "Invalid next_action_decision: decision_trace\\[0\\] is missing required fields: summary",
+            ):
+                save_next_action_decision(
+                    Path(tmp_dir),
+                    {
+                        "schema_name": "next_action_decision",
+                        "schema_version": "1.0",
+                        "evaluated_through_chapter": 5,
+                        "action": "replan_future",
+                        "reason": "根拠を保存する",
+                        "issue_codes": ["escalation_pace_flat"],
+                        "target_chapters": [6, 7, 8],
+                        "policy_budget": {
+                            "max_high_severity_chapters": 10,
+                            "max_total_rerun_attempts": 20,
+                            "remaining_high_severity_chapter_budget": 7,
+                            "remaining_rerun_attempt_budget": 14,
+                        },
+                        "decision_trace": [
+                            {
+                                "code": "escalation_pace_flat",
+                                "value": "chapter-5",
+                            }
+                        ],
                     },
                 )
 
