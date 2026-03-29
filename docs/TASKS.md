@@ -6,7 +6,18 @@
 ## In Progress
 
 ## Ready
-- [ ] M63a: next action decision artifact の schema を固定する
+- [ ] M63b: next action decision に policy budget と detail trace を追加する
+  - Title: autonomy decision detail contract を拡張する
+  - Milestone: M63 Autonomous Policy
+  - Purpose: 次 action の判断根拠と残り budget を machine-readable に保存できるようにする
+  - Target files or directories: `src/novel_writer/schema.py`, `src/novel_writer/storage.py`, `tests/test_storage.py`, `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
+  - Done when: next action decision artifact に budget / detail trace field を追加した contract が tests / docs で固定される
+  - Required tests: `./venv/bin/python -m unittest tests.test_storage -v`, `./venv/bin/python -m unittest discover -s tests -v`
+  - Docs to update: `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
+
+## Done
+
+- [x] M63a: next action decision artifact の schema を固定する
   - Title: autonomy decision contract を追加する
   - Milestone: M63 Autonomous Policy
   - Purpose: `continue` / `revise` / `rerun_chapter` / `replan_future` / `stop_for_review` を機械可読に表現する最小 contract を定める
@@ -14,9 +25,6 @@
   - Done when: next action decision artifact の schema / save-load contract が tests / docs で固定される
   - Required tests: `./venv/bin/python -m unittest tests.test_storage -v`, `./venv/bin/python -m unittest discover -s tests -v`
   - Docs to update: `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
-
-## Done
-
 - [x] M62f: replan apply 結果を `replan_history.change_summary` に反映する
   - Title: replan apply summary を履歴へ残す
   - Milestone: M62 Replan Loop

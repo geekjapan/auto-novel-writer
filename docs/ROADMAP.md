@@ -281,6 +281,13 @@ CLI から小説プロジェクトを作成し、長編小説を
 目的:
 人手なしで「続行 / 改稿 / 再実行 / 再計画 / 停止」を判断できる制御層を作る。
 
+進捗:
+
+- `next_action_decision` の schema / storage contract は導入済み
+- top-level は `schema_name`, `schema_version`, `evaluated_through_chapter`, `action`, `reason`, `issue_codes`, `target_chapters` に固定した
+- `action` は `continue`, `revise`, `rerun_chapter`, `replan_future`, `stop_for_review` の列挙型に固定した
+- 次は policy budget と decision trace を artifact へ拡張し、pipeline から decision を保存する段階である
+
 完了条件:
 
 - 章完了ごとに next action decision を出せる

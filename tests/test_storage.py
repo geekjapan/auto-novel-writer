@@ -17,6 +17,7 @@ from novel_writer.storage import (
     load_scene_cards,
     load_project_manifest,
     load_publish_ready_bundle,
+    load_next_action_decision,
     load_run_comparison_summary,
     load_story_bible,
     load_thread_registry,
@@ -33,6 +34,7 @@ from novel_writer.storage import (
     save_project_manifest,
     save_run_comparison_summary,
     save_story_bible,
+    save_next_action_decision,
     save_thread_registry,
     upsert_canon_ledger_chapter,
     upsert_replan_history_entry,
@@ -629,6 +631,8 @@ class SaveArtifactTest(unittest.TestCase):
         self.assertEqual(contract["canon_ledger"]["schema_version"], "1.0")
         self.assertEqual(contract["chapter_handoff_packet"]["schema_name"], "chapter_handoff_packet")
         self.assertEqual(contract["chapter_handoff_packet"]["schema_version"], "1.0")
+        self.assertEqual(contract["next_action_decision"]["schema_name"], "next_action_decision")
+        self.assertEqual(contract["next_action_decision"]["schema_version"], "1.0")
         self.assertEqual(contract["progress_report"]["schema_name"], "progress_report")
         self.assertEqual(contract["progress_report"]["schema_version"], "1.0")
         self.assertEqual(contract["replan_history"]["schema_name"], "replan_history")
@@ -659,6 +663,43 @@ class SaveArtifactTest(unittest.TestCase):
 
             self.assertEqual(target.name, "progress_report.json")
             self.assertEqual(loaded, payload)
+
+    def test_save_next_action_decision_round_trips_valid_payload(self) -> None:
+        payload = {
+            "schema_name": "next_action_decision",
+            "schema_version": "1.0",
+            "evaluated_through_chapter": 5,
+            "action": "replan_future",
+            "reason": "中盤停滞のため future chapter を再計画する",
+            "issue_codes": ["escalation_pace_flat", "climax_readiness_low"],
+            "target_chapters": [6, 7, 8],
+        }
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            target = save_next_action_decision(Path(tmp_dir), payload, "json")
+            loaded = load_next_action_decision(Path(tmp_dir))
+
+            self.assertEqual(target.name, "next_action_decision.json")
+            self.assertEqual(loaded, payload)
+
+    def test_save_next_action_decision_validates_allowed_action(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            with self.assertRaisesRegex(
+                ValueError,
+                "Invalid next_action_decision: action must be one of: continue, revise, rerun_chapter, replan_future, stop_for_review",
+            ):
+                save_next_action_decision(
+                    Path(tmp_dir),
+                    {
+                        "schema_name": "next_action_decision",
+                        "schema_version": "1.0",
+                        "evaluated_through_chapter": 5,
+                        "action": "rerun",
+                        "reason": "旧 action 名を使っている",
+                        "issue_codes": [],
+                        "target_chapters": [5],
+                    },
+                )
 
     def test_save_progress_report_validates_required_fields(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

@@ -184,6 +184,8 @@
 
 この repository では、`rerun` と `replan` を次のように分けています。`rerun` は現行の `chapter_briefs` / `scene_cards` を前提に対象章の draft 以降をやり直す操作です。`replan` は trigger chapter より後ろの future chapter に対して `chapter_briefs` / `scene_cards` 自体を更新する操作です。
 
+`next_action_decision` は、M63 の自律判断層に向けた最小 machine-readable artifact です。現在の contract は `schema_name`, `schema_version`, `evaluated_through_chapter`, `action`, `reason`, `issue_codes`, `target_chapters` を持ちます。`action` は `continue`, `revise`, `rerun_chapter`, `replan_future`, `stop_for_review` の列挙型に固定しており、save/load helper でも同じ contract を検証します。現時点では schema / storage contract だけを先に固定し、policy budget や decision trace の詳細は次タスクで追加します。
+
 ## chapter 1 互換 artifact と全章状態
 
 内部処理は全章対応ですが、既存利用者向けに chapter 1 互換 artifact を残しています。

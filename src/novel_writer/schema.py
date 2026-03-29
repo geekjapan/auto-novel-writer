@@ -143,6 +143,29 @@ def progress_report_contract() -> dict:
     }
 
 
+def next_action_decision_contract() -> dict:
+    return {
+        "schema_name": "next_action_decision",
+        "schema_version": "1.0",
+        "required_fields": [
+            "schema_name",
+            "schema_version",
+            "evaluated_through_chapter",
+            "action",
+            "reason",
+            "issue_codes",
+            "target_chapters",
+        ],
+        "allowed_actions": [
+            "continue",
+            "revise",
+            "rerun_chapter",
+            "replan_future",
+            "stop_for_review",
+        ],
+    }
+
+
 def replan_history_contract() -> dict:
     return {
         "schema_name": "replan_history",
@@ -287,6 +310,54 @@ def validate_progress_report(payload: dict) -> dict:
     if payload.get("recommended_action") not in contract["allowed_actions"]:
         allowed = ", ".join(contract["allowed_actions"])
         raise ValueError(f"Invalid progress_report: recommended_action must be one of: {allowed}.")
+
+    return payload
+
+
+def validate_next_action_decision(payload: dict) -> dict:
+    contract = next_action_decision_contract()
+    if not isinstance(payload, dict):
+        raise ValueError("Invalid next_action_decision: payload must be an object.")
+
+    missing_fields = [field for field in contract["required_fields"] if field not in payload]
+    if missing_fields:
+        missing = ", ".join(sorted(missing_fields))
+        raise ValueError(
+            "Invalid next_action_decision: missing required fields: "
+            f"{missing}. Regenerate the next action decision."
+        )
+
+    if payload.get("schema_name") != contract["schema_name"]:
+        raise ValueError(
+            "Invalid next_action_decision: "
+            f"schema_name={payload.get('schema_name')!r} is not supported; expected {contract['schema_name']!r}."
+        )
+
+    if payload.get("schema_version") != contract["schema_version"]:
+        raise ValueError(
+            "Invalid next_action_decision: "
+            f"schema_version={payload.get('schema_version')!r} is not supported; expected {contract['schema_version']!r}."
+        )
+
+    _validate_int_field(
+        payload.get("evaluated_through_chapter"),
+        "next_action_decision",
+        "evaluated_through_chapter",
+    )
+    _validate_str_field(payload.get("action"), "next_action_decision", "action")
+    if payload.get("action") not in contract["allowed_actions"]:
+        allowed = ", ".join(contract["allowed_actions"])
+        raise ValueError(f"Invalid next_action_decision: action must be one of: {allowed}.")
+
+    _validate_str_field(payload.get("reason"), "next_action_decision", "reason")
+    _validate_list_field(payload.get("issue_codes"), "next_action_decision", "issue_codes")
+    _validate_list_field(payload.get("target_chapters"), "next_action_decision", "target_chapters")
+    for index, chapter_number in enumerate(payload.get("target_chapters", [])):
+        _validate_int_field(
+            chapter_number,
+            "next_action_decision",
+            f"target_chapters[{index}]",
+        )
 
     return payload
 
@@ -1357,6 +1428,7 @@ class StoryArtifacts:
             "chapter_handoff_packet": chapter_handoff_packet_contract(),
             "canon_ledger": canon_ledger_contract(),
             "chapter_briefs": chapter_briefs_contract(),
+            "next_action_decision": next_action_decision_contract(),
             "progress_report": progress_report_contract(),
             "replan_history": replan_history_contract(),
             "scene_cards": scene_cards_contract(),
