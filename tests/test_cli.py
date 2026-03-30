@@ -19,6 +19,7 @@ from novel_writer.cli import (
 from novel_writer.storage import (
     load_artifact,
     load_publish_ready_bundle,
+    save_artifact,
     save_next_action_decision,
     save_publish_ready_bundle,
     save_run_comparison_summary,
@@ -1981,6 +1982,94 @@ class CliTest(unittest.TestCase):
                 output,
             )
             self.assertNotIn("publish_bundle.title: Case Bundle", output)
+
+    def test_cli_show_run_comparison_backfills_legacy_publish_bundle_without_summary(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            main(
+                [
+                    "create-project",
+                    "--theme",
+                    "記憶",
+                    "--genre",
+                    "SF",
+                    "--tone",
+                    "静謐",
+                    "--target-length",
+                    "5000",
+                    "--project-id",
+                    "Compare Legacy 01",
+                    "--projects-dir",
+                    tmp_dir,
+                ]
+            )
+
+            project_dir = Path(tmp_dir) / "compare-legacy-01"
+            run_dir = project_dir / "runs" / "latest_run"
+            save_artifact(
+                run_dir,
+                "publish_ready_bundle",
+                {
+                    "schema_name": "publish_ready_bundle",
+                    "schema_version": "1.0",
+                    "bundle_type": "publish_ready_bundle",
+                    "title": "Legacy Publish Bundle Title",
+                    "synopsis": "Saved synopsis for the read-only CLI path.",
+                    "chapter_count": 2,
+                    "chapters": [
+                        {"chapter_number": 1, "title": "Chapter 1"},
+                        {"chapter_number": 2, "title": "Chapter 2"},
+                    ],
+                    "sections": {
+                        "manuscript": {"field": "chapters"},
+                        "story_summary": {"field": "story_summary"},
+                        "quality": {"field": "overall_quality_report"},
+                    },
+                    "source_artifacts": {
+                        "story_summary": "story_summary.json",
+                        "overall_quality_report": "project_quality_report.json",
+                        "chapters": "revised_chapter_{n}_draft.json",
+                    },
+                    "story_summary": {
+                        "schema_name": "story_summary",
+                        "schema_version": "1.0",
+                        "chapter_count": 2,
+                    },
+                    "overall_quality_report": {
+                        "schema_name": "project_quality_report",
+                        "schema_version": "1.0",
+                    },
+                    "selected_logline": {"id": "logline-1", "title": "Selected logline"},
+                },
+            )
+            comparison_before = load_artifact(project_dir, "run_comparison_summary")
+
+            buffer = io.StringIO()
+            with redirect_stdout(buffer):
+                exit_code = main(
+                    [
+                        "show-run-comparison",
+                        "--project-id",
+                        "Compare Legacy 01",
+                        "--projects-dir",
+                        tmp_dir,
+                        "--reason-detail-mode",
+                        "codes",
+                    ]
+                )
+
+            comparison_after = load_artifact(project_dir, "run_comparison_summary")
+            output = buffer.getvalue()
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(comparison_before, comparison_after)
+            self.assertIn("publish_bundle.title: Legacy Publish Bundle Title", output)
+            self.assertIn("publish_bundle.chapter_count: 2", output)
+            self.assertIn("publish_bundle.section_names: manuscript, story_summary, quality", output)
+            self.assertIn(
+                "publish_bundle.source_artifact_names: story_summary.json, project_quality_report.json, revised_chapter_{n}_draft.json",
+                output,
+            )
+            self.assertNotIn("publish_bundle.summary:", output)
 
     def test_cli_show_run_comparison_reads_minimal_valid_artifact(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

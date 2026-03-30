@@ -19,7 +19,6 @@ from novel_writer.storage import (
     load_artifact,
     load_next_action_decision,
     load_project_manifest,
-    load_publish_ready_bundle,
     load_run_comparison_summary,
     save_project_manifest,
     save_run_comparison_summary,
@@ -628,8 +627,13 @@ def print_run_summary(artifacts, output_dir: Path, project_manifest: dict[str, A
 
 
 def _build_saved_publish_bundle_summary_lines(output_dir: Path) -> list[str]:
-    publish_ready_bundle = load_publish_ready_bundle(output_dir)
+    publish_ready_bundle = _load_saved_publish_bundle_for_display(output_dir)
     return _build_publish_bundle_summary_lines(publish_ready_bundle)
+
+
+def _load_saved_publish_bundle_for_display(output_dir: Path) -> dict[str, Any]:
+    """read-only CLI では legacy 形状も表示できるよう、raw artifact をそのまま読む。"""
+    return load_artifact(output_dir, "publish_ready_bundle")
 
 
 def build_project_status_summary(
