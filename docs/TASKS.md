@@ -5,14 +5,14 @@
 
 ## In Progress
 
-- [ ] M63f: project autonomy level contract を追加する
-  - Title: autonomy level の列挙値と保存先 contract を固定する
+- [ ] M63g: project autonomy level を next_action_decision 制御へ接続する
+  - Title: autonomy level による next_action_decision の自動適用条件を 1 箇所だけ追加する
   - Milestone: M63 Autonomous Policy
-  - Purpose: M63 の未完了条件である project 単位の `autonomy level` 切替を、schema / storage / pipeline / docs / tests で fail-fast に固定する
-  - Target files or directories: `src/novel_writer/schema.py`, `src/novel_writer/storage.py`, `src/novel_writer/pipeline.py`, `tests/test_storage.py`, `tests/test_pipeline.py`, `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
-  - Done when: `autonomy level` の列挙値、project 単位の保存先、save/load 時の validation ルールが code / tests / docs で固定される
-  - Required tests: `./venv/bin/python -m unittest tests.test_storage -v`, `./venv/bin/python -m unittest tests.test_pipeline -v`, `./venv/bin/python -m unittest discover -s tests -v`
-  - Docs to update: `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
+  - Purpose: project-level `autonomy_level` を、`next_action_decision` の自動適用または手動確認の分岐に接続し、contract 以外の behavior / control へ最小単位で広げる
+  - Target files or directories: `src/novel_writer/pipeline.py`, `src/novel_writer/cli.py`, `tests/test_pipeline.py`, `tests/test_cli.py`, `docs/TASKS.md`, `docs/ROADMAP.md`
+  - Done when: `manual` / `assist` / `auto` のいずれかが `next_action_decision` の適用可否に反映され、既存 project manifest の save-load / status contract を壊さずに説明できる
+  - Required tests: `./venv/bin/python -m unittest tests.test_pipeline -v`, `./venv/bin/python -m unittest tests.test_cli -v`, `./venv/bin/python -m unittest discover -s tests -v`
+  - Docs to update: `docs/TASKS.md`, `docs/ROADMAP.md`
 
 ## Ready
 
@@ -22,6 +22,7 @@
 
 ### Recent completions
 
+- [x] M63f: project autonomy level contract を追加する
 - [x] M63e-M63a: `next_action_decision` の schema、pipeline 保存、action mapping、target chapter validation を固定した
 - [x] M62f-M62a: `replan_history` と future chapter update の基盤を固めた
 - [x] M61b-M60a: `progress_report` と `chapter_handoff_packet` の共有入力を固めた

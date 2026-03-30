@@ -30,6 +30,7 @@
 
 - 新 artifact は、既存 artifact では責務を表現できない場合のみ追加する
 - 既存 contract を拡張するときは、validator / storage / pipeline / tests / docs を同時に更新する
+- project-level policy は、まず contract / save-load / status 表示を固定し、その後に behavior / control を 1 gate ずつつなぐ
 - LLM access は、既存 client 境界の内側に閉じ込める
 - docs-only で足りるのは、振る舞いが変わらず説明だけを整える場合に限る
 - 振る舞いが変わるときは、README を現状仕様として同期する

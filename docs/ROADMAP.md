@@ -28,7 +28,7 @@ CLI から小説プロジェクトを作成し、長編小説を
 ## Current State
 
 長編制作の基礎層はすでにあり、設計、分解、記憶、評価、再計画の前提は揃っている。
-いまの焦点は、その土台の上で自律性と成果物の厚みをどこまで伸ばすかである。
+project-level の `autonomy_level` contract / save-load / status display も固定済みで、M63 の残りはその値を behavior / control にどう結び付けるかである。
 
 ## Gap To Goal
 
@@ -61,12 +61,12 @@ CLI から小説プロジェクトを作成し、長編小説を
 ### M63. 自律実行ポリシーを完成させる
 
 目的:
-人手なしでの判断を、プロジェクト単位の運用方針として安定させる。
+project-level `autonomy_level` の保存・読み込み・表示は完了済みで、その値を続行・改稿・再実行・再計画・停止の制御へ結び付ける。
 
 完了条件:
 
-- project 単位で autonomy level を切り替えられる
-- 長編の運用方針が一貫した判断につながる
+- project-level `autonomy_level` が project の制御判断に反映される
+- `manual` / `assist` / `auto` の差が behavior / control として一貫する
 
 ### M64. 長編 publish bundle を強化する
 

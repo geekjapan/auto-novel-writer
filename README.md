@@ -9,6 +9,7 @@
 - 途中まで作った成果物から resume する
 - 章単位で rerun する
 - project 単位の status と run 比較を見る
+- project 単位の `autonomy_level` (`manual` / `assist` / `auto`) を保存し、`show-project-status` で確認する
 - LLM プロバイダを `mock` / `openai` / `openai-compatible` / `lmstudio` / `ollama` から選ぶ
 
 ## 主な CLI フロー
@@ -31,6 +32,8 @@ novel-writer show-run-comparison --project-id "my-story-01"
 novel-writer select-best-run --project-id "my-story-01" --run-name "latest_run"
 novel-writer rerun-chapter --project-id "my-story-01" --chapter-number 2
 ```
+
+`project_manifest.json` には project 単位の `autonomy_level` が保存され、`show-project-status` で現在値を確認できます。
 
 ### 3. 途中再開と rerun
 
