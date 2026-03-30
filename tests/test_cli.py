@@ -11,7 +11,6 @@ from novel_writer.cli import (
     build_project_status_summary,
     build_saved_run_comparison_lines,
     build_saved_run_comparison_summary,
-    _build_manual_review_gate,
     main,
 )
 from novel_writer.storage import load_artifact, save_next_action_decision, save_run_comparison_summary
@@ -1419,35 +1418,6 @@ class CliTest(unittest.TestCase):
             lines = build_project_status_lines(project_manifest)
 
         self.assertNotIn("Resume gate: stop_for_review", lines)
-
-    def test_build_manual_review_gate_returns_reason_for_manual_stop_for_review(self) -> None:
-        project_manifest = {"autonomy_level": "manual"}
-
-        with patch(
-            "novel_writer.cli.load_next_action_decision",
-            return_value={"action": "stop_for_review"},
-        ):
-            gate = _build_manual_review_gate(project_manifest, Path("data/projects/case-10/runs/latest_run"))
-
-        self.assertEqual(gate, {"reason": "stop_for_review"})
-
-    def test_build_manual_review_gate_returns_none_for_assist_project(self) -> None:
-        project_manifest = {"autonomy_level": "assist"}
-
-        gate = _build_manual_review_gate(project_manifest, Path("data/projects/case-11/runs/latest_run"))
-
-        self.assertIsNone(gate)
-
-    def test_build_manual_review_gate_returns_none_when_decision_is_missing(self) -> None:
-        project_manifest = {"autonomy_level": "manual"}
-
-        with patch(
-            "novel_writer.cli.load_next_action_decision",
-            side_effect=FileNotFoundError("missing next_action_decision"),
-        ):
-            gate = _build_manual_review_gate(project_manifest, Path("data/projects/case-12/runs/latest_run"))
-
-        self.assertIsNone(gate)
 
     def test_build_run_comparison_summary_returns_render_ready_sections(self) -> None:
         summary_artifact = {

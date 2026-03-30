@@ -256,25 +256,21 @@ def load_project_run_context(projects_dir: Path, project_id: str) -> tuple[dict,
     return project_layout, Path(project_manifest["current_run"]["output_dir"])
 
 
-def _build_manual_review_gate(project_manifest: dict[str, Any], output_dir: Path) -> dict[str, Any] | None:
-    """manual project の review gate 判定を共通化する。"""
+def _has_manual_review_gate(project_manifest: dict[str, Any], output_dir: Path) -> bool:
+    """manual project の review gate が有効かを判定する。"""
     if project_manifest.get("autonomy_level") != "manual":
-        return None
+        return False
 
     try:
         next_action_decision = load_next_action_decision(output_dir)
     except FileNotFoundError:
-        return None
+        return False
 
-    if next_action_decision.get("action") != "stop_for_review":
-        return None
-
-    return {"reason": "stop_for_review"}
+    return next_action_decision.get("action") == "stop_for_review"
 
 
 def _enforce_resume_project_review_gate(project_manifest: dict[str, Any], output_dir: Path) -> None:
-    review_gate = _build_manual_review_gate(project_manifest, output_dir)
-    if review_gate is not None:
+    if _has_manual_review_gate(project_manifest, output_dir):
         raise ValueError(
             "resume-project is blocked for manual projects when next_action_decision.action is stop_for_review."
         )
@@ -287,7 +283,9 @@ def _build_project_resume_gate_summary(project_manifest: dict[str, Any]) -> dict
     if not output_dir:
         return None
 
-    return _build_manual_review_gate(project_manifest, Path(output_dir))
+    if _has_manual_review_gate(project_manifest, Path(output_dir)):
+        return {"reason": "stop_for_review"}
+    return None
 
 
 def _load_existing_project_manifest(project_dir: Path) -> dict[str, Any]:
