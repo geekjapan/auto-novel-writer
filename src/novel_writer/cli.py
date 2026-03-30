@@ -8,7 +8,7 @@ from typing import Any, Callable
 from novel_writer.llm_client import build_llm_client
 from novel_writer.pipeline import PIPELINE_STEP_ORDER, StoryPipeline
 from novel_writer.rerun_policy import ContinuityRerunPolicy
-from novel_writer.schema import StoryInput, comparison_reason_detail_codes
+from novel_writer.schema import StoryInput, comparison_reason_detail_codes, project_manifest_contract
 from novel_writer.storage import (
     build_project_layout,
     load_artifact,
@@ -153,6 +153,7 @@ def save_project_state(
 ) -> None:
     run_manifest = load_artifact(output_dir, "manifest")
     existing_project_manifest = _load_existing_project_manifest(project_layout["project_dir"])
+    autonomy_level = _resolve_project_autonomy_level(existing_project_manifest)
     run_candidate = _build_run_candidate(run_manifest, output_dir)
     run_candidates = _merge_run_candidates(existing_project_manifest.get("run_candidates", []), run_candidate)
     best_run = _select_best_run(run_candidates)
@@ -173,6 +174,7 @@ def save_project_state(
             "project_id": project_layout["project_id"],
             "project_slug": project_layout["project_slug"],
             "projects_dir": str(projects_dir),
+            "autonomy_level": autonomy_level,
             "current_run": {
                 "name": output_dir.name,
                 "output_dir": str(output_dir),
@@ -190,6 +192,13 @@ def save_project_state(
         file_format,
     )
     save_run_comparison_summary(project_layout["project_dir"], comparison_summary, file_format)
+
+
+def _resolve_project_autonomy_level(existing_project_manifest: dict[str, Any]) -> str:
+    contract = project_manifest_contract()["autonomy_level"]
+    if "autonomy_level" in existing_project_manifest:
+        return existing_project_manifest["autonomy_level"]
+    return contract["default"]
 
 
 def build_run_comparison_lines(project_manifest: dict[str, Any]) -> list[str]:
@@ -577,6 +586,7 @@ def build_project_status_summary(
     summary: dict[str, Any] = {
         "project_label": project_manifest.get("project_slug") or project_manifest.get("project_id", "unknown"),
         "run_candidate_count": len(project_manifest.get("run_candidates", [])),
+        "autonomy_level": project_manifest.get("autonomy_level", "unknown"),
     }
 
     if current_run:
@@ -624,6 +634,7 @@ def build_project_status_lines(project_manifest: dict[str, Any], reason_detail_m
         return lines
 
     lines.append(f"Project: {summary['project_label']}")
+    lines.append(f"Autonomy level: {summary['autonomy_level']}")
 
     current_run = summary.get("current_run")
     if current_run:

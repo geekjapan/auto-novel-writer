@@ -1,4 +1,5 @@
 import io
+import json
 import tempfile
 import unittest
 from contextlib import redirect_stdout
@@ -164,6 +165,59 @@ class CliTest(unittest.TestCase):
             self.assertEqual(create_exit_code, 0)
             self.assertEqual(resume_exit_code, 0)
             self.assertTrue((run_dir / "manifest.json").exists())
+
+    def test_cli_create_project_sets_default_autonomy_level_and_preserves_existing_value(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            first_exit_code = main(
+                [
+                    "create-project",
+                    "--theme",
+                    "遺書",
+                    "--genre",
+                    "ミステリ",
+                    "--tone",
+                    "静謐",
+                    "--target-length",
+                    "5000",
+                    "--project-id",
+                    "Case 04",
+                    "--projects-dir",
+                    tmp_dir,
+                ]
+            )
+
+            project_dir = Path(tmp_dir) / "case-04"
+            project_manifest_path = project_dir / "project_manifest.json"
+            first_manifest = load_artifact(project_dir, "project_manifest")
+            self.assertEqual(first_manifest["autonomy_level"], "assist")
+            first_manifest["autonomy_level"] = "manual"
+            project_manifest_path.write_text(json.dumps(first_manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+
+            second_exit_code = main(
+                [
+                    "create-project",
+                    "--theme",
+                    "遺書",
+                    "--genre",
+                    "ミステリ",
+                    "--tone",
+                    "静謐",
+                    "--target-length",
+                    "5000",
+                    "--project-id",
+                    "Case 04",
+                    "--projects-dir",
+                    tmp_dir,
+                    "--output-dir",
+                    str(Path(tmp_dir) / "candidate-b"),
+                ]
+            )
+
+            updated_manifest = load_artifact(project_dir, "project_manifest")
+
+            self.assertEqual(first_exit_code, 0)
+            self.assertEqual(second_exit_code, 0)
+            self.assertEqual(updated_manifest["autonomy_level"], "manual")
 
     def test_cli_rerun_chapter_command_supports_arbitrary_chapter(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -854,6 +908,7 @@ class CliTest(unittest.TestCase):
         project_manifest = {
             "project_id": "Case 04",
             "project_slug": "case-04",
+            "autonomy_level": "assist",
             "current_run": {
                 "name": "latest_run",
                 "output_dir": "data/projects/case-04/runs/latest_run",
@@ -898,6 +953,7 @@ class CliTest(unittest.TestCase):
 
         self.assertEqual(summary["project_label"], "case-04")
         self.assertEqual(summary["run_candidate_count"], 2)
+        self.assertEqual(summary["autonomy_level"], "assist")
         self.assertEqual(summary["current_run"]["completed_steps"], 12)
         self.assertIn(
             "  current_comparison_reason_codes: long_run_should_stop, total_issue_score",
@@ -913,6 +969,56 @@ class CliTest(unittest.TestCase):
             summary["best_run"]["comparison_metrics_line"],
             "  best_comparison_metrics: total_issue_score=5, completed_step_count=7",
         )
+
+    def test_build_project_status_lines_surfaces_autonomy_level(self) -> None:
+        project_manifest = {
+            "project_id": "Case 06",
+            "project_slug": "case-06",
+            "autonomy_level": "manual",
+            "current_run": {
+                "name": "latest_run",
+                "output_dir": "data/projects/case-06/runs/latest_run",
+                "current_step": "publish_ready_bundle",
+                "completed_steps": ["story_input"],
+                "chapter_statuses": [],
+                "long_run_status": {},
+                "comparison_basis": ["long_run_should_stop"],
+                "comparison_reason": [],
+                "comparison_metrics": {
+                    "total_issue_score": 2,
+                    "completed_step_count": 1,
+                    "long_run_should_stop": False,
+                },
+                "comparison_reason_details": [
+                    {"code": "long_run_should_stop", "value": False},
+                    {"code": "total_issue_score", "value": 2},
+                ],
+                "policy_snapshot": {"long_run": {"max_high_severity_chapters": 6, "max_total_rerun_attempts": 20}},
+            },
+            "best_run": {
+                "run_name": "latest_run",
+                "output_dir": "data/projects/case-06/runs/latest_run",
+                "score": 2,
+                "comparison_basis": ["long_run_should_stop"],
+                "selection_source": "automatic",
+                "selection_reason": [],
+                "comparison_metrics": {
+                    "total_issue_score": 2,
+                    "completed_step_count": 1,
+                    "long_run_should_stop": False,
+                },
+                "selection_reason_details": [
+                    {"code": "long_run_should_stop", "value": False},
+                    {"code": "total_issue_score", "value": 2},
+                ],
+                "policy_snapshot": {"long_run": {"max_high_severity_chapters": 6, "max_total_rerun_attempts": 20}},
+            },
+            "run_candidates": [],
+        }
+
+        lines = build_project_status_lines(project_manifest)
+
+        self.assertIn("Autonomy level: manual", lines)
 
     def test_build_run_comparison_summary_returns_render_ready_sections(self) -> None:
         summary_artifact = {
