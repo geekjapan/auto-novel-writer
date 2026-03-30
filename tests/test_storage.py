@@ -234,6 +234,53 @@ class SaveArtifactTest(unittest.TestCase):
 
             self.assertEqual(saved["autonomy_level"], "assist")
 
+    def test_save_project_manifest_preserves_existing_autonomy_level_when_omitted(self) -> None:
+        base_payload = {
+            "project_id": "My Story 01",
+            "project_slug": "my-story-01",
+            "projects_dir": "data/projects",
+            "current_run": {
+                "name": "latest_run",
+                "output_dir": "data/projects/my-story-01/runs/latest_run",
+                "comparison_metrics": {},
+                "comparison_basis": [],
+                "comparison_reason": [],
+                "comparison_reason_details": [],
+            },
+            "run_candidates": [
+                {
+                    "run_name": "latest_run",
+                    "output_dir": "data/projects/my-story-01/runs/latest_run",
+                    "comparison_metrics": {},
+                    "comparison_basis": [],
+                    "comparison_reason": [],
+                    "comparison_reason_details": [],
+                }
+            ],
+            "best_run": {
+                "run_name": "latest_run",
+                "output_dir": "data/projects/my-story-01/runs/latest_run",
+                "score": 0,
+                "comparison_metrics": {},
+                "comparison_basis": [],
+                "selection_source": "automatic",
+                "selection_reason": [],
+                "selection_reason_details": [],
+            },
+        }
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            project_dir = Path(tmp_dir)
+            initial_payload = dict(base_payload)
+            initial_payload["autonomy_level"] = "manual"
+            save_project_manifest(project_dir, "My Story 01", initial_payload, "json")
+
+            updated_payload = dict(base_payload)
+            target = save_project_manifest(project_dir, "My Story 01", updated_payload, "json")
+            saved = json.loads(target.read_text(encoding="utf-8"))
+
+            self.assertEqual(saved["autonomy_level"], "manual")
+
     def test_save_story_bible_validates_required_fields(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             with self.assertRaisesRegex(ValueError, "missing required fields: ending_reveal, forbidden_facts"):

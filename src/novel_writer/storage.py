@@ -104,7 +104,16 @@ def save_project_manifest(
     manifest_payload = dict(payload)
     manifest_payload.setdefault("schema_name", contract["schema_name"])
     manifest_payload.setdefault("schema_version", contract["schema_version"])
-    manifest_payload.setdefault("autonomy_level", contract["autonomy_level"]["default"])
+    if "autonomy_level" not in manifest_payload:
+        try:
+            existing_manifest = load_artifact(project_layout["project_dir"], "project_manifest")
+        except FileNotFoundError:
+            manifest_payload["autonomy_level"] = contract["autonomy_level"]["default"]
+        else:
+            if isinstance(existing_manifest, dict) and "autonomy_level" in existing_manifest:
+                manifest_payload["autonomy_level"] = existing_manifest["autonomy_level"]
+            else:
+                manifest_payload["autonomy_level"] = contract["autonomy_level"]["default"]
     validate_project_manifest(manifest_payload)
     return save_artifact(project_layout["project_dir"], "project_manifest", manifest_payload, file_format)
 
