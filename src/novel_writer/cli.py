@@ -1132,6 +1132,9 @@ def main(argv: list[str] | None = None) -> int:
     project_layout = None
     if args.project_id:
         project_layout = build_project_layout(Path(args.projects_dir), args.project_id)
+        if resume_from is not None:
+            project_manifest = load_project_manifest(project_layout["project_dir"])
+            _enforce_resume_project_review_gate(project_manifest, Path(resume_from))
 
     output_dir = Path(args.output_dir)
     if resume_from is not None and args.output_dir == DEFAULT_OUTPUT_DIR:

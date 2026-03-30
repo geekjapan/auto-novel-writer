@@ -13,7 +13,7 @@ from novel_writer.cli import (
     build_saved_run_comparison_summary,
     main,
 )
-from novel_writer.storage import load_artifact, save_run_comparison_summary
+from novel_writer.storage import load_artifact, save_next_action_decision, save_run_comparison_summary
 
 
 class CliTest(unittest.TestCase):
@@ -96,6 +96,75 @@ class CliTest(unittest.TestCase):
             self.assertEqual(first_exit_code, 0)
             self.assertEqual(second_exit_code, 0)
             self.assertTrue((Path(tmp_dir) / "05_chapter_1_draft.json").exists())
+
+    def test_cli_main_resume_from_output_dir_blocks_manual_stop_for_review_for_project(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            create_exit_code = main(
+                [
+                    "create-project",
+                    "--theme",
+                    "秘密",
+                    "--genre",
+                    "ミステリ",
+                    "--tone",
+                    "静謐",
+                    "--target-length",
+                    "5000",
+                    "--project-id",
+                    "Case 08",
+                    "--projects-dir",
+                    tmp_dir,
+                ]
+            )
+
+            project_dir = Path(tmp_dir) / "case-08"
+            run_dir = project_dir / "runs" / "latest_run"
+            project_manifest_path = project_dir / "project_manifest.json"
+            project_manifest = load_artifact(project_dir, "project_manifest")
+            project_manifest["autonomy_level"] = "manual"
+            project_manifest_path.write_text(json.dumps(project_manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+            save_next_action_decision(
+                run_dir,
+                {
+                    "schema_name": "next_action_decision",
+                    "schema_version": "1.0",
+                    "evaluated_through_chapter": 5,
+                    "action": "stop_for_review",
+                    "reason": "manual review required",
+                    "issue_codes": ["manual_review"],
+                    "target_chapters": [],
+                    "policy_budget": {
+                        "max_high_severity_chapters": 0,
+                        "max_total_rerun_attempts": 0,
+                        "remaining_high_severity_chapter_budget": 0,
+                        "remaining_rerun_attempt_budget": 0,
+                    },
+                    "decision_trace": [
+                        {
+                            "code": "manual_review",
+                            "summary": "Manual review is required before continuing.",
+                            "value": "chapter-5",
+                        }
+                    ],
+                },
+            )
+
+            with self.assertRaisesRegex(
+                ValueError,
+                "resume-project.*manual.*stop_for_review",
+            ):
+                main(
+                    [
+                        "--resume-from-output-dir",
+                        str(run_dir),
+                        "--project-id",
+                        "Case 08",
+                        "--projects-dir",
+                        tmp_dir,
+                    ]
+                )
+
+            self.assertEqual(create_exit_code, 0)
 
     def test_cli_main_can_use_project_scoped_run_layout(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
