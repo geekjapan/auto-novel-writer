@@ -1080,13 +1080,14 @@ def print_run_comparison(
     summary_artifact: dict[str, Any],
     reason_detail_mode: str = "summary",
 ) -> None:
-    for line in build_saved_run_comparison_lines(summary_artifact, reason_detail_mode=reason_detail_mode):
-        print(line)
+    lines = build_saved_run_comparison_lines(summary_artifact, reason_detail_mode=reason_detail_mode)
     current_run = summary_artifact.get("current_run", {})
     current_output_dir = current_run.get("output_dir")
     if current_output_dir:
-        for line in _build_saved_publish_bundle_summary_lines(Path(current_output_dir)):
-            print(line)
+        lines.extend(_build_saved_publish_bundle_summary_lines(Path(current_output_dir)))
+
+    for line in lines:
+        print(line)
 
 
 def promote_best_run(project_dir: Path, run_name: str, projects_dir: Path, file_format: str = "json") -> dict[str, Any]:

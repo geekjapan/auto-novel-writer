@@ -2158,21 +2158,25 @@ class CliTest(unittest.TestCase):
             }
             save_run_comparison_summary(project_dir, comparison_payload)
 
-            with self.assertRaisesRegex(
-                FileNotFoundError,
-                r"Artifact not found for phase 'publish_ready_bundle'",
-            ):
-                main(
-                    [
-                        "show-run-comparison",
-                        "--project-id",
-                        "Compare Missing Bundle 01",
-                        "--projects-dir",
-                        tmp_dir,
-                        "--reason-detail-mode",
-                        "codes",
-                    ]
-                )
+            buffer = io.StringIO()
+            with redirect_stdout(buffer):
+                with self.assertRaisesRegex(
+                    FileNotFoundError,
+                    r"Artifact not found for phase 'publish_ready_bundle'",
+                ):
+                    main(
+                        [
+                            "show-run-comparison",
+                            "--project-id",
+                            "Compare Missing Bundle 01",
+                            "--projects-dir",
+                            tmp_dir,
+                            "--reason-detail-mode",
+                            "codes",
+                        ]
+                    )
+
+            self.assertEqual(buffer.getvalue(), "")
 
 
 if __name__ == "__main__":
