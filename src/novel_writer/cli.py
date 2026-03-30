@@ -256,34 +256,13 @@ def load_project_run_context(projects_dir: Path, project_id: str) -> tuple[dict,
     return project_layout, Path(project_manifest["current_run"]["output_dir"])
 
 
-def _enforce_resume_project_review_gate(project_manifest: dict[str, Any], output_dir: Path) -> None:
-    autonomy_level = project_manifest.get("autonomy_level")
-    if autonomy_level != "manual":
-        return
-
-    try:
-        next_action_decision = load_next_action_decision(output_dir)
-    except FileNotFoundError:
-        return
-
-    if next_action_decision.get("action") == "stop_for_review":
-        raise ValueError(
-            "resume-project is blocked for manual projects when next_action_decision.action is stop_for_review."
-        )
-
-
-def _build_project_resume_gate_summary(project_manifest: dict[str, Any]) -> dict[str, Any] | None:
-    """manual project の review gate を status 表示向けに要約する。"""
+def _build_manual_review_gate(project_manifest: dict[str, Any], output_dir: Path) -> dict[str, Any] | None:
+    """manual project の review gate 判定を共通化する。"""
     if project_manifest.get("autonomy_level") != "manual":
         return None
 
-    current_run = project_manifest.get("current_run", {})
-    output_dir = current_run.get("output_dir")
-    if not output_dir:
-        return None
-
     try:
-        next_action_decision = load_next_action_decision(Path(output_dir))
+        next_action_decision = load_next_action_decision(output_dir)
     except FileNotFoundError:
         return None
 
@@ -291,6 +270,24 @@ def _build_project_resume_gate_summary(project_manifest: dict[str, Any]) -> dict
         return None
 
     return {"reason": "stop_for_review"}
+
+
+def _enforce_resume_project_review_gate(project_manifest: dict[str, Any], output_dir: Path) -> None:
+    review_gate = _build_manual_review_gate(project_manifest, output_dir)
+    if review_gate is not None:
+        raise ValueError(
+            "resume-project is blocked for manual projects when next_action_decision.action is stop_for_review."
+        )
+
+
+def _build_project_resume_gate_summary(project_manifest: dict[str, Any]) -> dict[str, Any] | None:
+    """manual project の review gate を status 表示向けに要約する。"""
+    current_run = project_manifest.get("current_run", {})
+    output_dir = current_run.get("output_dir")
+    if not output_dir:
+        return None
+
+    return _build_manual_review_gate(project_manifest, Path(output_dir))
 
 
 def _load_existing_project_manifest(project_dir: Path) -> dict[str, Any]:

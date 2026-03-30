@@ -5,12 +5,12 @@
 
 ## In Progress
 
-- [ ] M63i: manual review gate 判定を status と resume で共通化する
-  - Title: `resume-project` と `show-project-status` の manual + `stop_for_review` 判定を 1 つの helper にまとめる
-  - Milestone: M63 Autonomous Policy
-  - Purpose: review gate の条件を CLI 内で二重管理せず、`resume-project` と status 表示が同じ source of truth を参照するようにして、今後の autonomy policy 変更でずれにくくする
-  - Target files or directories: `src/novel_writer/cli.py`, `tests/test_cli.py`
-  - Done when: `resume-project` と `show-project-status` が同じ review gate 判定ヘルパーを使い、既存の manual / assist / missing decision テストが通る
+- [ ] M64a: publish bundle の status 要約を保存済み summary と揃える
+  - Title: `publish_ready_bundle` の read-only 要約を CLI 表示と保存 artifact で共通化する
+  - Milestone: M64 Long-Form Publish Bundle
+  - Purpose: publish bundle の summary 表示と保存内容を 1 つの source of truth に寄せ、後続の bundle 強化で表示と保存の差分が出にくい土台を作る
+  - Target files or directories: `src/novel_writer/cli.py`, `src/novel_writer/pipeline.py`, `tests/test_cli.py`, `tests/test_pipeline.py`
+  - Done when: 保存済み publish bundle と CLI の status / comparison 要約が同じ helper を参照し、既存の bundle 関連テストが通る
   - Required tests: `./venv/bin/python -m unittest tests.test_cli -v`, `./venv/bin/python -m unittest discover -s tests -v`
   - Docs to update: `docs/TASKS.md`
 
@@ -20,6 +20,7 @@
 
 ### Recent completions
 
+- [x] M63i: manual review gate 判定を status と resume で共通化する
 - [x] M63h: manual project の review gate を status から見えるようにする
 - [x] M63g: manual project は review-required decision で resume-project を停止する
 - [x] M63f: project autonomy level contract を追加する
