@@ -586,7 +586,7 @@ def build_project_status_summary(
     summary: dict[str, Any] = {
         "project_label": project_manifest.get("project_slug") or project_manifest.get("project_id", "unknown"),
         "run_candidate_count": len(project_manifest.get("run_candidates", [])),
-        "autonomy_level": project_manifest.get("autonomy_level", "unknown"),
+        "autonomy_level": project_manifest.get("autonomy_level", project_manifest_contract()["autonomy_level"]["default"]),
     }
 
     if current_run:

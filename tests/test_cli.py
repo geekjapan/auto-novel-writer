@@ -970,6 +970,57 @@ class CliTest(unittest.TestCase):
             "  best_comparison_metrics: total_issue_score=5, completed_step_count=7",
         )
 
+    def test_build_project_status_summary_defaults_missing_autonomy_level_to_assist(self) -> None:
+        project_manifest = {
+            "project_id": "Legacy 01",
+            "project_slug": "legacy-01",
+            "current_run": {
+                "name": "latest_run",
+                "output_dir": "data/projects/legacy-01/runs/latest_run",
+                "current_step": "publish_ready_bundle",
+                "completed_steps": ["story_input"],
+                "chapter_statuses": [],
+                "long_run_status": {},
+                "comparison_basis": ["long_run_should_stop"],
+                "comparison_reason": [],
+                "comparison_metrics": {
+                    "total_issue_score": 2,
+                    "completed_step_count": 1,
+                    "long_run_should_stop": False,
+                },
+                "comparison_reason_details": [
+                    {"code": "long_run_should_stop", "value": False},
+                    {"code": "total_issue_score", "value": 2},
+                ],
+                "policy_snapshot": {"long_run": {"max_high_severity_chapters": 6, "max_total_rerun_attempts": 20}},
+            },
+            "best_run": {
+                "run_name": "latest_run",
+                "output_dir": "data/projects/legacy-01/runs/latest_run",
+                "score": 2,
+                "comparison_basis": ["long_run_should_stop"],
+                "selection_source": "automatic",
+                "selection_reason": [],
+                "comparison_metrics": {
+                    "total_issue_score": 2,
+                    "completed_step_count": 1,
+                    "long_run_should_stop": False,
+                },
+                "selection_reason_details": [
+                    {"code": "long_run_should_stop", "value": False},
+                    {"code": "total_issue_score", "value": 2},
+                ],
+                "policy_snapshot": {"long_run": {"max_high_severity_chapters": 6, "max_total_rerun_attempts": 20}},
+            },
+            "run_candidates": [],
+        }
+
+        summary = build_project_status_summary(project_manifest)
+        lines = build_project_status_lines(project_manifest)
+
+        self.assertEqual(summary["autonomy_level"], "assist")
+        self.assertIn("Autonomy level: assist", lines)
+
     def test_build_project_status_lines_surfaces_autonomy_level(self) -> None:
         project_manifest = {
             "project_id": "Case 06",
