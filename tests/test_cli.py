@@ -4,14 +4,17 @@ import tempfile
 import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from novel_writer.cli import (
+    _build_publish_bundle_summary_lines,
     build_project_status_lines,
     build_project_status_summary,
     build_saved_run_comparison_lines,
     build_saved_run_comparison_summary,
     main,
+    print_run_summary,
 )
 from novel_writer.storage import load_artifact, save_next_action_decision, save_run_comparison_summary
 
@@ -365,6 +368,105 @@ class CliTest(unittest.TestCase):
             self.assertEqual(exit_code, 0)
             self.assertEqual(len(calls), 1)
             self.assertEqual(calls[0][1]["resume_from"], run_dir)
+
+    def test_build_publish_bundle_summary_lines_prefers_saved_summary(self) -> None:
+        publish_ready_bundle = {
+            "title": "Case Bundle",
+            "chapter_count": 2,
+            "sections": {
+                "manuscript": {"field": "chapters"},
+                "story_summary": {"field": "story_summary"},
+            },
+            "source_artifacts": {
+                "story_summary": "story_summary.json",
+                "chapters": "revised_chapter_{n}_draft.json",
+            },
+            "summary": {
+                "title": "Saved Bundle Title",
+                "chapter_count": 2,
+                "section_names": ["manuscript", "story_summary"],
+                "source_artifact_names": [
+                    "story_summary.json",
+                    "revised_chapter_{n}_draft.json",
+                ],
+            },
+        }
+
+        lines = _build_publish_bundle_summary_lines(publish_ready_bundle)
+
+        self.assertEqual(
+            lines,
+            [
+                "publish_bundle.title: Saved Bundle Title",
+                "publish_bundle.chapter_count: 2",
+                "publish_bundle.section_names: manuscript, story_summary",
+                "publish_bundle.source_artifact_names: story_summary.json, revised_chapter_{n}_draft.json",
+            ],
+        )
+
+    def test_build_publish_bundle_summary_lines_backfills_missing_summary(self) -> None:
+        publish_ready_bundle = {
+            "title": "Fallback Bundle",
+            "chapter_count": 3,
+            "sections": {
+                "manuscript": {"field": "chapters"},
+                "quality": {"field": "overall_quality_report"},
+            },
+            "source_artifacts": {
+                "story_summary": "story_summary.json",
+                "overall_quality_report": "project_quality_report.json",
+            },
+        }
+
+        lines = _build_publish_bundle_summary_lines(publish_ready_bundle)
+
+        self.assertEqual(
+            lines,
+            [
+                "publish_bundle.title: Fallback Bundle",
+                "publish_bundle.chapter_count: 3",
+                "publish_bundle.section_names: manuscript, quality",
+                "publish_bundle.source_artifact_names: story_summary.json, project_quality_report.json",
+            ],
+        )
+
+    def test_print_run_summary_uses_saved_publish_bundle_summary(self) -> None:
+        artifacts = SimpleNamespace(
+            loglines=[{"title": "Selected Logline"}],
+            chapter_plan=[{"chapter_number": 1}, {"chapter_number": 2}],
+            continuity_report={"issue_counts": {}, "severity": "low"},
+            publish_ready_bundle={
+                "title": "Legacy Bundle Title",
+                "chapter_count": 2,
+                "sections": {
+                    "manuscript": {"field": "chapters"},
+                    "quality": {"field": "overall_quality_report"},
+                },
+                "source_artifacts": {
+                    "story_summary": "story_summary.json",
+                    "overall_quality_report": "project_quality_report.json",
+                },
+                "summary": {
+                    "title": "Saved Bundle Title",
+                    "chapter_count": 2,
+                    "section_names": ["manuscript", "quality"],
+                    "source_artifact_names": [
+                        "story_summary.json",
+                        "project_quality_report.json",
+                    ],
+                },
+            },
+        )
+
+        buffer = io.StringIO()
+        with patch("novel_writer.cli.build_run_comparison_lines", return_value=[]), redirect_stdout(buffer):
+            print_run_summary(artifacts, Path("/tmp/publish-ready-bundle"), {})
+
+        output = buffer.getvalue()
+
+        self.assertIn("publish_bundle.title: Saved Bundle Title", output)
+        self.assertIn("publish_bundle.section_names: manuscript, quality", output)
+        self.assertIn("publish_bundle.source_artifact_names: story_summary.json, project_quality_report.json", output)
 
     def test_cli_create_project_sets_default_autonomy_level_and_preserves_existing_value(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

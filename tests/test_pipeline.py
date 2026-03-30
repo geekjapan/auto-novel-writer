@@ -410,6 +410,19 @@ class StoryPipelineTest(unittest.TestCase):
                 "project_quality_report.json",
             )
             self.assertIn("manuscript", publish_ready_bundle["sections"])
+            self.assertEqual(
+                publish_ready_bundle["summary"],
+                {
+                    "title": publish_ready_bundle["title"],
+                    "chapter_count": len(artifacts.revised_chapter_drafts),
+                    "section_names": list(publish_ready_bundle["sections"].keys()),
+                    "source_artifact_names": [
+                        "story_summary.json",
+                        "project_quality_report.json",
+                        "revised_chapter_{n}_draft.json",
+                    ],
+                },
+            )
             self.assertEqual(manifest["artifacts"]["continuity_history"], manifest["continuity_history"])
             self.assertEqual(artifacts.revised_chapter_1_draft["chapter_number"], 1)
             self.assertEqual(manifest["revise_history"][0]["chapter_index"], 0)

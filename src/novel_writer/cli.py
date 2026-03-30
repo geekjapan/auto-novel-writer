@@ -8,7 +8,12 @@ from typing import Any, Callable
 from novel_writer.llm_client import build_llm_client
 from novel_writer.pipeline import PIPELINE_STEP_ORDER, StoryPipeline
 from novel_writer.rerun_policy import ContinuityRerunPolicy
-from novel_writer.schema import StoryInput, comparison_reason_detail_codes, project_manifest_contract
+from novel_writer.schema import (
+    StoryInput,
+    build_publish_ready_bundle_summary,
+    comparison_reason_detail_codes,
+    project_manifest_contract,
+)
 from novel_writer.storage import (
     build_project_layout,
     load_artifact,
@@ -589,6 +594,16 @@ def build_rerun_policy_from_args(args: argparse.Namespace) -> ContinuityRerunPol
     return ContinuityRerunPolicy(config)
 
 
+def _build_publish_bundle_summary_lines(payload: dict[str, Any]) -> list[str]:
+    summary = build_publish_ready_bundle_summary(payload)
+    return [
+        f"publish_bundle.title: {summary['title']}",
+        f"publish_bundle.chapter_count: {summary['chapter_count']}",
+        f"publish_bundle.section_names: {', '.join(summary['section_names']) or 'none'}",
+        f"publish_bundle.source_artifact_names: {', '.join(summary['source_artifact_names']) or 'none'}",
+    ]
+
+
 def print_run_summary(artifacts, output_dir: Path, project_manifest: dict[str, Any] | None = None) -> None:
     issue_count = sum(artifacts.continuity_report.get("issue_counts", {}).values())
     print(f"Generated short-story artifacts in: {output_dir.resolve()}")
@@ -604,6 +619,9 @@ def print_run_summary(artifacts, output_dir: Path, project_manifest: dict[str, A
             f"reason={long_run_status.get('reason') or 'none'}, "
             f"remaining_rerun_budget={long_run_status.get('remaining_rerun_attempt_budget', 'n/a')}"
         )
+    if getattr(artifacts, "publish_ready_bundle", None):
+        for line in _build_publish_bundle_summary_lines(artifacts.publish_ready_bundle):
+            print(line)
     for line in build_run_comparison_lines(project_manifest or {}):
         print(line)
 

@@ -7,7 +7,7 @@ from pathlib import Path
 from novel_writer.continuity import ContinuityChecker
 from novel_writer.llm_client import BaseLLMClient
 from novel_writer.rerun_policy import ContinuityRerunPolicy
-from novel_writer.schema import StoryArtifacts, StoryInput
+from novel_writer.schema import StoryArtifacts, StoryInput, build_publish_ready_bundle_summary
 from novel_writer.storage import (
     apply_replan_updates,
     load_canon_ledger,
@@ -1132,6 +1132,7 @@ class StoryPipeline:
             },
             "sections": bundle_contract["sections"],
         }
+        artifacts.publish_ready_bundle["summary"] = build_publish_ready_bundle_summary(artifacts.publish_ready_bundle)
         save_publish_ready_bundle(self.output_dir, artifacts.publish_ready_bundle, "json")
         self._mark_checkpoint("publish_ready_bundle", checkpoints, artifacts, selected_logline)
 

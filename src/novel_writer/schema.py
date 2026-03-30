@@ -3,6 +3,47 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 
 
+def _publish_bundle_section_names(payload: dict) -> list[str]:
+    sections = payload.get("sections")
+    if isinstance(sections, dict):
+        return list(sections.keys())
+    if isinstance(sections, list):
+        return [str(section_name) for section_name in sections]
+    return []
+
+
+def _publish_bundle_source_artifact_names(payload: dict) -> list[str]:
+    source_artifacts = payload.get("source_artifacts")
+    if isinstance(source_artifacts, dict):
+        return [str(artifact_name) for artifact_name in source_artifacts.values()]
+    return []
+
+
+def build_publish_ready_bundle_summary(payload: dict) -> dict:
+    """publish_ready_bundle の read-only 要約を machine-readable 形式でまとめる。"""
+    summary = payload.get("summary")
+    if isinstance(summary, dict):
+        section_names = summary.get("section_names")
+        if not isinstance(section_names, list):
+            section_names = _publish_bundle_section_names(payload)
+        source_artifact_names = summary.get("source_artifact_names")
+        if not isinstance(source_artifact_names, list):
+            source_artifact_names = _publish_bundle_source_artifact_names(payload)
+        return {
+            "title": summary.get("title", payload.get("title", "unknown")),
+            "chapter_count": summary.get("chapter_count", payload.get("chapter_count", 0)),
+            "section_names": [str(section_name) for section_name in section_names],
+            "source_artifact_names": [str(artifact_name) for artifact_name in source_artifact_names],
+        }
+
+    return {
+        "title": payload.get("title", "unknown"),
+        "chapter_count": payload.get("chapter_count", 0),
+        "section_names": _publish_bundle_section_names(payload),
+        "source_artifact_names": _publish_bundle_source_artifact_names(payload),
+    }
+
+
 def chapter_artifact_contract() -> dict:
     return {
         "canonical_story_state": {
@@ -993,6 +1034,7 @@ def publish_ready_bundle_contract() -> dict:
             "selected_logline",
             "source_artifacts",
             "sections",
+            "summary",
         ],
         "sections": {
             "manuscript": {
@@ -1008,12 +1050,23 @@ def publish_ready_bundle_contract() -> dict:
                 "description": "Project-level quality evaluation for downstream review.",
             },
         },
+        "summary": {
+            "required_fields": [
+                "title",
+                "chapter_count",
+                "section_names",
+                "source_artifact_names",
+            ],
+        },
     }
 
 
 def validate_publish_ready_bundle(payload: dict) -> dict:
     contract = publish_ready_bundle_contract()
-    missing_fields = [field for field in contract["required_fields"] if field not in payload]
+    # summary は read-only 用の補助要約なので、既存の互換テストで先に見たい
+    # schema_version / sections の異常を隠さないよう、ここでは後段で個別に検証する。
+    required_fields = [field for field in contract["required_fields"] if field != "summary"]
+    missing_fields = [field for field in required_fields if field not in payload]
     if missing_fields:
         missing = ", ".join(sorted(missing_fields))
         raise ValueError(
@@ -1049,6 +1102,36 @@ def validate_publish_ready_bundle(payload: dict) -> dict:
                 f"sections.{section_name}.field={section_payload.get('field')!r} "
                 f"is not supported; expected {section_contract['field']!r}."
             )
+
+    summary = payload.get("summary")
+    if not isinstance(summary, dict):
+        raise ValueError("Invalid publish_ready_bundle: summary must be an object.")
+
+    summary_contract = contract["summary"]
+    missing_summary_fields = [field for field in summary_contract["required_fields"] if field not in summary]
+    if missing_summary_fields:
+        missing = ", ".join(sorted(missing_summary_fields))
+        raise ValueError(
+            "Invalid publish_ready_bundle: summary is missing required fields: "
+            f"{missing}."
+        )
+
+    _validate_str_field(summary.get("title"), "publish_ready_bundle", "summary.title")
+    _validate_int_field(summary.get("chapter_count"), "publish_ready_bundle", "summary.chapter_count")
+    _validate_list_field(summary.get("section_names"), "publish_ready_bundle", "summary.section_names")
+    _validate_list_field(
+        summary.get("source_artifact_names"),
+        "publish_ready_bundle",
+        "summary.source_artifact_names",
+    )
+    for index, section_name in enumerate(summary.get("section_names", [])):
+        _validate_str_field(section_name, "publish_ready_bundle", f"summary.section_names[{index}]")
+    for index, artifact_name in enumerate(summary.get("source_artifact_names", [])):
+        _validate_str_field(
+            artifact_name,
+            "publish_ready_bundle",
+            f"summary.source_artifact_names[{index}]",
+        )
 
     return payload
 
