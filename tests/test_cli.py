@@ -16,7 +16,12 @@ from novel_writer.cli import (
     main,
     print_run_summary,
 )
-from novel_writer.storage import load_artifact, save_next_action_decision, save_run_comparison_summary
+from novel_writer.storage import (
+    load_artifact,
+    save_next_action_decision,
+    save_publish_ready_bundle,
+    save_run_comparison_summary,
+)
 
 
 class CliTest(unittest.TestCase):
@@ -1832,6 +1837,48 @@ class CliTest(unittest.TestCase):
             )
 
             project_dir = Path(tmp_dir) / "compare-01"
+            publish_ready_bundle = {
+                "schema_name": "publish_ready_bundle",
+                "schema_version": "1.0",
+                "bundle_type": "publish_ready_bundle",
+                "title": "Saved Publish Bundle Title",
+                "synopsis": "Saved synopsis for the read-only CLI path.",
+                "chapter_count": 2,
+                "chapters": [
+                    {"chapter_number": 1, "title": "Chapter 1"},
+                    {"chapter_number": 2, "title": "Chapter 2"},
+                ],
+                "sections": {
+                    "manuscript": {"field": "chapters"},
+                    "story_summary": {"field": "story_summary"},
+                    "quality": {"field": "overall_quality_report"},
+                },
+                "source_artifacts": {
+                    "story_summary": "story_summary.json",
+                    "overall_quality_report": "project_quality_report.json",
+                    "chapters": "revised_chapter_{n}_draft.json",
+                },
+                "story_summary": {
+                    "schema_name": "story_summary",
+                    "schema_version": "1.0",
+                    "chapter_count": 2,
+                },
+                "overall_quality_report": {
+                    "schema_name": "project_quality_report",
+                    "schema_version": "1.0",
+                },
+                "selected_logline": {"id": "logline-1", "title": "Selected logline"},
+                "summary": {
+                    "title": "Saved Publish Bundle Title",
+                    "chapter_count": 2,
+                    "section_names": ["manuscript", "story_summary"],
+                    "source_artifact_names": [
+                        "story_summary.json",
+                        "revised_chapter_{n}_draft.json",
+                    ],
+                },
+            }
+            save_publish_ready_bundle(project_dir / "runs" / "latest_run", publish_ready_bundle)
             comparison_before = load_artifact(project_dir, "run_comparison_summary")
 
             buffer = io.StringIO()
@@ -1866,6 +1913,13 @@ class CliTest(unittest.TestCase):
             self.assertIn("run_candidate_names: latest_run", output)
             self.assertIn("run_candidate_scores: latest_run=13", output)
             self.assertIn("run_candidate_output_dirs: latest_run=", output)
+            self.assertIn("publish_bundle.title: Saved Publish Bundle Title", output)
+            self.assertIn("publish_bundle.section_names: manuscript, story_summary", output)
+            self.assertIn(
+                "publish_bundle.source_artifact_names: story_summary.json, revised_chapter_{n}_draft.json",
+                output,
+            )
+            self.assertNotIn("publish_bundle.title: Case Bundle", output)
 
     def test_cli_show_run_comparison_reads_minimal_valid_artifact(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

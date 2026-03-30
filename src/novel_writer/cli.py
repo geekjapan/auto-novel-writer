@@ -19,6 +19,7 @@ from novel_writer.storage import (
     load_artifact,
     load_next_action_decision,
     load_project_manifest,
+    load_publish_ready_bundle,
     load_run_comparison_summary,
     save_project_manifest,
     save_run_comparison_summary,
@@ -626,6 +627,14 @@ def print_run_summary(artifacts, output_dir: Path, project_manifest: dict[str, A
         print(line)
 
 
+def _build_saved_publish_bundle_summary_lines(output_dir: Path) -> list[str]:
+    try:
+        publish_ready_bundle = load_publish_ready_bundle(output_dir)
+    except FileNotFoundError:
+        return []
+    return _build_publish_bundle_summary_lines(publish_ready_bundle)
+
+
 def build_project_status_summary(
     project_manifest: dict[str, Any],
     reason_detail_mode: str = "summary",
@@ -1070,9 +1079,17 @@ def print_project_status(project_manifest: dict[str, Any], reason_detail_mode: s
         print(line)
 
 
-def print_run_comparison(summary_artifact: dict[str, Any], reason_detail_mode: str = "summary") -> None:
+def print_run_comparison(
+    summary_artifact: dict[str, Any],
+    reason_detail_mode: str = "summary",
+) -> None:
     for line in build_saved_run_comparison_lines(summary_artifact, reason_detail_mode=reason_detail_mode):
         print(line)
+    current_run = summary_artifact.get("current_run", {})
+    current_output_dir = current_run.get("output_dir")
+    if current_output_dir:
+        for line in _build_saved_publish_bundle_summary_lines(Path(current_output_dir)):
+            print(line)
 
 
 def promote_best_run(project_dir: Path, run_name: str, projects_dir: Path, file_format: str = "json") -> dict[str, Any]:
