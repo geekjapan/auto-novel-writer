@@ -18,6 +18,7 @@ from novel_writer.cli import (
 )
 from novel_writer.storage import (
     load_artifact,
+    load_publish_ready_bundle,
     save_next_action_decision,
     save_publish_ready_bundle,
     save_run_comparison_summary,
@@ -104,6 +105,66 @@ class CliTest(unittest.TestCase):
             self.assertEqual(first_exit_code, 0)
             self.assertEqual(second_exit_code, 0)
             self.assertTrue((Path(tmp_dir) / "05_chapter_1_draft.json").exists())
+
+    def test_cli_rerun_chapter_keeps_show_run_comparison_read_only(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            create_exit_code = main(
+                [
+                    "create-project",
+                    "--theme",
+                    "約束",
+                    "--genre",
+                    "青春ドラマ",
+                    "--tone",
+                    "軽やか",
+                    "--target-length",
+                    "5000",
+                    "--project-id",
+                    "Compare Rerun 01",
+                    "--projects-dir",
+                    tmp_dir,
+                ]
+            )
+            rerun_exit_code = main(
+                [
+                    "rerun-chapter",
+                    "--project-id",
+                    "Compare Rerun 01",
+                    "--projects-dir",
+                    tmp_dir,
+                    "--chapter-number",
+                    "2",
+                ]
+            )
+
+            project_dir = Path(tmp_dir) / "compare-rerun-01"
+            run_dir = project_dir / "runs" / "latest_run"
+            publish_ready_bundle = load_publish_ready_bundle(run_dir)
+            buffer = io.StringIO()
+            with redirect_stdout(buffer):
+                comparison_exit_code = main(
+                    [
+                        "show-run-comparison",
+                        "--project-id",
+                        "Compare Rerun 01",
+                        "--projects-dir",
+                        tmp_dir,
+                        "--reason-detail-mode",
+                        "codes",
+                    ]
+                )
+
+            output = buffer.getvalue()
+
+            self.assertEqual(create_exit_code, 0)
+            self.assertEqual(rerun_exit_code, 0)
+            self.assertEqual(comparison_exit_code, 0)
+            self.assertIn("publish_bundle.title:", output)
+            self.assertIn("publish_bundle.section_names: manuscript, story_summary, quality", output)
+            self.assertEqual(
+                load_publish_ready_bundle(run_dir)["summary"],
+                publish_ready_bundle["summary"],
+            )
 
     def test_cli_main_resume_from_output_dir_blocks_manual_stop_for_review_for_project(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
