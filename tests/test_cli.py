@@ -4,6 +4,7 @@ import tempfile
 import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
+from unittest.mock import patch
 
 from novel_writer.cli import (
     build_project_status_lines,
@@ -165,6 +166,69 @@ class CliTest(unittest.TestCase):
             self.assertEqual(create_exit_code, 0)
             self.assertEqual(resume_exit_code, 0)
             self.assertTrue((run_dir / "manifest.json").exists())
+
+    def test_cli_resume_project_blocks_manual_stop_for_review_before_pipeline(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            project_dir = Path(tmp_dir) / "case-05"
+            run_dir = project_dir / "runs" / "latest_run"
+
+            with patch("novel_writer.cli.load_project_run_context", return_value=({"project_dir": project_dir}, run_dir)), patch(
+                "novel_writer.cli.load_project_manifest",
+                return_value={"autonomy_level": "manual"},
+            ), patch(
+                "novel_writer.cli.load_next_action_decision",
+                return_value={"action": "stop_for_review"},
+            ), patch("novel_writer.cli.run_pipeline") as run_pipeline, patch(
+                "novel_writer.cli.save_project_state"
+            ), patch("novel_writer.cli.print_run_summary"):
+                with self.assertRaisesRegex(
+                    ValueError,
+                    "resume-project.*manual.*stop_for_review",
+                ):
+                    main(
+                        [
+                            "resume-project",
+                            "--project-id",
+                            "Case 05",
+                            "--projects-dir",
+                            tmp_dir,
+                        ]
+                    )
+
+            run_pipeline.assert_not_called()
+
+    def test_cli_resume_project_allows_missing_next_action_decision(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            project_dir = Path(tmp_dir) / "case-06"
+            run_dir = project_dir / "runs" / "latest_run"
+            calls: list[tuple[tuple[object, ...], dict[str, object]]] = []
+
+            def fake_run_pipeline(*args: object, **kwargs: object) -> dict[str, object]:
+                calls.append((args, kwargs))
+                return {"artifacts": []}
+
+            with patch("novel_writer.cli.load_project_run_context", return_value=({"project_dir": project_dir}, run_dir)), patch(
+                "novel_writer.cli.load_project_manifest",
+                return_value={"autonomy_level": "manual"},
+            ), patch(
+                "novel_writer.cli.load_next_action_decision",
+                side_effect=FileNotFoundError,
+            ), patch("novel_writer.cli.run_pipeline", side_effect=fake_run_pipeline), patch(
+                "novel_writer.cli.save_project_state"
+            ), patch("novel_writer.cli.print_run_summary"):
+                exit_code = main(
+                    [
+                        "resume-project",
+                        "--project-id",
+                        "Case 06",
+                        "--projects-dir",
+                        tmp_dir,
+                    ]
+                )
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(len(calls), 1)
+            self.assertEqual(calls[0][1]["resume_from"], run_dir)
 
     def test_cli_create_project_sets_default_autonomy_level_and_preserves_existing_value(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

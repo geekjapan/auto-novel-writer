@@ -12,6 +12,7 @@ from novel_writer.schema import StoryInput, comparison_reason_detail_codes, proj
 from novel_writer.storage import (
     build_project_layout,
     load_artifact,
+    load_next_action_decision,
     load_project_manifest,
     load_run_comparison_summary,
     save_project_manifest,
@@ -253,6 +254,22 @@ def load_project_run_context(projects_dir: Path, project_id: str) -> tuple[dict,
     project_layout = build_project_layout(projects_dir, project_id)
     project_manifest = load_project_manifest(project_layout["project_dir"])
     return project_layout, Path(project_manifest["current_run"]["output_dir"])
+
+
+def _enforce_resume_project_review_gate(project_manifest: dict[str, Any], output_dir: Path) -> None:
+    autonomy_level = project_manifest.get("autonomy_level")
+    if autonomy_level != "manual":
+        return
+
+    try:
+        next_action_decision = load_next_action_decision(output_dir)
+    except FileNotFoundError:
+        return
+
+    if next_action_decision.get("action") == "stop_for_review":
+        raise ValueError(
+            "resume-project is blocked for manual projects when next_action_decision.action is stop_for_review."
+        )
 
 
 def _load_existing_project_manifest(project_dir: Path) -> dict[str, Any]:
@@ -1066,6 +1083,8 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "resume-project":
         project_layout, output_dir = load_project_run_context(Path(args.projects_dir), args.project_id)
+        project_manifest = load_project_manifest(project_layout["project_dir"])
+        _enforce_resume_project_review_gate(project_manifest, output_dir)
         artifacts = run_pipeline(args, output_dir, resume_from=output_dir, rerun_from=args.rerun_from)
         save_project_state(project_layout, Path(args.projects_dir), args.project_id, output_dir, args.format)
         project_manifest = load_project_manifest(project_layout["project_dir"])
