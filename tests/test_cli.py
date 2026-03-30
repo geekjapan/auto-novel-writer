@@ -166,6 +166,40 @@ class CliTest(unittest.TestCase):
 
             self.assertEqual(create_exit_code, 0)
 
+    def test_cli_main_resume_from_output_dir_can_attach_to_new_project_without_manifest(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            standalone_exit_code = main(
+                [
+                    "--theme",
+                    "秘密",
+                    "--genre",
+                    "ミステリ",
+                    "--tone",
+                    "静謐",
+                    "--target-length",
+                    "5000",
+                    "--output-dir",
+                    tmp_dir,
+                ]
+            )
+            resume_exit_code = main(
+                [
+                    "--resume-from-output-dir",
+                    tmp_dir,
+                    "--project-id",
+                    "Case 09",
+                    "--projects-dir",
+                    tmp_dir,
+                ]
+            )
+
+            project_dir = Path(tmp_dir) / "case-09"
+
+            self.assertEqual(standalone_exit_code, 0)
+            self.assertEqual(resume_exit_code, 0)
+            self.assertTrue((Path(tmp_dir) / "manifest.json").exists())
+            self.assertTrue((project_dir / "project_manifest.json").exists())
+
     def test_cli_main_can_use_project_scoped_run_layout(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             exit_code = main(
