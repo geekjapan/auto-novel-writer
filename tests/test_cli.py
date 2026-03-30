@@ -1308,6 +1308,43 @@ class CliTest(unittest.TestCase):
 
         self.assertIn("Resume gate: stop_for_review", lines)
 
+    def test_build_project_status_lines_hides_gate_for_manual_non_blocking_next_action(self) -> None:
+        project_manifest = {
+            "project_id": "Case 07",
+            "project_slug": "case-07",
+            "autonomy_level": "manual",
+            "current_run": {
+                "name": "latest_run",
+                "output_dir": "data/projects/case-07/runs/latest_run",
+                "current_step": "publish_ready_bundle",
+                "completed_steps": ["story_input"],
+                "chapter_statuses": [],
+                "long_run_status": {},
+                "comparison_basis": ["long_run_should_stop"],
+                "comparison_reason": [],
+                "comparison_metrics": {
+                    "total_issue_score": 2,
+                    "completed_step_count": 1,
+                    "long_run_should_stop": False,
+                },
+                "comparison_reason_details": [
+                    {"code": "long_run_should_stop", "value": False},
+                    {"code": "total_issue_score", "value": 2},
+                ],
+                "policy_snapshot": {"long_run": {"max_high_severity_chapters": 6, "max_total_rerun_attempts": 20}},
+            },
+            "best_run": {},
+            "run_candidates": [],
+        }
+
+        with patch(
+            "novel_writer.cli.load_next_action_decision",
+            return_value={"action": "continue"},
+        ):
+            lines = build_project_status_lines(project_manifest)
+
+        self.assertNotIn("Resume gate: stop_for_review", lines)
+
     def test_build_project_status_lines_hides_gate_for_assist_projects(self) -> None:
         project_manifest = {
             "project_id": "Case 08",
