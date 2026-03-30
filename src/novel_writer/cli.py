@@ -256,34 +256,30 @@ def load_project_run_context(projects_dir: Path, project_id: str) -> tuple[dict,
     return project_layout, Path(project_manifest["current_run"]["output_dir"])
 
 
-def _has_manual_review_gate(project_manifest: dict[str, Any], output_dir: Path) -> bool:
-    """manual project の review gate が有効かを判定する。"""
+def _enforce_resume_project_review_gate(project_manifest: dict[str, Any], output_dir: Path) -> None:
+    review_gate = _build_project_resume_gate_summary(project_manifest, output_dir)
+    if review_gate is not None:
+        reason = review_gate["reason"]
+        if reason == "stop_for_review":
+            raise ValueError(
+                "resume-project is blocked for manual projects when next_action_decision.action is stop_for_review."
+            )
+
+
+def _build_project_resume_gate_summary(
+    project_manifest: dict[str, Any],
+    output_dir: Path,
+) -> dict[str, Any] | None:
+    """manual project の review gate を resume/status 共通の要約として返す。"""
     if project_manifest.get("autonomy_level") != "manual":
-        return False
+        return None
 
     try:
         next_action_decision = load_next_action_decision(output_dir)
     except FileNotFoundError:
-        return False
-
-    return next_action_decision.get("action") == "stop_for_review"
-
-
-def _enforce_resume_project_review_gate(project_manifest: dict[str, Any], output_dir: Path) -> None:
-    if _has_manual_review_gate(project_manifest, output_dir):
-        raise ValueError(
-            "resume-project is blocked for manual projects when next_action_decision.action is stop_for_review."
-        )
-
-
-def _build_project_resume_gate_summary(project_manifest: dict[str, Any]) -> dict[str, Any] | None:
-    """manual project の review gate を status 表示向けに要約する。"""
-    current_run = project_manifest.get("current_run", {})
-    output_dir = current_run.get("output_dir")
-    if not output_dir:
         return None
 
-    if _has_manual_review_gate(project_manifest, Path(output_dir)):
+    if next_action_decision.get("action") == "stop_for_review":
         return {"reason": "stop_for_review"}
     return None
 
@@ -626,7 +622,12 @@ def build_project_status_summary(
         chapter_statuses = current_run.get("chapter_statuses", [])
         long_run_status = current_run.get("long_run_status", {})
         comparison_metrics = current_run.get("comparison_metrics", {})
-        resume_gate = _build_project_resume_gate_summary(project_manifest)
+        current_output_dir = current_run.get("output_dir")
+        resume_gate = (
+            _build_project_resume_gate_summary(project_manifest, Path(current_output_dir))
+            if current_output_dir
+            else None
+        )
         summary["current_run"] = {
             "name": current_run.get("name", "unknown"),
             "output_dir": current_run.get("output_dir", "unknown"),
