@@ -5,10 +5,6 @@
 
 ## In Progress
 
-- なし
-
-## Ready
-
 - [ ] M63h: manual project の review gate を status から見えるようにする
   - Title: `show-project-status` に `stop_for_review` 由来の resume gate 状態を追加する
   - Milestone: M63 Autonomous Policy
@@ -17,6 +13,8 @@
   - Done when: `show-project-status` の出力で、`manual` project の saved `stop_for_review` gate が確認できる。既存の `autonomy_level` 表示と status / save-load contract は壊れない
   - Required tests: `./venv/bin/python -m unittest tests.test_cli -v`, `./venv/bin/python -m unittest discover -s tests -v`
   - Docs to update: `README.md`, `docs/TASKS.md`
+
+## Ready
 
 ## Done
 
