@@ -24,13 +24,16 @@
 - fail-fast を優先し、暗黙 fallback を足さない
 - 新規機能より、既存 layer の接続完成を優先する
 - UI や派生機能より、long-form control / evaluation / handoff を優先する
+- long-form の成長では、単一の生成を肥大化させるより、仕事を分割できる artifact / control boundary を先に整える
 - 1 回の変更は小さく安全に閉じ、tests と docs まで同期する
 
 ## Feature Addition Policy
 
 - 新 artifact は、既存 artifact では責務を表現できない場合のみ追加する
+- 新機能は、それが design / decomposition / drafting / inspection / replanning / revision のどの責務を支えるかで正当化する
 - 既存 contract を拡張するときは、validator / storage / pipeline / tests / docs を同時に更新する
 - project-level policy は、まず contract / save-load / status 表示を固定し、その後に behavior / control を 1 gate ずつつなぐ
+- long-form の成長では、raw model power を足す前に state externalization / per-stage inspection / canonical integration を優先する
 - LLM access は、既存 client 境界の内側に閉じ込める
 - docs-only で足りるのは、振る舞いが変わらず説明だけを整える場合に限る
 - 振る舞いが変わるときは、README を現状仕様として同期する
@@ -49,6 +52,7 @@
 - milestone 完了条件は、schema / storage / pipeline / tests / docs のどこで満たすかを先に分けて考える
 - 仕様判断が一意でない場合は、task 化を進めず、まず論点を分解する
 - task は、ひとつの contract 変更で安全に閉じられる最小単位にする
+- task は、将来の orchestration を支える artifact / control boundary に沿って切る
 - task 名よりも、どの contract を fail-fast に固定するかを先に決める
 
 ## Docs Sync Rules
