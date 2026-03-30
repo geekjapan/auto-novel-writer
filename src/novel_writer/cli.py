@@ -13,10 +13,12 @@ from novel_writer.schema import (
     build_publish_ready_bundle_summary,
     comparison_reason_detail_codes,
     project_manifest_contract,
+    validate_publish_ready_bundle,
 )
 from novel_writer.storage import (
     build_project_layout,
     load_artifact,
+    load_publish_ready_bundle,
     load_next_action_decision,
     load_project_manifest,
     load_run_comparison_summary,
@@ -632,8 +634,24 @@ def _build_saved_publish_bundle_summary_lines(output_dir: Path) -> list[str]:
 
 
 def _load_saved_publish_bundle_for_display(output_dir: Path) -> dict[str, Any]:
-    """read-only CLI では legacy 形状も表示できるよう、raw artifact をそのまま読む。"""
-    return load_artifact(output_dir, "publish_ready_bundle")
+    """read-only CLI 用に strict load を優先し、summary 欠落だけ互換表示する。"""
+    try:
+        return load_publish_ready_bundle(output_dir)
+    except ValueError as strict_error:
+        if "summary must be an object" not in str(strict_error):
+            raise
+
+        raw_payload = load_artifact(output_dir, "publish_ready_bundle")
+        if not isinstance(raw_payload, dict) or "summary" in raw_payload:
+            raise
+
+        patched_payload = dict(raw_payload)
+        patched_payload["summary"] = build_publish_ready_bundle_summary(raw_payload)
+        try:
+            validate_publish_ready_bundle(patched_payload)
+        except ValueError:
+            raise strict_error
+        return patched_payload
 
 
 def build_project_status_summary(

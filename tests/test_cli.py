@@ -2071,6 +2071,158 @@ class CliTest(unittest.TestCase):
             )
             self.assertNotIn("publish_bundle.summary:", output)
 
+    def test_cli_show_run_comparison_fails_fast_for_invalid_schema_version(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            main(
+                [
+                    "create-project",
+                    "--theme",
+                    "記憶",
+                    "--genre",
+                    "SF",
+                    "--tone",
+                    "静謐",
+                    "--target-length",
+                    "5000",
+                    "--project-id",
+                    "Compare Invalid Schema 01",
+                    "--projects-dir",
+                    tmp_dir,
+                ]
+            )
+
+            project_dir = Path(tmp_dir) / "compare-invalid-schema-01"
+            run_dir = project_dir / "runs" / "latest_run"
+            save_artifact(
+                run_dir,
+                "publish_ready_bundle",
+                {
+                    "schema_name": "publish_ready_bundle",
+                    "schema_version": "2.0",
+                    "bundle_type": "publish_ready_bundle",
+                    "title": "Broken Publish Bundle Title",
+                    "synopsis": "Saved synopsis for the read-only CLI path.",
+                    "chapter_count": 2,
+                    "chapters": [
+                        {"chapter_number": 1, "title": "Chapter 1"},
+                        {"chapter_number": 2, "title": "Chapter 2"},
+                    ],
+                    "sections": {
+                        "manuscript": {"field": "chapters"},
+                        "story_summary": {"field": "story_summary"},
+                        "quality": {"field": "overall_quality_report"},
+                    },
+                    "source_artifacts": {
+                        "story_summary": "story_summary.json",
+                        "overall_quality_report": "project_quality_report.json",
+                        "chapters": "revised_chapter_{n}_draft.json",
+                    },
+                    "story_summary": {
+                        "schema_name": "story_summary",
+                        "schema_version": "1.0",
+                        "chapter_count": 2,
+                    },
+                    "overall_quality_report": {
+                        "schema_name": "project_quality_report",
+                        "schema_version": "1.0",
+                    },
+                    "selected_logline": {"id": "logline-1", "title": "Selected logline"},
+                },
+            )
+
+            buffer = io.StringIO()
+            with redirect_stdout(buffer):
+                with self.assertRaisesRegex(ValueError, r"schema_version='2\.0' is not supported"):
+                    main(
+                        [
+                            "show-run-comparison",
+                            "--project-id",
+                            "Compare Invalid Schema 01",
+                            "--projects-dir",
+                            tmp_dir,
+                            "--reason-detail-mode",
+                            "codes",
+                        ]
+                    )
+
+            self.assertEqual(buffer.getvalue(), "")
+
+    def test_cli_show_run_comparison_fails_fast_for_invalid_sections_shape(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            main(
+                [
+                    "create-project",
+                    "--theme",
+                    "記憶",
+                    "--genre",
+                    "SF",
+                    "--tone",
+                    "静謐",
+                    "--target-length",
+                    "5000",
+                    "--project-id",
+                    "Compare Invalid Sections 01",
+                    "--projects-dir",
+                    tmp_dir,
+                ]
+            )
+
+            project_dir = Path(tmp_dir) / "compare-invalid-sections-01"
+            run_dir = project_dir / "runs" / "latest_run"
+            save_artifact(
+                run_dir,
+                "publish_ready_bundle",
+                {
+                    "schema_name": "publish_ready_bundle",
+                    "schema_version": "1.0",
+                    "bundle_type": "publish_ready_bundle",
+                    "title": "Broken Publish Bundle Title",
+                    "synopsis": "Saved synopsis for the read-only CLI path.",
+                    "chapter_count": 2,
+                    "chapters": [
+                        {"chapter_number": 1, "title": "Chapter 1"},
+                        {"chapter_number": 2, "title": "Chapter 2"},
+                    ],
+                    "sections": {
+                        "manuscript": "broken",
+                        "story_summary": {"field": "story_summary"},
+                        "quality": {"field": "overall_quality_report"},
+                    },
+                    "source_artifacts": {
+                        "story_summary": "story_summary.json",
+                        "overall_quality_report": "project_quality_report.json",
+                        "chapters": "revised_chapter_{n}_draft.json",
+                    },
+                    "story_summary": {
+                        "schema_name": "story_summary",
+                        "schema_version": "1.0",
+                        "chapter_count": 2,
+                    },
+                    "overall_quality_report": {
+                        "schema_name": "project_quality_report",
+                        "schema_version": "1.0",
+                    },
+                    "selected_logline": {"id": "logline-1", "title": "Selected logline"},
+                },
+            )
+
+            buffer = io.StringIO()
+            with redirect_stdout(buffer):
+                with self.assertRaisesRegex(ValueError, r"sections\.manuscript must be an object"):
+                    main(
+                        [
+                            "show-run-comparison",
+                            "--project-id",
+                            "Compare Invalid Sections 01",
+                            "--projects-dir",
+                            tmp_dir,
+                            "--reason-detail-mode",
+                            "codes",
+                        ]
+                    )
+
+            self.assertEqual(buffer.getvalue(), "")
+
     def test_cli_show_run_comparison_reads_minimal_valid_artifact(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             project_dir = Path(tmp_dir) / "compare-optional-01"
