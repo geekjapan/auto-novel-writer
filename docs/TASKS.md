@@ -5,14 +5,14 @@
 
 ## In Progress
 
-- [ ] M63g: project autonomy level を next_action_decision 制御へ接続する
-  - Title: autonomy level による next_action_decision の自動適用条件を 1 箇所だけ追加する
+- [ ] M63g: manual project は review-required decision で resume-project を停止する
+  - Title: `resume-project` で `manual` autonomy level の review gate を 1 箇所だけ追加する
   - Milestone: M63 Autonomous Policy
-  - Purpose: project-level `autonomy_level` を、`next_action_decision` の自動適用または手動確認の分岐に接続し、contract 以外の behavior / control へ最小単位で広げる
-  - Target files or directories: `src/novel_writer/pipeline.py`, `src/novel_writer/cli.py`, `tests/test_pipeline.py`, `tests/test_cli.py`, `docs/TASKS.md`, `docs/ROADMAP.md`
-  - Done when: `manual` / `assist` / `auto` のいずれかが `next_action_decision` の適用可否に反映され、既存 project manifest の save-load / status contract を壊さずに説明できる
-  - Required tests: `./venv/bin/python -m unittest tests.test_pipeline -v`, `./venv/bin/python -m unittest tests.test_cli -v`, `./venv/bin/python -m unittest discover -s tests -v`
-  - Docs to update: `docs/TASKS.md`, `docs/ROADMAP.md`
+  - Purpose: project-level `autonomy_level=manual` の project では、現在 run の `next_action_decision.action` が review-required 系なら `resume-project` を fail-fast で止め、autonomy setting が実際の control に反映される最初の gate を作る
+  - Target files or directories: `src/novel_writer/cli.py`, `src/novel_writer/storage.py`, `tests/test_cli.py`, `README.md`, `docs/TASKS.md`
+  - Done when: `manual` project が `stop_for_review` の `next_action_decision` を持つ run を `resume-project` しようとしたとき、pipeline を進めず明示的エラーで停止する。`assist` / `auto` と既存 project manifest の save-load / status contract は壊れない
+  - Required tests: `./venv/bin/python -m unittest tests.test_storage -v`, `./venv/bin/python -m unittest tests.test_cli -v`, `./venv/bin/python -m unittest discover -s tests -v`
+  - Docs to update: `README.md`, `docs/TASKS.md`
 
 ## Ready
 
