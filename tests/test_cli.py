@@ -1924,6 +1924,7 @@ class CliTest(unittest.TestCase):
     def test_cli_show_run_comparison_reads_minimal_valid_artifact(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             project_dir = Path(tmp_dir) / "compare-optional-01"
+            run_dir = project_dir / "runs" / "latest_run"
             project_dir.mkdir(parents=True, exist_ok=True)
             comparison_payload = {
                 "schema_name": "run_comparison_summary",
@@ -1932,7 +1933,7 @@ class CliTest(unittest.TestCase):
                 "project_slug": "compare-optional-01",
                 "current_run": {
                     "run_name": "latest_run",
-                    "output_dir": "data/projects/compare-optional-01/runs/latest_run",
+                    "output_dir": str(run_dir),
                     "comparison_basis": ["long_run_should_stop"],
                     "comparison_metrics": {
                         "total_issue_score": 3,
@@ -1945,7 +1946,7 @@ class CliTest(unittest.TestCase):
                 },
                 "best_run": {
                     "run_name": "latest_run",
-                    "output_dir": "data/projects/compare-optional-01/runs/latest_run",
+                    "output_dir": str(run_dir),
                     "selection_source": "automatic",
                     "comparison_basis": ["long_run_should_stop"],
                     "comparison_metrics": {
@@ -1970,6 +1971,40 @@ class CliTest(unittest.TestCase):
                 },
                 "run_candidates": [],
             }
+            save_publish_ready_bundle(
+                run_dir,
+                {
+                    "schema_version": "1.0",
+                    "bundle_type": "publish_ready_bundle",
+                    "title": "Compare Optional 01 Bundle",
+                    "synopsis": "Saved synopsis for the read-only CLI path.",
+                    "chapter_count": 1,
+                    "chapters": [{"chapter_number": 1, "title": "Chapter 1"}],
+                    "sections": {
+                        "manuscript": {"field": "chapters"},
+                        "story_summary": {"field": "story_summary"},
+                        "quality": {"field": "overall_quality_report"},
+                    },
+                    "source_artifacts": {
+                        "story_summary": "story_summary.json",
+                        "overall_quality_report": "project_quality_report.json",
+                        "chapters": "revised_chapter_{n}_draft.json",
+                    },
+                    "story_summary": {},
+                    "overall_quality_report": {},
+                    "selected_logline": {"id": "logline-1", "title": "Selected logline"},
+                    "summary": {
+                        "title": "Compare Optional 01 Bundle",
+                        "chapter_count": 1,
+                        "section_names": ["manuscript", "story_summary", "quality"],
+                        "source_artifact_names": [
+                            "story_summary.json",
+                            "project_quality_report.json",
+                            "revised_chapter_{n}_draft.json",
+                        ],
+                    },
+                },
+            )
             save_run_comparison_summary(project_dir, comparison_payload)
             comparison_before = load_artifact(project_dir, "run_comparison_summary")
 
@@ -2008,6 +2043,75 @@ class CliTest(unittest.TestCase):
             self.assertNotIn("run_candidate_names:", output)
             self.assertNotIn("run_candidate_scores:", output)
             self.assertNotIn("run_candidate_output_dirs:", output)
+            self.assertIn("publish_bundle.title: Compare Optional 01 Bundle", output)
+
+    def test_cli_show_run_comparison_fails_when_publish_bundle_is_missing(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            project_dir = Path(tmp_dir) / "compare-missing-bundle-01"
+            run_dir = project_dir / "runs" / "latest_run"
+            run_dir.mkdir(parents=True, exist_ok=True)
+            comparison_payload = {
+                "schema_name": "run_comparison_summary",
+                "schema_version": "1.0",
+                "project_id": "Compare Missing Bundle 01",
+                "project_slug": "compare-missing-bundle-01",
+                "current_run": {
+                    "run_name": "latest_run",
+                    "output_dir": str(run_dir),
+                    "comparison_basis": ["long_run_should_stop"],
+                    "comparison_metrics": {
+                        "total_issue_score": 3,
+                        "completed_step_count": 4,
+                    },
+                    "comparison_reason": [],
+                    "comparison_reason_details": [
+                        {"code": "total_issue_score", "value": 3},
+                    ],
+                },
+                "best_run": {
+                    "run_name": "latest_run",
+                    "output_dir": str(run_dir),
+                    "selection_source": "automatic",
+                    "comparison_basis": ["long_run_should_stop"],
+                    "comparison_metrics": {
+                        "total_issue_score": 3,
+                        "completed_step_count": 4,
+                    },
+                    "selection_reason": [],
+                    "selection_reason_details": [
+                        {"code": "total_issue_score", "value": 3},
+                    ],
+                },
+                "candidate_count": 0,
+                "compact_summary": {
+                    "selection_source": "automatic",
+                    "issue_score": {"current": 3, "best": 3},
+                    "completed_step_count": {"current": 4, "best": 4},
+                    "long_run_should_stop": {"current": False, "best": False},
+                    "policy_limits": {
+                        "max_high_severity_chapters": {"current": 10, "best": 10},
+                        "max_total_rerun_attempts": {"current": 20, "best": 20},
+                    },
+                },
+                "run_candidates": [],
+            }
+            save_run_comparison_summary(project_dir, comparison_payload)
+
+            with self.assertRaisesRegex(
+                FileNotFoundError,
+                r"Artifact not found for phase 'publish_ready_bundle'",
+            ):
+                main(
+                    [
+                        "show-run-comparison",
+                        "--project-id",
+                        "Compare Missing Bundle 01",
+                        "--projects-dir",
+                        tmp_dir,
+                        "--reason-detail-mode",
+                        "codes",
+                    ]
+                )
 
 
 if __name__ == "__main__":

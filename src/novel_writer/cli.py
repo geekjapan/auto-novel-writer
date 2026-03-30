@@ -628,10 +628,7 @@ def print_run_summary(artifacts, output_dir: Path, project_manifest: dict[str, A
 
 
 def _build_saved_publish_bundle_summary_lines(output_dir: Path) -> list[str]:
-    try:
-        publish_ready_bundle = load_publish_ready_bundle(output_dir)
-    except FileNotFoundError:
-        return []
+    publish_ready_bundle = load_publish_ready_bundle(output_dir)
     return _build_publish_bundle_summary_lines(publish_ready_bundle)
 
 
