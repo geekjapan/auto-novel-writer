@@ -191,6 +191,95 @@ class SaveArtifactTest(unittest.TestCase):
             self.assertEqual(saved["project_id"], payload["project_id"])
             self.assertEqual(saved["schema_name"], "project_manifest")
             self.assertEqual(saved["schema_version"], "1.0")
+            self.assertEqual(saved["autonomy_level"], "assist")
+
+    def test_save_project_manifest_defaults_autonomy_level_to_assist(self) -> None:
+        payload = {
+            "project_id": "My Story 01",
+            "project_slug": "my-story-01",
+            "projects_dir": "data/projects",
+            "current_run": {
+                "name": "latest_run",
+                "output_dir": "data/projects/my-story-01/runs/latest_run",
+                "comparison_metrics": {},
+                "comparison_basis": [],
+                "comparison_reason": [],
+                "comparison_reason_details": [],
+            },
+            "run_candidates": [
+                {
+                    "run_name": "latest_run",
+                    "output_dir": "data/projects/my-story-01/runs/latest_run",
+                    "comparison_metrics": {},
+                    "comparison_basis": [],
+                    "comparison_reason": [],
+                    "comparison_reason_details": [],
+                }
+            ],
+            "best_run": {
+                "run_name": "latest_run",
+                "output_dir": "data/projects/my-story-01/runs/latest_run",
+                "score": 0,
+                "comparison_metrics": {},
+                "comparison_basis": [],
+                "selection_source": "automatic",
+                "selection_reason": [],
+                "selection_reason_details": [],
+            },
+        }
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            target = save_project_manifest(Path(tmp_dir), "My Story 01", payload, "json")
+            saved = json.loads(target.read_text(encoding="utf-8"))
+
+            self.assertEqual(saved["autonomy_level"], "assist")
+
+    def test_save_project_manifest_preserves_existing_autonomy_level_when_omitted(self) -> None:
+        base_payload = {
+            "project_id": "My Story 01",
+            "project_slug": "my-story-01",
+            "projects_dir": "data/projects",
+            "current_run": {
+                "name": "latest_run",
+                "output_dir": "data/projects/my-story-01/runs/latest_run",
+                "comparison_metrics": {},
+                "comparison_basis": [],
+                "comparison_reason": [],
+                "comparison_reason_details": [],
+            },
+            "run_candidates": [
+                {
+                    "run_name": "latest_run",
+                    "output_dir": "data/projects/my-story-01/runs/latest_run",
+                    "comparison_metrics": {},
+                    "comparison_basis": [],
+                    "comparison_reason": [],
+                    "comparison_reason_details": [],
+                }
+            ],
+            "best_run": {
+                "run_name": "latest_run",
+                "output_dir": "data/projects/my-story-01/runs/latest_run",
+                "score": 0,
+                "comparison_metrics": {},
+                "comparison_basis": [],
+                "selection_source": "automatic",
+                "selection_reason": [],
+                "selection_reason_details": [],
+            },
+        }
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            project_dir = Path(tmp_dir)
+            initial_payload = dict(base_payload)
+            initial_payload["autonomy_level"] = "manual"
+            save_project_manifest(project_dir, "My Story 01", initial_payload, "json")
+
+            updated_payload = dict(base_payload)
+            target = save_project_manifest(project_dir, "My Story 01", updated_payload, "json")
+            saved = json.loads(target.read_text(encoding="utf-8"))
+
+            self.assertEqual(saved["autonomy_level"], "manual")
 
     def test_save_story_bible_validates_required_fields(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -2289,6 +2378,120 @@ class SaveArtifactTest(unittest.TestCase):
                 )
 
             with self.assertRaisesRegex(ValueError, "missing required fields: current_run, run_candidates"):
+                load_project_manifest(project_dir)
+
+    def test_load_project_manifest_backfills_missing_autonomy_level_to_assist(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            project_dir = Path(tmp_dir) / "case-01"
+            save_artifact(
+                project_dir,
+                "project_manifest",
+                {
+                    "schema_name": "project_manifest",
+                    "schema_version": "1.0",
+                    "project_id": "Case 01",
+                    "project_slug": "case-01",
+                    "projects_dir": str(Path(tmp_dir)),
+                    "current_run": {
+                        "name": "latest_run",
+                        "output_dir": str(project_dir / "runs" / "latest_run"),
+                        "comparison_metrics": {},
+                        "comparison_basis": [],
+                        "comparison_reason": [],
+                        "comparison_reason_details": [],
+                    },
+                    "run_candidates": [],
+                    "best_run": {
+                        "run_name": "latest_run",
+                        "output_dir": str(project_dir / "runs" / "latest_run"),
+                        "comparison_metrics": {},
+                        "comparison_basis": [],
+                        "selection_source": "automatic",
+                        "selection_reason": [],
+                        "selection_reason_details": [],
+                    },
+                },
+                "json",
+            )
+
+            loaded = load_project_manifest(project_dir)
+
+            self.assertEqual(loaded["autonomy_level"], "assist")
+
+    def test_load_project_manifest_rejects_invalid_autonomy_level(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            project_dir = Path(tmp_dir) / "case-01"
+            save_artifact(
+                project_dir,
+                "project_manifest",
+                {
+                    "schema_name": "project_manifest",
+                    "schema_version": "1.0",
+                    "project_id": "Case 01",
+                    "project_slug": "case-01",
+                    "projects_dir": str(Path(tmp_dir)),
+                    "autonomy_level": "chaos",
+                    "current_run": {
+                        "name": "latest_run",
+                        "output_dir": str(project_dir / "runs" / "latest_run"),
+                        "comparison_metrics": {},
+                        "comparison_basis": [],
+                        "comparison_reason": [],
+                        "comparison_reason_details": [],
+                    },
+                    "run_candidates": [],
+                    "best_run": {
+                        "run_name": "latest_run",
+                        "output_dir": str(project_dir / "runs" / "latest_run"),
+                        "comparison_metrics": {},
+                        "comparison_basis": [],
+                        "selection_source": "automatic",
+                        "selection_reason": [],
+                        "selection_reason_details": [],
+                    },
+                },
+                "json",
+            )
+
+            with self.assertRaisesRegex(ValueError, r"autonomy_level=.*is not supported"):
+                load_project_manifest(project_dir)
+
+    def test_load_project_manifest_rejects_null_autonomy_level(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            project_dir = Path(tmp_dir) / "case-01"
+            save_artifact(
+                project_dir,
+                "project_manifest",
+                {
+                    "schema_name": "project_manifest",
+                    "schema_version": "1.0",
+                    "project_id": "Case 01",
+                    "project_slug": "case-01",
+                    "projects_dir": str(Path(tmp_dir)),
+                    "autonomy_level": None,
+                    "current_run": {
+                        "name": "latest_run",
+                        "output_dir": str(project_dir / "runs" / "latest_run"),
+                        "comparison_metrics": {},
+                        "comparison_basis": [],
+                        "comparison_reason": [],
+                        "comparison_reason_details": [],
+                    },
+                    "run_candidates": [],
+                    "best_run": {
+                        "run_name": "latest_run",
+                        "output_dir": str(project_dir / "runs" / "latest_run"),
+                        "comparison_metrics": {},
+                        "comparison_basis": [],
+                        "selection_source": "automatic",
+                        "selection_reason": [],
+                        "selection_reason_details": [],
+                    },
+                },
+                "json",
+            )
+
+            with self.assertRaisesRegex(ValueError, r"autonomy_level=None is not supported"):
                 load_project_manifest(project_dir)
 
     def test_load_project_manifest_rejects_unsupported_schema_version(self) -> None:

@@ -1,8 +1,10 @@
 import io
+import json
 import tempfile
 import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
+from unittest.mock import patch
 
 from novel_writer.cli import (
     build_project_status_lines,
@@ -11,7 +13,7 @@ from novel_writer.cli import (
     build_saved_run_comparison_summary,
     main,
 )
-from novel_writer.storage import load_artifact, save_run_comparison_summary
+from novel_writer.storage import load_artifact, save_next_action_decision, save_run_comparison_summary
 
 
 class CliTest(unittest.TestCase):
@@ -95,6 +97,109 @@ class CliTest(unittest.TestCase):
             self.assertEqual(second_exit_code, 0)
             self.assertTrue((Path(tmp_dir) / "05_chapter_1_draft.json").exists())
 
+    def test_cli_main_resume_from_output_dir_blocks_manual_stop_for_review_for_project(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            create_exit_code = main(
+                [
+                    "create-project",
+                    "--theme",
+                    "秘密",
+                    "--genre",
+                    "ミステリ",
+                    "--tone",
+                    "静謐",
+                    "--target-length",
+                    "5000",
+                    "--project-id",
+                    "Case 08",
+                    "--projects-dir",
+                    tmp_dir,
+                ]
+            )
+
+            project_dir = Path(tmp_dir) / "case-08"
+            run_dir = project_dir / "runs" / "latest_run"
+            project_manifest_path = project_dir / "project_manifest.json"
+            project_manifest = load_artifact(project_dir, "project_manifest")
+            project_manifest["autonomy_level"] = "manual"
+            project_manifest_path.write_text(json.dumps(project_manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+            save_next_action_decision(
+                run_dir,
+                {
+                    "schema_name": "next_action_decision",
+                    "schema_version": "1.0",
+                    "evaluated_through_chapter": 5,
+                    "action": "stop_for_review",
+                    "reason": "manual review required",
+                    "issue_codes": ["manual_review"],
+                    "target_chapters": [],
+                    "policy_budget": {
+                        "max_high_severity_chapters": 0,
+                        "max_total_rerun_attempts": 0,
+                        "remaining_high_severity_chapter_budget": 0,
+                        "remaining_rerun_attempt_budget": 0,
+                    },
+                    "decision_trace": [
+                        {
+                            "code": "manual_review",
+                            "summary": "Manual review is required before continuing.",
+                            "value": "chapter-5",
+                        }
+                    ],
+                },
+            )
+
+            with self.assertRaisesRegex(
+                ValueError,
+                "resume-project.*manual.*stop_for_review",
+            ):
+                main(
+                    [
+                        "--resume-from-output-dir",
+                        str(run_dir),
+                        "--project-id",
+                        "Case 08",
+                        "--projects-dir",
+                        tmp_dir,
+                    ]
+                )
+
+            self.assertEqual(create_exit_code, 0)
+
+    def test_cli_main_resume_from_output_dir_can_attach_to_new_project_without_manifest(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            standalone_exit_code = main(
+                [
+                    "--theme",
+                    "秘密",
+                    "--genre",
+                    "ミステリ",
+                    "--tone",
+                    "静謐",
+                    "--target-length",
+                    "5000",
+                    "--output-dir",
+                    tmp_dir,
+                ]
+            )
+            resume_exit_code = main(
+                [
+                    "--resume-from-output-dir",
+                    tmp_dir,
+                    "--project-id",
+                    "Case 09",
+                    "--projects-dir",
+                    tmp_dir,
+                ]
+            )
+
+            project_dir = Path(tmp_dir) / "case-09"
+
+            self.assertEqual(standalone_exit_code, 0)
+            self.assertEqual(resume_exit_code, 0)
+            self.assertTrue((Path(tmp_dir) / "manifest.json").exists())
+            self.assertTrue((project_dir / "project_manifest.json").exists())
+
     def test_cli_main_can_use_project_scoped_run_layout(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             exit_code = main(
@@ -164,6 +269,155 @@ class CliTest(unittest.TestCase):
             self.assertEqual(create_exit_code, 0)
             self.assertEqual(resume_exit_code, 0)
             self.assertTrue((run_dir / "manifest.json").exists())
+
+    def test_cli_resume_project_blocks_manual_stop_for_review_before_pipeline(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            project_dir = Path(tmp_dir) / "case-05"
+            run_dir = project_dir / "runs" / "latest_run"
+
+            with patch("novel_writer.cli.load_project_run_context", return_value=({"project_dir": project_dir}, run_dir)), patch(
+                "novel_writer.cli.load_project_manifest",
+                return_value={"autonomy_level": "manual"},
+            ), patch(
+                "novel_writer.cli.load_next_action_decision",
+                return_value={"action": "stop_for_review"},
+            ), patch("novel_writer.cli.run_pipeline") as run_pipeline, patch(
+                "novel_writer.cli.save_project_state"
+            ), patch("novel_writer.cli.print_run_summary"):
+                with self.assertRaisesRegex(
+                    ValueError,
+                    "resume-project.*manual.*stop_for_review",
+                ):
+                    main(
+                        [
+                            "resume-project",
+                            "--project-id",
+                            "Case 05",
+                            "--projects-dir",
+                            tmp_dir,
+                        ]
+                    )
+
+            run_pipeline.assert_not_called()
+
+    def test_cli_resume_project_allows_missing_next_action_decision(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            project_dir = Path(tmp_dir) / "case-06"
+            run_dir = project_dir / "runs" / "latest_run"
+            calls: list[tuple[tuple[object, ...], dict[str, object]]] = []
+
+            def fake_run_pipeline(*args: object, **kwargs: object) -> dict[str, object]:
+                calls.append((args, kwargs))
+                return {"artifacts": []}
+
+            with patch("novel_writer.cli.load_project_run_context", return_value=({"project_dir": project_dir}, run_dir)), patch(
+                "novel_writer.cli.load_project_manifest",
+                return_value={"autonomy_level": "manual"},
+            ), patch(
+                "novel_writer.cli.load_next_action_decision",
+                side_effect=FileNotFoundError,
+            ), patch("novel_writer.cli.run_pipeline", side_effect=fake_run_pipeline), patch(
+                "novel_writer.cli.save_project_state"
+            ), patch("novel_writer.cli.print_run_summary"):
+                exit_code = main(
+                    [
+                        "resume-project",
+                        "--project-id",
+                        "Case 06",
+                        "--projects-dir",
+                        tmp_dir,
+                    ]
+                )
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(len(calls), 1)
+            self.assertEqual(calls[0][1]["resume_from"], run_dir)
+
+    def test_cli_resume_project_allows_assist_stop_for_review(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            project_dir = Path(tmp_dir) / "case-07"
+            run_dir = project_dir / "runs" / "latest_run"
+            calls: list[tuple[tuple[object, ...], dict[str, object]]] = []
+
+            def fake_run_pipeline(*args: object, **kwargs: object) -> dict[str, object]:
+                calls.append((args, kwargs))
+                return {"artifacts": []}
+
+            with patch("novel_writer.cli.load_project_run_context", return_value=({"project_dir": project_dir}, run_dir)), patch(
+                "novel_writer.cli.load_project_manifest",
+                return_value={"autonomy_level": "assist"},
+            ), patch(
+                "novel_writer.cli.load_next_action_decision",
+                return_value={"action": "stop_for_review"},
+            ), patch("novel_writer.cli.run_pipeline", side_effect=fake_run_pipeline), patch(
+                "novel_writer.cli.save_project_state"
+            ), patch("novel_writer.cli.print_run_summary"):
+                exit_code = main(
+                    [
+                        "resume-project",
+                        "--project-id",
+                        "Case 07",
+                        "--projects-dir",
+                        tmp_dir,
+                    ]
+                )
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(len(calls), 1)
+            self.assertEqual(calls[0][1]["resume_from"], run_dir)
+
+    def test_cli_create_project_sets_default_autonomy_level_and_preserves_existing_value(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            first_exit_code = main(
+                [
+                    "create-project",
+                    "--theme",
+                    "遺書",
+                    "--genre",
+                    "ミステリ",
+                    "--tone",
+                    "静謐",
+                    "--target-length",
+                    "5000",
+                    "--project-id",
+                    "Case 04",
+                    "--projects-dir",
+                    tmp_dir,
+                ]
+            )
+
+            project_dir = Path(tmp_dir) / "case-04"
+            project_manifest_path = project_dir / "project_manifest.json"
+            first_manifest = load_artifact(project_dir, "project_manifest")
+            self.assertEqual(first_manifest["autonomy_level"], "assist")
+            first_manifest["autonomy_level"] = "manual"
+            project_manifest_path.write_text(json.dumps(first_manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+
+            second_exit_code = main(
+                [
+                    "create-project",
+                    "--theme",
+                    "遺書",
+                    "--genre",
+                    "ミステリ",
+                    "--tone",
+                    "静謐",
+                    "--target-length",
+                    "5000",
+                    "--project-id",
+                    "Case 04",
+                    "--projects-dir",
+                    tmp_dir,
+                    "--output-dir",
+                    str(Path(tmp_dir) / "candidate-b"),
+                ]
+            )
+
+            updated_manifest = load_artifact(project_dir, "project_manifest")
+
+            self.assertEqual(first_exit_code, 0)
+            self.assertEqual(second_exit_code, 0)
+            self.assertEqual(updated_manifest["autonomy_level"], "manual")
 
     def test_cli_rerun_chapter_command_supports_arbitrary_chapter(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -854,6 +1108,7 @@ class CliTest(unittest.TestCase):
         project_manifest = {
             "project_id": "Case 04",
             "project_slug": "case-04",
+            "autonomy_level": "assist",
             "current_run": {
                 "name": "latest_run",
                 "output_dir": "data/projects/case-04/runs/latest_run",
@@ -898,6 +1153,7 @@ class CliTest(unittest.TestCase):
 
         self.assertEqual(summary["project_label"], "case-04")
         self.assertEqual(summary["run_candidate_count"], 2)
+        self.assertEqual(summary["autonomy_level"], "assist")
         self.assertEqual(summary["current_run"]["completed_steps"], 12)
         self.assertIn(
             "  current_comparison_reason_codes: long_run_should_stop, total_issue_score",
@@ -913,6 +1169,107 @@ class CliTest(unittest.TestCase):
             summary["best_run"]["comparison_metrics_line"],
             "  best_comparison_metrics: total_issue_score=5, completed_step_count=7",
         )
+
+    def test_build_project_status_summary_defaults_missing_autonomy_level_to_assist(self) -> None:
+        project_manifest = {
+            "project_id": "Legacy 01",
+            "project_slug": "legacy-01",
+            "current_run": {
+                "name": "latest_run",
+                "output_dir": "data/projects/legacy-01/runs/latest_run",
+                "current_step": "publish_ready_bundle",
+                "completed_steps": ["story_input"],
+                "chapter_statuses": [],
+                "long_run_status": {},
+                "comparison_basis": ["long_run_should_stop"],
+                "comparison_reason": [],
+                "comparison_metrics": {
+                    "total_issue_score": 2,
+                    "completed_step_count": 1,
+                    "long_run_should_stop": False,
+                },
+                "comparison_reason_details": [
+                    {"code": "long_run_should_stop", "value": False},
+                    {"code": "total_issue_score", "value": 2},
+                ],
+                "policy_snapshot": {"long_run": {"max_high_severity_chapters": 6, "max_total_rerun_attempts": 20}},
+            },
+            "best_run": {
+                "run_name": "latest_run",
+                "output_dir": "data/projects/legacy-01/runs/latest_run",
+                "score": 2,
+                "comparison_basis": ["long_run_should_stop"],
+                "selection_source": "automatic",
+                "selection_reason": [],
+                "comparison_metrics": {
+                    "total_issue_score": 2,
+                    "completed_step_count": 1,
+                    "long_run_should_stop": False,
+                },
+                "selection_reason_details": [
+                    {"code": "long_run_should_stop", "value": False},
+                    {"code": "total_issue_score", "value": 2},
+                ],
+                "policy_snapshot": {"long_run": {"max_high_severity_chapters": 6, "max_total_rerun_attempts": 20}},
+            },
+            "run_candidates": [],
+        }
+
+        summary = build_project_status_summary(project_manifest)
+        lines = build_project_status_lines(project_manifest)
+
+        self.assertEqual(summary["autonomy_level"], "assist")
+        self.assertIn("Autonomy level: assist", lines)
+
+    def test_build_project_status_lines_surfaces_autonomy_level(self) -> None:
+        project_manifest = {
+            "project_id": "Case 06",
+            "project_slug": "case-06",
+            "autonomy_level": "manual",
+            "current_run": {
+                "name": "latest_run",
+                "output_dir": "data/projects/case-06/runs/latest_run",
+                "current_step": "publish_ready_bundle",
+                "completed_steps": ["story_input"],
+                "chapter_statuses": [],
+                "long_run_status": {},
+                "comparison_basis": ["long_run_should_stop"],
+                "comparison_reason": [],
+                "comparison_metrics": {
+                    "total_issue_score": 2,
+                    "completed_step_count": 1,
+                    "long_run_should_stop": False,
+                },
+                "comparison_reason_details": [
+                    {"code": "long_run_should_stop", "value": False},
+                    {"code": "total_issue_score", "value": 2},
+                ],
+                "policy_snapshot": {"long_run": {"max_high_severity_chapters": 6, "max_total_rerun_attempts": 20}},
+            },
+            "best_run": {
+                "run_name": "latest_run",
+                "output_dir": "data/projects/case-06/runs/latest_run",
+                "score": 2,
+                "comparison_basis": ["long_run_should_stop"],
+                "selection_source": "automatic",
+                "selection_reason": [],
+                "comparison_metrics": {
+                    "total_issue_score": 2,
+                    "completed_step_count": 1,
+                    "long_run_should_stop": False,
+                },
+                "selection_reason_details": [
+                    {"code": "long_run_should_stop", "value": False},
+                    {"code": "total_issue_score", "value": 2},
+                ],
+                "policy_snapshot": {"long_run": {"max_high_severity_chapters": 6, "max_total_rerun_attempts": 20}},
+            },
+            "run_candidates": [],
+        }
+
+        lines = build_project_status_lines(project_manifest)
+
+        self.assertIn("Autonomy level: manual", lines)
 
     def test_build_run_comparison_summary_returns_render_ready_sections(self) -> None:
         summary_artifact = {

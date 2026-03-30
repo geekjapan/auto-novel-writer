@@ -1061,10 +1061,15 @@ def project_manifest_contract() -> dict:
             "project_id",
             "project_slug",
             "projects_dir",
+            "autonomy_level",
             "current_run",
             "run_candidates",
             "best_run",
         ],
+        "autonomy_level": {
+            "allowed_values": ["manual", "assist", "auto"],
+            "default": "assist",
+        },
         "current_run": {
             "required_fields": [
                 "name",
@@ -1324,6 +1329,15 @@ def validate_project_manifest(payload: dict) -> dict:
         raise ValueError(
             "Invalid project_manifest: "
             f"schema_version={schema_version!r} is not supported; expected {contract['schema_version']!r}."
+        )
+
+    autonomy_level_contract = contract["autonomy_level"]
+    autonomy_level = payload.get("autonomy_level")
+    if not isinstance(autonomy_level, str) or autonomy_level not in autonomy_level_contract["allowed_values"]:
+        allowed = ", ".join(autonomy_level_contract["allowed_values"])
+        raise ValueError(
+            "Invalid project_manifest: "
+            f"autonomy_level={autonomy_level!r} is not supported; expected one of: {allowed}."
         )
 
     _validate_project_manifest_reason_context(

@@ -8,10 +8,11 @@ from typing import Any, Callable
 from novel_writer.llm_client import build_llm_client
 from novel_writer.pipeline import PIPELINE_STEP_ORDER, StoryPipeline
 from novel_writer.rerun_policy import ContinuityRerunPolicy
-from novel_writer.schema import StoryInput, comparison_reason_detail_codes
+from novel_writer.schema import StoryInput, comparison_reason_detail_codes, project_manifest_contract
 from novel_writer.storage import (
     build_project_layout,
     load_artifact,
+    load_next_action_decision,
     load_project_manifest,
     load_run_comparison_summary,
     save_project_manifest,
@@ -153,6 +154,7 @@ def save_project_state(
 ) -> None:
     run_manifest = load_artifact(output_dir, "manifest")
     existing_project_manifest = _load_existing_project_manifest(project_layout["project_dir"])
+    autonomy_level = _resolve_project_autonomy_level(existing_project_manifest)
     run_candidate = _build_run_candidate(run_manifest, output_dir)
     run_candidates = _merge_run_candidates(existing_project_manifest.get("run_candidates", []), run_candidate)
     best_run = _select_best_run(run_candidates)
@@ -173,6 +175,7 @@ def save_project_state(
             "project_id": project_layout["project_id"],
             "project_slug": project_layout["project_slug"],
             "projects_dir": str(projects_dir),
+            "autonomy_level": autonomy_level,
             "current_run": {
                 "name": output_dir.name,
                 "output_dir": str(output_dir),
@@ -190,6 +193,13 @@ def save_project_state(
         file_format,
     )
     save_run_comparison_summary(project_layout["project_dir"], comparison_summary, file_format)
+
+
+def _resolve_project_autonomy_level(existing_project_manifest: dict[str, Any]) -> str:
+    contract = project_manifest_contract()["autonomy_level"]
+    if "autonomy_level" in existing_project_manifest:
+        return existing_project_manifest["autonomy_level"]
+    return contract["default"]
 
 
 def build_run_comparison_lines(project_manifest: dict[str, Any]) -> list[str]:
@@ -244,6 +254,22 @@ def load_project_run_context(projects_dir: Path, project_id: str) -> tuple[dict,
     project_layout = build_project_layout(projects_dir, project_id)
     project_manifest = load_project_manifest(project_layout["project_dir"])
     return project_layout, Path(project_manifest["current_run"]["output_dir"])
+
+
+def _enforce_resume_project_review_gate(project_manifest: dict[str, Any], output_dir: Path) -> None:
+    autonomy_level = project_manifest.get("autonomy_level")
+    if autonomy_level != "manual":
+        return
+
+    try:
+        next_action_decision = load_next_action_decision(output_dir)
+    except FileNotFoundError:
+        return
+
+    if next_action_decision.get("action") == "stop_for_review":
+        raise ValueError(
+            "resume-project is blocked for manual projects when next_action_decision.action is stop_for_review."
+        )
 
 
 def _load_existing_project_manifest(project_dir: Path) -> dict[str, Any]:
@@ -577,6 +603,7 @@ def build_project_status_summary(
     summary: dict[str, Any] = {
         "project_label": project_manifest.get("project_slug") or project_manifest.get("project_id", "unknown"),
         "run_candidate_count": len(project_manifest.get("run_candidates", [])),
+        "autonomy_level": project_manifest.get("autonomy_level", project_manifest_contract()["autonomy_level"]["default"]),
     }
 
     if current_run:
@@ -624,6 +651,7 @@ def build_project_status_lines(project_manifest: dict[str, Any], reason_detail_m
         return lines
 
     lines.append(f"Project: {summary['project_label']}")
+    lines.append(f"Autonomy level: {summary['autonomy_level']}")
 
     current_run = summary.get("current_run")
     if current_run:
@@ -1055,6 +1083,8 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "resume-project":
         project_layout, output_dir = load_project_run_context(Path(args.projects_dir), args.project_id)
+        project_manifest = load_project_manifest(project_layout["project_dir"])
+        _enforce_resume_project_review_gate(project_manifest, output_dir)
         artifacts = run_pipeline(args, output_dir, resume_from=output_dir, rerun_from=args.rerun_from)
         save_project_state(project_layout, Path(args.projects_dir), args.project_id, output_dir, args.format)
         project_manifest = load_project_manifest(project_layout["project_dir"])
@@ -1102,6 +1132,13 @@ def main(argv: list[str] | None = None) -> int:
     project_layout = None
     if args.project_id:
         project_layout = build_project_layout(Path(args.projects_dir), args.project_id)
+        if resume_from is not None:
+            try:
+                project_manifest = load_project_manifest(project_layout["project_dir"])
+            except FileNotFoundError:
+                project_manifest = None
+            else:
+                _enforce_resume_project_review_gate(project_manifest, Path(resume_from))
 
     output_dir = Path(args.output_dir)
     if resume_from is not None and args.output_dir == DEFAULT_OUTPUT_DIR:

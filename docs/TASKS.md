@@ -1,220 +1,47 @@
 # TASKS
 
 このファイルは Codex が次に着手する実装候補を決めるための単一の作業台帳とする。  
-ここでの task は、1 回で安全に実装・テスト・docs 更新・コミットできる粒度へ分割する。
+ここでは、現在のキューを先頭に置き、完了履歴は必要な粒度まで圧縮して残す。
 
 ## In Progress
+
+- [ ] M63h: manual project の review gate を status から見えるようにする
+  - Title: `show-project-status` に `stop_for_review` 由来の resume gate 状態を追加する
+  - Milestone: M63 Autonomous Policy
+  - Purpose: `manual` project が保存済みの `next_action_decision.action=stop_for_review` で `resume-project` を止めるなら、利用者が status 画面からその理由を確認できるようにして、挙動の見え方を current state と一致させる
+  - Target files or directories: `src/novel_writer/cli.py`, `tests/test_cli.py`, `README.md`, `docs/TASKS.md`
+  - Done when: `show-project-status` の出力で、`manual` project の saved `stop_for_review` gate が確認できる。既存の `autonomy_level` 表示と status / save-load contract は壊れない
+  - Required tests: `./venv/bin/python -m unittest tests.test_cli -v`, `./venv/bin/python -m unittest discover -s tests -v`
+  - Docs to update: `README.md`, `docs/TASKS.md`
 
 ## Ready
 
 ## Done
 
-- [x] M63e: next action decision の target_chapters contract を固定する
-  - Title: autonomy decision target chapter validator を追加する
-  - Milestone: M63 Autonomous Policy
-  - Purpose: action ごとの `target_chapters` 期待値を schema / storage validator でも fail-fast に固定する
-  - Target files or directories: `src/novel_writer/schema.py`, `tests/test_storage.py`, `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
-  - Done when: `continue`, `stop_for_review`, `revise`, `rerun_chapter`, `replan_future` の target chapter ルールが validator / tests / docs で固定される
-  - Required tests: `./venv/bin/python -m unittest tests.test_storage -v`, `./venv/bin/python -m unittest discover -s tests -v`
-  - Docs to update: `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
-- [x] M63d: progress_report action mapping を列挙全件で固定する
-  - Title: autonomy decision action mapping tests を追加する
-  - Milestone: M63 Autonomous Policy
-  - Purpose: `progress_report.recommended_action` から `next_action_decision.action` への mapping を全列挙型で fail-fast に固定する
-  - Target files or directories: `tests/test_pipeline.py`, `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
-  - Done when: `continue`, `revise`, `rerun`, `replan`, `stop_for_review` の mapping が tests / docs で固定される
-  - Required tests: `./venv/bin/python -m unittest tests.test_pipeline -v`, `./venv/bin/python -m unittest discover -s tests -v`
-  - Docs to update: `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
-- [x] M63c: pipeline から next action decision artifact を保存する
-  - Title: autonomy decision save 導線を追加する
-  - Milestone: M63 Autonomous Policy
-  - Purpose: `progress_report` と long-run budget をもとに next action decision を保存できる最小導線を pipeline に追加する
-  - Target files or directories: `src/novel_writer/pipeline.py`, `tests/test_pipeline.py`, `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
-  - Done when: pipeline 実行後に next action decision artifact が保存される最小ケースが tests / docs で固定される
-  - Required tests: `./venv/bin/python -m unittest tests.test_pipeline -v`, `./venv/bin/python -m unittest discover -s tests -v`
-  - Docs to update: `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
-- [x] M63b: next action decision に policy budget と detail trace を追加する
-  - Title: autonomy decision detail contract を拡張する
-  - Milestone: M63 Autonomous Policy
-  - Purpose: 次 action の判断根拠と残り budget を machine-readable に保存できるようにする
-  - Target files or directories: `src/novel_writer/schema.py`, `src/novel_writer/storage.py`, `tests/test_storage.py`, `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
-  - Done when: next action decision artifact に budget / detail trace field を追加した contract が tests / docs で固定される
-  - Required tests: `./venv/bin/python -m unittest tests.test_storage -v`, `./venv/bin/python -m unittest discover -s tests -v`
-  - Docs to update: `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
-- [x] M63a: next action decision artifact の schema を固定する
-  - Title: autonomy decision contract を追加する
-  - Milestone: M63 Autonomous Policy
-  - Purpose: `continue` / `revise` / `rerun_chapter` / `replan_future` / `stop_for_review` を機械可読に表現する最小 contract を定める
-  - Target files or directories: `src/novel_writer/schema.py`, `src/novel_writer/storage.py`, `tests/test_storage.py`, `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
-  - Done when: next action decision artifact の schema / save-load contract が tests / docs で固定される
-  - Required tests: `./venv/bin/python -m unittest tests.test_storage -v`, `./venv/bin/python -m unittest discover -s tests -v`
-  - Docs to update: `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
-- [x] M62f: replan apply 結果を `replan_history.change_summary` に反映する
-  - Title: replan apply summary を履歴へ残す
-  - Milestone: M62 Replan Loop
-  - Purpose: decision trace だけでなく、実際にどの future chapter planning artifact を更新したかを `replan_history` から追えるようにする
-  - Target files or directories: `src/novel_writer/pipeline.py`, `tests/test_pipeline.py`, `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
-  - Done when: pipeline 経由の replan apply 後に `change_summary` へ artifact 別の更新章要約が残ることが tests / docs で固定される
-  - Required tests: `./venv/bin/python -m unittest tests.test_pipeline -v`, `./venv/bin/python -m unittest discover -s tests -v`
-  - Docs to update: `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
-- [x] M62e: pipeline から replan apply helper を呼び出せるようにする
-  - Title: replan artifact apply を pipeline に接続する
-  - Milestone: M62 Replan Loop
-  - Purpose: `replan_history` の decision trace 保存だけでなく、future chapter の planning artifact 更新まで pipeline から一貫して進められるようにする
-  - Target files or directories: `src/novel_writer/pipeline.py`, `src/novel_writer/storage.py`, `tests/test_pipeline.py`, `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
-  - Done when: `progress_report.recommended_action=replan` の経路で apply helper を呼び出せる最小導線が tests / docs で固定される
-  - Required tests: `./venv/bin/python -m unittest tests.test_pipeline -v`, `./venv/bin/python -m unittest discover -s tests -v`
-  - Docs to update: `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
-- [x] M62d: future chapter の `chapter_briefs` / `scene_cards` を更新する helper を追加する
-  - Title: replan apply helper を追加する
-  - Milestone: M62 Replan Loop
-  - Purpose: decision trace だけでなく、future chapter の実際の planning artifact を安全に更新できる helper を整える
-  - Target files or directories: `src/novel_writer/storage.py`, `src/novel_writer/schema.py`, `tests/test_storage.py`, `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
-  - Done when: 指定 chapter 以降の `chapter_briefs` / `scene_cards` を fail-fast に差し替える helper が tests / docs で固定される
-  - Required tests: `./venv/bin/python -m unittest tests.test_storage -v`, `./venv/bin/python -m unittest discover -s tests -v`
-  - Docs to update: `README.md`, `docs/TASKS.md`, `docs/ROADMAP.md`
-- [x] M62c: `recommended_action=replan` を `replan_history` へ保存できるようにする
-- [x] M62b: `replan_history` へ entry を追記できる helper を追加する
-- [x] M62a: `replan_history` の schema と storage contract を固定する
-- [x] M61b: pipeline で `progress_report.json` を生成できるようにする
-- [x] M61a: `progress_report` の schema と storage contract を固定する
-- [x] M60d: revise / rerun も `chapter_handoff_packet` を共有入力にできるようにする
-- [x] M60c: draft / revise / rerun が `chapter_handoff_packet` を共有入力にできるようにする
-- [x] M60b: `chapter_handoff_packet` を構築して保存できるようにする
-- [x] M60a: `chapter_handoff_packet` の schema を固定する
-- [x] M59i: continuity policy の内部 rerun 結果も memory artifact へ反映できるようにする
-- [x] M59h: `rerun-chapter` 結果も memory artifact へ反映できるようにする
-- [x] M59g: revised chapter 結果も memory artifact へ反映できるようにする
-- [x] M59f: memory artifact を chapter 結果から自動更新できるようにする
-- [x] M59e: memory layer を draft / revise / rerun から参照できるようにする
-- [x] M59d: thread 単位の registry 更新 helper を追加する
-- [x] M59c: `thread_registry` の schema と storage contract を固定する
-- [x] M59b: chapter 単位の ledger 追記 helper を追加する
-- [x] M59a: `canon_ledger` の schema と storage contract を固定する
+### Recent completions
+
+- [x] M63g: manual project は review-required decision で resume-project を停止する
+- [x] M63f: project autonomy level contract を追加する
+- [x] M63e-M63a: `next_action_decision` の schema、pipeline 保存、action mapping、target chapter validation を固定した
+- [x] M62f-M62a: `replan_history` と future chapter update の基盤を固めた
+- [x] M61b-M60a: `progress_report` と `chapter_handoff_packet` の共有入力を固めた
+- [x] M59-M58: memory layer、canon / thread registry、chapter briefs / scene cards の基礎を整えた
+- [x] M57-M54: story bible の導入と OpenAI / LM Studio 応答の扱いを固めた
+- [x] M53-M42: show-run-comparison と comparison summary の read-only / compact 表示を整えた
 - [x] Scaffold CLI-based short-story pipeline MVP
-- [x] M56: `show-run-comparison` の minimal artifact ケースで compact long-run stop 行を固定する
-- [x] Docs: `chapter_briefs` / `scene_cards` 統合後に README / ROADMAP / TASKS / tests を同期する
-- [x] M58: `chapter_briefs` と `scene_cards` を導入し、chapter draft の正式入力を拡張する
-- [x] M57d: `chapter_plan` 生成が `story_bible` を参照するようにする
-- [x] M57c: LLM client に `generate_story_bible()` を追加する
-- [x] M57b: pipeline に `story_bible` 生成段を追加する
-- [x] M57a: `story_bible` schema を追加し、artifact contract を固定する
-- [x] M55: `show-run-comparison` の minimal artifact ケースで compact completed step count 行を固定する
-- [x] M51: `show-run-comparison` の minimal artifact ケースで compact issue score 行を固定する
-- [x] M54: LM Studio の fenced JSON 応答を明示的に正規化する
-- [x] M53: OpenAI 互換 provider の response format 差分を吸収する
-- [x] M52: OpenAI 互換 provider を追加し、LM Studio / Ollama と model 指定を CLI から使えるようにする
-- [x] M50: `show-run-comparison` の minimal artifact ケースで best metrics 行を固定する
-- [x] M49: `show-run-comparison` の minimal artifact ケースで current metrics 行を固定する
-- [x] M48: `show-run-comparison` の minimal artifact ケースで current reason code 行を固定する
-- [x] M47: `show-run-comparison` の minimal artifact ケースで automatic selection 行を固定する
-- [x] M46: `show-run-comparison` の minimal artifact ケースでも read-only 性を固定する
-- [x] M45: `show-run-comparison` CLI が candidate 0 件のとき detail line を出さないことを固定する
-- [x] M44: `show-run-comparison` CLI が最小 valid comparison artifact を read-only 表示できることを固定する
-- [x] M42: `show-run-comparison` の section 表示順 contract を tests で固定する
-- [x] M43: `show-run-comparison` が optional section 欠落時も安定して表示できることを tests で固定する
-- [x] Separate orchestration, schema, storage, and LLM access modules
-- [x] Add mock provider and OpenAI provider selection
-- [x] Save intermediate artifacts as JSON or YAML
-- [x] Add continuity check over generated artifacts
-- [x] Add rerun policy driven by continuity issue counts
-- [x] Add chapter 1 revise phase
-- [x] Introduce internal `chapter_drafts` and `revised_chapter_drafts` structures
-- [x] M1: Generate chapter drafts in a loop while keeping `05_chapter_1_draft` as a compatibility output
-- [x] M1: Generalize revise/save flow so revised drafts can be stored per chapter internally and still mirror `revised_chapter_1_draft`
-- [x] M1: Add per-chapter manifest/storage tests for multi-chapter artifact consistency
-- [x] M2: Add storage helpers and tests for reading existing artifacts to prepare resume / selective rerun
-- [x] M2: Split pipeline phases into resumable steps with manifest-driven checkpoints
-- [x] M2: Add CLI options for resuming from an output directory and rerunning from a named phase
-- [x] M3: Add quality checks for POV consistency, chapter length balance, and character continuity
-- [x] M3: Write a unified quality report that can recommend regenerate vs revise actions
-- [x] M4: Add bounded iterative revision with stop conditions and revision history per chapter
-- [x] M4: Save before/after revision diffs in artifacts or manifest metadata
-- [x] M5: Introduce a project-level run layout keyed by story/project ID
-- [x] M5: Add CLI commands for create-project, resume-project, and rerun-chapter workflows
-- [x] M3: Tighten OpenAI response validation around schema expectations without changing the mock-first architecture
-- [x] M6: Add documentation for GitHub issue / PR conventions once the autonomous loop is exercised in practice
-- [x] M6: Add a lightweight blocked-task template and status sync rules for Codex-driven work
-- [x] M7: Generalize continuity check so it can run per chapter using chapter_index-based artifact access
-- [x] M7: Generalize rerun policy and revise flow from chapter 1 to arbitrary chapters while keeping chapter 1 compatibility outputs
-- [x] M7: Save per-chapter continuity / rerun / revise histories in manifest
-- [x] M8: Add story-level summary generation across all chapters
-- [x] M8: Add project-wide quality report for theme coherence, POV consistency, foreshadowing coverage, and chapter balance
-- [x] M8: Support multi-run candidate comparison and best-run selection metadata
-- [x] M9: Orchestrate full multi-chapter draft generation from chapter_plan to final revised drafts
-- [x] M9: Add long-run stop conditions and retry policy for multi-chapter generation
-- [x] M9: Add final whole-story pass that generates synopsis, overall quality report, and publish-ready artifact bundle
-- [x] Cover current pipeline modules with tests
-- [x] Docs: Refresh README / ROADMAP / TASKS around the software-as-pipeline framing
-- [x] M10: chapter 配列ベースの内部正本と chapter 1 互換 artifact の contract を manifest / tests / docs で固定する
-- [x] M11: `rerun-chapter` CLI を任意章対応に一般化する
-- [x] M11: 対象章だけを rerun / revise できる pipeline entry point を追加する
-- [x] M11: 章単位操作の履歴を project manifest から追いやすく整理する
-- [x] M12: run candidates の比較指標を issue 数以外にも広げ、`best_run` の根拠を保存する
-- [x] M12: current run と best run の比較結果を CLI と project manifest で確認しやすくする
-- [x] M13: 長編向け stop condition / retry policy / rerun limit を整理する
-- [x] M13: `publish_ready_bundle.json` の schema を固定し、downstream 利用前提の説明と tests を追加する
-- [x] Docs: README / ROADMAP / TASKS / manifest で使う用語を完全に統一する
-- [x] M14: `project_manifest.json` を読み取り専用で表示する `show-project-status` CLI を追加する
-- [x] M14: status 出力に `current_run` / `best_run` / `chapter_statuses` / `long_run_status` の要点を揃え、tests を追加する
-- [x] M14: 章別の issue 数、rerun 回数、revise 回数を status 出力から確認できるようにする
-- [x] M15: `project_manifest.json` の validator を追加し、欠落 field / version 不整合時に actionable なエラーを返す
-- [x] M15: `publish_ready_bundle.json` の validator を追加し、`schema_version=1.0` contract を保存時・読込時に検証する
-- [x] M15: manifest / bundle の schema version 方針を docs と tests に固定する
-- [x] M16: rerun policy の主要閾値を CLI 引数または設定ファイルから与えられるようにする
-- [x] M16: 実行時 policy snapshot を `manifest` / `project_manifest.json` に保存し、比較可能にする
-- [x] M16: 長編向け budget 設定の差を検証する tests を追加する
-- [x] M17: 機械可読な run comparison summary artifact を追加する
-- [x] M17: 人間レビュー後に `best_run` を固定または昇格できる CLI を追加する
-- [x] M18: `publish_ready_bundle.sections` の最小 contract を定義し、docs / tests で固定する
-- [x] Docs: M16-M18 実装後に README / ROADMAP / TASKS の説明を同期する
-- [x] M19: `run_comparison_summary.json` の validator と schema version を追加する
-- [x] M19: `select-best-run` の manual selection reason を comparison summary に残す
-- [x] M19: `show-project-status` から current run と best run の policy 差分を表示する
-- [x] Docs: M16-M19 実装後に README / ROADMAP / TASKS の説明を同期する
-- [x] M20: `show-project-status` に selection source と selection reason の要約を表示する
-- [x] M20: current run と best run の issue / step / policy 差分を status 出力でまとめて見やすくする
-- [x] M20: `run_comparison_summary.json` に status 表示用の compact summary を追加する
-- [x] Docs: M16-M20 実装後に README / ROADMAP / TASKS の説明を同期する
-- [x] M21: `run_comparison_summary.json` の compact summary contract を docs / tests で固定する
-- [x] M21: `show-project-status` の compact diff と `run_comparison_summary.json` の compact summary の対応を docs に明記する
-- [x] M21: manual / automatic selection の比較根拠を current run と best run の双方で出せるようにする
-- [x] Docs: M16-M20 実装後に README / ROADMAP / TASKS の説明を同期する
-- [x] M22: `run_comparison_summary.json` の `current_run` / `best_run` comparison context contract を validator / docs / tests で固定する
-- [x] M22: `show-project-status` の current / best comparison summary を machine-readable artifact と同じ語彙で揃える
-- [x] M22: manual selection と automatic selection の reason schema を downstream 利用向けに整理する
-- [x] M23: `run_candidates` の reason details contract を `run_comparison_summary.json` と同じ粒度で固定する
-- [x] M23: `show-project-status` に reason details の主要 code を簡潔に表示できる mode を追加する
-- [x] Docs: M23 実装後に README / ROADMAP / TASKS の説明を同期する
-- [x] M24: `show-project-status` の reason codes と `run_comparison_summary.json` の `*_reason_details.code` の対応を docs / tests で固定する
-- [x] M24: `run_comparison_summary.json` の `*_reason_details.code` を列挙型として contract 化する
-- [x] Docs: M23-M24 実装後に README / ROADMAP / TASKS の説明を同期する
-- [x] M25: `project_manifest.json` 側の `*_reason_details.code` も同じ列挙型 contract で固定する
-- [x] M25: `show-project-status` の reason code 表示順を schema の列挙順に明示的に揃える
-- [x] Docs: M25 実装後に README / ROADMAP / TASKS の説明を同期する
-- [x] M26: `project_manifest.json` の current / best / run_candidates comparison context contract を `run_comparison_summary.json` と同じ粒度に広げる
-- [x] M26: `show-project-status` の summary 行を `project_manifest.json` の machine-readable context だけから再構成できるように整理する
-- [x] M26: status 表示の summary field 名と `project_manifest.json` / `run_comparison_summary.json` の field 名の対応表を docs / tests で固定する
-- [x] M27: `show-project-status` の整形関数を manifest 読込と分離し、summary builder を単体テスト可能にする
-- [x] Docs: M26-M27 実装後に ROADMAP / TASKS の説明を同期する
-- [x] M28: `run_comparison_summary.json` を読み取り専用で表示する `show-run-comparison` CLI を追加する
-- [x] M28: `show-run-comparison` の summary field 名と `run_comparison_summary.json` の field 名の対応を docs / tests で固定する
-- [x] M28: `show-project-status` と `show-run-comparison` の責務差を README / ROADMAP / TASKS で整理する
-- [x] M29: `show-run-comparison` に `compact_summary.policy_limits` の current / best 表示を追加する
-- [x] M29: `show-run-comparison` の compact policy lines と `run_comparison_summary.json.compact_summary.policy_limits` の対応を docs / tests で固定する
-- [x] M30: `build_saved_run_comparison_summary()` に compact summary section を構造化して持たせ、line renderer を分離する
-- [x] Docs: M30 実装後に README / ROADMAP / TASKS の説明を同期する
-- [x] M31: `show-run-comparison` に current / best run の `output_dir` を表示する
-- [x] M32: `show-run-comparison` に `run_candidates[*].run_name` の一覧を表示する
-- [x] M33: `show-run-comparison` に `run_candidates[*].score` の一覧を表示する
-- [x] M34: `show-run-comparison` に `run_candidates[*].output_dir` の一覧を表示する
-- [x] M35: `show-run-comparison` の run candidate summary を section dict として構造化する
-- [x] M36: `show-run-comparison` の current / best summary から metrics line を structured field へ寄せる
-- [x] M37: `show-run-comparison` の current / best reason/basis 表示を structured field へ寄せる
-- [x] M38: `show-run-comparison` の current / best section renderer を helper 分離する
-- [x] M39: `show-run-comparison` の compact / candidate section renderer を helper 分離する
-- [x] M40: `show-run-comparison` の top-level line builder を section dispatch へ統一する
-- [x] M41: `show-run-comparison` の section renderer dispatch 定義を helper 化する
+
+### Archived milestones
+
+- `M41-M1`: pipeline 基盤、resume / rerun、quality、project layout、chapter 互換出力の土台を段階的に整備した
+- `M40-M30`: `show-run-comparison` の line renderer と compact summary を整理し、比較表示の read-only 挙動を固めた
+- `M29-M22`: `show-run-comparison` と `project_manifest.json` の comparison context を揃え、status 表示の語彙を machine-readable artifact に寄せた
+- `M21-M19`: compact summary と manual / automatic selection の理由表示を整えた
+- `M18-M16`: publish bundle、policy snapshot、rerun policy の基礎を整えた
+- `M15-M13`: schema validator、schema version 方針、長編向け stop condition を固定した
+- `M12-M10`: best run 比較、project-level run layout、chapter 配列ベースの互換正本を固めた
+- `M9-M7`: multi-chapter draft、stop condition、per-chapter history を整えた
+- `M6-M4`: GitHub / blocked-task の運用補助、continuity / revise / rerun の基礎を作った
+- `M3-M1`: quality report、resume / selective rerun、chapter 1 互換出力を段階的に追加した
 
 ## Task Update Rules
 
