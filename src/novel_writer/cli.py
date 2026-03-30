@@ -272,6 +272,27 @@ def _enforce_resume_project_review_gate(project_manifest: dict[str, Any], output
         )
 
 
+def _build_project_resume_gate_summary(project_manifest: dict[str, Any]) -> dict[str, Any] | None:
+    """manual project の review gate を status 表示向けに要約する。"""
+    if project_manifest.get("autonomy_level") != "manual":
+        return None
+
+    current_run = project_manifest.get("current_run", {})
+    output_dir = current_run.get("output_dir")
+    if not output_dir:
+        return None
+
+    try:
+        next_action_decision = load_next_action_decision(Path(output_dir))
+    except FileNotFoundError:
+        return None
+
+    if next_action_decision.get("action") != "stop_for_review":
+        return None
+
+    return {"reason": "stop_for_review"}
+
+
 def _load_existing_project_manifest(project_dir: Path) -> dict[str, Any]:
     try:
         return load_project_manifest(project_dir)
@@ -610,6 +631,7 @@ def build_project_status_summary(
         chapter_statuses = current_run.get("chapter_statuses", [])
         long_run_status = current_run.get("long_run_status", {})
         comparison_metrics = current_run.get("comparison_metrics", {})
+        resume_gate = _build_project_resume_gate_summary(project_manifest)
         summary["current_run"] = {
             "name": current_run.get("name", "unknown"),
             "output_dir": current_run.get("output_dir", "unknown"),
@@ -618,6 +640,7 @@ def build_project_status_summary(
             "comparison_lines": _build_current_comparison_summary_lines(current_run, reason_detail_mode),
             "chapter_status_lines": _build_chapter_status_summary_lines(chapter_statuses),
             "long_run_status_lines": _build_long_run_status_lines(long_run_status),
+            "resume_gate": resume_gate,
         }
 
     if best_run:
@@ -655,6 +678,9 @@ def build_project_status_lines(project_manifest: dict[str, Any], reason_detail_m
 
     current_run = summary.get("current_run")
     if current_run:
+        resume_gate = current_run.get("resume_gate")
+        if resume_gate:
+            lines.append(f"Resume gate: {resume_gate['reason']}")
         lines.append(f"Current run: {current_run['name']}")
         lines.append(f"  output_dir: {current_run['output_dir']}")
         lines.append(f"  current_step: {current_run['current_step']}")

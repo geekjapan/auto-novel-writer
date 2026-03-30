@@ -5,14 +5,14 @@
 
 ## In Progress
 
-- [ ] M63h: manual project の review gate を status から見えるようにする
-  - Title: `show-project-status` に `stop_for_review` 由来の resume gate 状態を追加する
+- [ ] M63i: manual review gate 判定を status と resume で共通化する
+  - Title: `resume-project` と `show-project-status` の manual + `stop_for_review` 判定を 1 つの helper にまとめる
   - Milestone: M63 Autonomous Policy
-  - Purpose: `manual` project が保存済みの `next_action_decision.action=stop_for_review` で `resume-project` を止めるなら、利用者が status 画面からその理由を確認できるようにして、挙動の見え方を current state と一致させる
-  - Target files or directories: `src/novel_writer/cli.py`, `tests/test_cli.py`, `README.md`, `docs/TASKS.md`
-  - Done when: `show-project-status` の出力で、`manual` project の saved `stop_for_review` gate が確認できる。既存の `autonomy_level` 表示と status / save-load contract は壊れない
+  - Purpose: review gate の条件を CLI 内で二重管理せず、`resume-project` と status 表示が同じ source of truth を参照するようにして、今後の autonomy policy 変更でずれにくくする
+  - Target files or directories: `src/novel_writer/cli.py`, `tests/test_cli.py`
+  - Done when: `resume-project` と `show-project-status` が同じ review gate 判定ヘルパーを使い、既存の manual / assist / missing decision テストが通る
   - Required tests: `./venv/bin/python -m unittest tests.test_cli -v`, `./venv/bin/python -m unittest discover -s tests -v`
-  - Docs to update: `README.md`, `docs/TASKS.md`
+  - Docs to update: `docs/TASKS.md`
 
 ## Ready
 
@@ -20,6 +20,7 @@
 
 ### Recent completions
 
+- [x] M63h: manual project の review gate を status から見えるようにする
 - [x] M63g: manual project は review-required decision で resume-project を停止する
 - [x] M63f: project autonomy level contract を追加する
 - [x] M63e-M63a: `next_action_decision` の schema、pipeline 保存、action mapping、target chapter validation を固定した
