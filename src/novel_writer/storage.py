@@ -104,6 +104,7 @@ def save_project_manifest(
     manifest_payload = dict(payload)
     manifest_payload.setdefault("schema_name", contract["schema_name"])
     manifest_payload.setdefault("schema_version", contract["schema_version"])
+    manifest_payload.setdefault("autonomy_level", contract["autonomy_level"]["default"])
     validate_project_manifest(manifest_payload)
     return save_artifact(project_layout["project_dir"], "project_manifest", manifest_payload, file_format)
 
@@ -389,6 +390,7 @@ def load_scene_cards(output_dir: Path, file_format: str | None = None) -> list[d
 
 def load_project_manifest(project_dir: Path, file_format: str | None = None) -> dict[str, Any]:
     payload = load_artifact(project_dir, "project_manifest", file_format)
+    payload.setdefault("autonomy_level", project_manifest_contract()["autonomy_level"]["default"])
     validate_project_manifest(payload)
     return payload
 

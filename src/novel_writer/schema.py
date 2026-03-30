@@ -1061,6 +1061,7 @@ def project_manifest_contract() -> dict:
             "project_id",
             "project_slug",
             "projects_dir",
+            "autonomy_level",
             "current_run",
             "run_candidates",
             "best_run",
@@ -1330,19 +1331,8 @@ def validate_project_manifest(payload: dict) -> dict:
             f"schema_version={schema_version!r} is not supported; expected {contract['schema_version']!r}."
         )
 
-    # 既存の project_manifest は autonomy_level を持たない場合があるため、
-    # 読み込み後のメモリ上の表現は assist に正規化する。
     autonomy_level_contract = contract["autonomy_level"]
-    if "autonomy_level" not in payload:
-        payload["autonomy_level"] = autonomy_level_contract["default"]
-        autonomy_level = payload["autonomy_level"]
-    else:
-        autonomy_level = payload.get("autonomy_level")
-        if autonomy_level is None:
-            raise ValueError(
-                "Invalid project_manifest: "
-                "autonomy_level=None is not supported; expected one of: manual, assist, auto."
-            )
+    autonomy_level = payload.get("autonomy_level")
     if not isinstance(autonomy_level, str) or autonomy_level not in autonomy_level_contract["allowed_values"]:
         allowed = ", ".join(autonomy_level_contract["allowed_values"])
         raise ValueError(
