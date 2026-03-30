@@ -257,7 +257,7 @@ def load_project_run_context(projects_dir: Path, project_id: str) -> tuple[dict,
 
 
 def _enforce_resume_project_review_gate(project_manifest: dict[str, Any], output_dir: Path) -> None:
-    review_gate = _build_project_resume_gate_summary(project_manifest, output_dir)
+    review_gate = _build_manual_review_gate(project_manifest, output_dir)
     if review_gate is not None:
         reason = review_gate["reason"]
         if reason == "stop_for_review":
@@ -266,11 +266,8 @@ def _enforce_resume_project_review_gate(project_manifest: dict[str, Any], output
             )
 
 
-def _build_project_resume_gate_summary(
-    project_manifest: dict[str, Any],
-    output_dir: Path,
-) -> dict[str, Any] | None:
-    """manual project の review gate を resume/status 共通の要約として返す。"""
+def _build_manual_review_gate(project_manifest: dict[str, Any], output_dir: Path) -> dict[str, Any] | None:
+    """manual project の review gate を resume/status 共通の source of truth として返す。"""
     if project_manifest.get("autonomy_level") != "manual":
         return None
 
@@ -282,6 +279,14 @@ def _build_project_resume_gate_summary(
     if next_action_decision.get("action") == "stop_for_review":
         return {"reason": "stop_for_review"}
     return None
+
+
+def _build_project_resume_gate_summary(
+    project_manifest: dict[str, Any],
+    output_dir: Path,
+) -> dict[str, Any] | None:
+    """互換用の薄い wrapper として manual review gate を返す。"""
+    return _build_manual_review_gate(project_manifest, output_dir)
 
 
 def _load_existing_project_manifest(project_dir: Path) -> dict[str, Any]:
@@ -624,7 +629,7 @@ def build_project_status_summary(
         comparison_metrics = current_run.get("comparison_metrics", {})
         current_output_dir = current_run.get("output_dir")
         resume_gate = (
-            _build_project_resume_gate_summary(project_manifest, Path(current_output_dir))
+            _build_manual_review_gate(project_manifest, Path(current_output_dir))
             if current_output_dir
             else None
         )
