@@ -5,23 +5,24 @@
 
 ## In Progress
 
-- [ ] M63g: manual project は review-required decision で resume-project を停止する
-  - Title: `resume-project` で `manual` autonomy level の review gate を 1 箇所だけ追加する
-  - Milestone: M63 Autonomous Policy
-  - Purpose: project-level `autonomy_level=manual` の project では、現在 run の `next_action_decision.action` が review-required 系なら `resume-project` を fail-fast で止め、autonomy setting が実際の control に反映される最初の gate を作る
-  - Target files or directories: `src/novel_writer/cli.py`, `src/novel_writer/storage.py`, `tests/test_cli.py`, `README.md`, `docs/TASKS.md`
-  - Done when: `manual` project が `stop_for_review` の `next_action_decision` を持つ run を `resume-project` しようとしたとき、pipeline を進めず明示的エラーで停止する。`assist` / `auto` と既存 project manifest の save-load / status contract は壊れない
-  - Required tests: `./venv/bin/python -m unittest tests.test_storage -v`, `./venv/bin/python -m unittest tests.test_cli -v`, `./venv/bin/python -m unittest discover -s tests -v`
-  - Docs to update: `README.md`, `docs/TASKS.md`
+- なし
 
 ## Ready
 
-- なし
+- [ ] M63h: manual project の review gate を status から見えるようにする
+  - Title: `show-project-status` に `stop_for_review` 由来の resume gate 状態を追加する
+  - Milestone: M63 Autonomous Policy
+  - Purpose: `manual` project が保存済みの `next_action_decision.action=stop_for_review` で `resume-project` を止めるなら、利用者が status 画面からその理由を確認できるようにして、挙動の見え方を current state と一致させる
+  - Target files or directories: `src/novel_writer/cli.py`, `tests/test_cli.py`, `README.md`, `docs/TASKS.md`
+  - Done when: `show-project-status` の出力で、`manual` project の saved `stop_for_review` gate が確認できる。既存の `autonomy_level` 表示と status / save-load contract は壊れない
+  - Required tests: `./venv/bin/python -m unittest tests.test_cli -v`, `./venv/bin/python -m unittest discover -s tests -v`
+  - Docs to update: `README.md`, `docs/TASKS.md`
 
 ## Done
 
 ### Recent completions
 
+- [x] M63g: manual project は review-required decision で resume-project を停止する
 - [x] M63f: project autonomy level contract を追加する
 - [x] M63e-M63a: `next_action_decision` の schema、pipeline 保存、action mapping、target chapter validation を固定した
 - [x] M62f-M62a: `replan_history` と future chapter update の基盤を固めた
