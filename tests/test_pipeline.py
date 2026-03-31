@@ -422,6 +422,19 @@ class StoryPipelineTest(unittest.TestCase):
                         "project_quality_report.json",
                         "revised_chapter_{n}_draft.json",
                     ],
+                    "story_bible_summary": {
+                        "core_premise": story_bible["core_premise"],
+                        "theme_statement": story_bible["theme_statement"],
+                        "ending_reveal": story_bible["ending_reveal"],
+                    },
+                },
+            )
+            self.assertEqual(
+                publish_ready_bundle["story_bible_summary"],
+                {
+                    "core_premise": story_bible["core_premise"],
+                    "theme_statement": story_bible["theme_statement"],
+                    "ending_reveal": story_bible["ending_reveal"],
                 },
             )
             self.assertEqual(manifest["artifacts"]["continuity_history"], manifest["continuity_history"])

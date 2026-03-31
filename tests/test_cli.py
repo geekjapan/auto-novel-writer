@@ -456,6 +456,11 @@ class CliTest(unittest.TestCase):
                     "story_summary.json",
                     "revised_chapter_{n}_draft.json",
                 ],
+                "story_bible_summary": {
+                    "theme_statement": "保存済みテーマ",
+                    "core_premise": "保存済み前提",
+                    "ending_reveal": "保存済みエンディング",
+                },
             },
         }
 
@@ -468,6 +473,7 @@ class CliTest(unittest.TestCase):
                 "publish_bundle.chapter_count: 2",
                 "publish_bundle.section_names: manuscript, story_summary",
                 "publish_bundle.source_artifact_names: story_summary.json, revised_chapter_{n}_draft.json",
+                "publish_bundle.story_bible_summary: theme_statement=保存済みテーマ | core_premise=保存済み前提 | ending_reveal=保存済みエンディング",
             ],
         )
 
@@ -521,6 +527,11 @@ class CliTest(unittest.TestCase):
                         "story_summary.json",
                         "project_quality_report.json",
                     ],
+                    "story_bible_summary": {
+                        "theme_statement": "保存済みテーマ",
+                        "core_premise": "保存済み前提",
+                        "ending_reveal": "保存済みエンディング",
+                    },
                 },
             },
         )
@@ -534,6 +545,7 @@ class CliTest(unittest.TestCase):
         self.assertIn("publish_bundle.title: Saved Bundle Title", output)
         self.assertIn("publish_bundle.section_names: manuscript, quality", output)
         self.assertIn("publish_bundle.source_artifact_names: story_summary.json, project_quality_report.json", output)
+        self.assertIn("publish_bundle.story_bible_summary: theme_statement=保存済みテーマ | core_premise=保存済み前提 | ending_reveal=保存済みエンディング", output)
 
     def test_cli_create_project_sets_default_autonomy_level_and_preserves_existing_value(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

@@ -8,6 +8,7 @@ from novel_writer.continuity import ContinuityChecker
 from novel_writer.llm_client import BaseLLMClient
 from novel_writer.rerun_policy import ContinuityRerunPolicy
 from novel_writer.schema import StoryArtifacts, StoryInput, build_publish_ready_bundle_summary
+from novel_writer.schema import build_story_bible_summary
 from novel_writer.storage import (
     apply_replan_updates,
     load_canon_ledger,
@@ -1112,6 +1113,7 @@ class StoryPipeline:
 
     def _build_publish_ready_bundle(self, artifacts: StoryArtifacts, selected_logline: dict) -> dict:
         bundle_contract = artifacts.artifact_contract()["publish_ready_bundle"]
+        story_bible_summary = build_story_bible_summary(artifacts.story_bible)
         publish_ready_bundle = {
             "schema_version": bundle_contract["schema_version"],
             "bundle_type": bundle_contract["schema_name"],
@@ -1128,6 +1130,7 @@ class StoryPipeline:
                 "chapters": "revised_chapter_{n}_draft.json",
             },
             "sections": bundle_contract["sections"],
+            "story_bible_summary": story_bible_summary,
         }
         publish_ready_bundle["summary"] = build_publish_ready_bundle_summary(publish_ready_bundle)
         return publish_ready_bundle

@@ -3,6 +3,22 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 
 
+def build_story_bible_summary(story_bible: object) -> dict[str, str]:
+    """story_bible から read-only 表示用の最小要約を作る。"""
+    if not isinstance(story_bible, dict):
+        return {
+            "core_premise": "",
+            "theme_statement": "",
+            "ending_reveal": "",
+        }
+
+    return {
+        "core_premise": str(story_bible.get("core_premise", "")),
+        "theme_statement": str(story_bible.get("theme_statement", "")),
+        "ending_reveal": str(story_bible.get("ending_reveal", "")),
+    }
+
+
 def _publish_bundle_section_names(payload: dict) -> list[str]:
     sections = payload.get("sections")
     if isinstance(sections, dict):
@@ -29,18 +45,24 @@ def build_publish_ready_bundle_summary(payload: dict) -> dict:
         source_artifact_names = summary.get("source_artifact_names")
         if not isinstance(source_artifact_names, list):
             source_artifact_names = _publish_bundle_source_artifact_names(payload)
+        story_bible_summary = summary.get("story_bible_summary")
+        if not isinstance(story_bible_summary, dict):
+            story_bible_summary = build_story_bible_summary(payload.get("story_bible_summary"))
         return {
             "title": summary.get("title", payload.get("title", "unknown")),
             "chapter_count": summary.get("chapter_count", payload.get("chapter_count", 0)),
             "section_names": [str(section_name) for section_name in section_names],
             "source_artifact_names": [str(artifact_name) for artifact_name in source_artifact_names],
+            "story_bible_summary": story_bible_summary,
         }
 
+    story_bible_summary = build_story_bible_summary(payload.get("story_bible_summary"))
     return {
         "title": payload.get("title", "unknown"),
         "chapter_count": payload.get("chapter_count", 0),
         "section_names": _publish_bundle_section_names(payload),
         "source_artifact_names": _publish_bundle_source_artifact_names(payload),
+        "story_bible_summary": story_bible_summary,
     }
 
 
@@ -1132,6 +1154,16 @@ def validate_publish_ready_bundle(payload: dict) -> dict:
             "publish_ready_bundle",
             f"summary.source_artifact_names[{index}]",
         )
+    story_bible_summary = summary.get("story_bible_summary")
+    if isinstance(story_bible_summary, dict):
+        for key in ["core_premise", "theme_statement", "ending_reveal"]:
+            _validate_str_field(
+                story_bible_summary.get(key),
+                "publish_ready_bundle",
+                f"summary.story_bible_summary.{key}",
+            )
+    elif "story_bible_summary" in summary:
+        raise ValueError("Invalid publish_ready_bundle: summary.story_bible_summary must be an object.")
 
     return payload
 

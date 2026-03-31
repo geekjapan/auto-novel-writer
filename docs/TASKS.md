@@ -5,15 +5,7 @@
 
 ## In Progress
 
-- [ ] M64b: publish bundle に story bible summary を追加する
-  - Title: `publish_ready_bundle` に story bible の read-only summary を足す
-  - Milestone: M64 Long-Form Publish Bundle
-  - Purpose: story bible を bundle の read-only 表示と保存に織り込み、長編向け bundle の情報密度を段階的に上げる
-  - Target files or directories: `src/novel_writer/pipeline.py`, `src/novel_writer/schema.py`, `src/novel_writer/cli.py`, `tests/test_cli.py`, `tests/test_pipeline.py`
-  - Done when: `publish_ready_bundle.json` に story bible summary が保存され、CLI が saved summary を使って表示できる
-  - Required tests: `./venv/bin/python -m unittest tests.test_cli -v`, `./venv/bin/python -m unittest discover -s tests -v`
-  - Docs to update: `docs/TASKS.md`
-  - Depends on: `M64a`
+*No in-progress tasks*
 
 
 ## Ready
@@ -23,6 +15,15 @@
 ### Recent completions
 
 - [x] M64a: publish bundle の status 要約を保存済み summary と揃える
+- [x] M64b: publish bundle に story bible summary を追加する
+  - Title: `publish_ready_bundle` に story bible の read-only summary を足す
+  - Milestone: M64 Long-Form Publish Bundle
+  - Purpose: story bible を bundle の read-only 表示と保存に織り込み、長編向け bundle の情報密度を段階的に上げる
+  - Target files or directories: `src/novel_writer/pipeline.py`, `src/novel_writer/schema.py`, `src/novel_writer/cli.py`, `tests/test_cli.py`, `tests/test_pipeline.py`
+  - Done when: `publish_ready_bundle.json` に story bible summary が保存され、CLI が saved summary を使って表示できる
+  - Required tests: `./venv/bin/python -m unittest tests.test_cli -v`, `./venv/bin/python -m unittest discover -s tests -v`
+  - Docs to update: `docs/TASKS.md`
+  - Depends on: `M64a`
 - [x] M63i: manual review gate 判定を status と resume で共通化する
 - [x] M63h: manual project の review gate を status から見えるようにする
 - [x] M63g: manual project は review-required decision で resume-project を停止する

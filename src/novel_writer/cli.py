@@ -598,12 +598,23 @@ def build_rerun_policy_from_args(args: argparse.Namespace) -> ContinuityRerunPol
 
 def _build_publish_bundle_summary_lines(payload: dict[str, Any]) -> list[str]:
     summary = build_publish_ready_bundle_summary(payload)
-    return [
+    lines = [
         f"publish_bundle.title: {summary['title']}",
         f"publish_bundle.chapter_count: {summary['chapter_count']}",
         f"publish_bundle.section_names: {', '.join(summary['section_names']) or 'none'}",
         f"publish_bundle.source_artifact_names: {', '.join(summary['source_artifact_names']) or 'none'}",
     ]
+    story_bible_summary = summary.get("story_bible_summary")
+    if isinstance(story_bible_summary, dict):
+        summary_parts = []
+        for key in ("theme_statement", "core_premise", "ending_reveal"):
+            value = story_bible_summary.get(key)
+            if value:
+                summary_parts.append(f"{key}={value}")
+        if summary_parts:
+            lines.append(f"publish_bundle.story_bible_summary: {' | '.join(summary_parts)}")
+
+    return lines
 
 
 def print_run_summary(artifacts, output_dir: Path, project_manifest: dict[str, Any] | None = None) -> None:
