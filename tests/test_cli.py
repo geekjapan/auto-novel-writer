@@ -4,16 +4,26 @@ import tempfile
 import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from novel_writer.cli import (
+    _build_publish_bundle_summary_lines,
     build_project_status_lines,
     build_project_status_summary,
     build_saved_run_comparison_lines,
     build_saved_run_comparison_summary,
     main,
+    print_run_summary,
 )
-from novel_writer.storage import load_artifact, save_next_action_decision, save_run_comparison_summary
+from novel_writer.storage import (
+    load_artifact,
+    load_publish_ready_bundle,
+    save_artifact,
+    save_next_action_decision,
+    save_publish_ready_bundle,
+    save_run_comparison_summary,
+)
 
 
 class CliTest(unittest.TestCase):
@@ -96,6 +106,66 @@ class CliTest(unittest.TestCase):
             self.assertEqual(first_exit_code, 0)
             self.assertEqual(second_exit_code, 0)
             self.assertTrue((Path(tmp_dir) / "05_chapter_1_draft.json").exists())
+
+    def test_cli_rerun_chapter_keeps_show_run_comparison_read_only(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            create_exit_code = main(
+                [
+                    "create-project",
+                    "--theme",
+                    "約束",
+                    "--genre",
+                    "青春ドラマ",
+                    "--tone",
+                    "軽やか",
+                    "--target-length",
+                    "5000",
+                    "--project-id",
+                    "Compare Rerun 01",
+                    "--projects-dir",
+                    tmp_dir,
+                ]
+            )
+            rerun_exit_code = main(
+                [
+                    "rerun-chapter",
+                    "--project-id",
+                    "Compare Rerun 01",
+                    "--projects-dir",
+                    tmp_dir,
+                    "--chapter-number",
+                    "2",
+                ]
+            )
+
+            project_dir = Path(tmp_dir) / "compare-rerun-01"
+            run_dir = project_dir / "runs" / "latest_run"
+            publish_ready_bundle = load_publish_ready_bundle(run_dir)
+            buffer = io.StringIO()
+            with redirect_stdout(buffer):
+                comparison_exit_code = main(
+                    [
+                        "show-run-comparison",
+                        "--project-id",
+                        "Compare Rerun 01",
+                        "--projects-dir",
+                        tmp_dir,
+                        "--reason-detail-mode",
+                        "codes",
+                    ]
+                )
+
+            output = buffer.getvalue()
+
+            self.assertEqual(create_exit_code, 0)
+            self.assertEqual(rerun_exit_code, 0)
+            self.assertEqual(comparison_exit_code, 0)
+            self.assertIn("publish_bundle.title:", output)
+            self.assertIn("publish_bundle.section_names: manuscript, story_summary, quality", output)
+            self.assertEqual(
+                load_publish_ready_bundle(run_dir)["summary"],
+                publish_ready_bundle["summary"],
+            )
 
     def test_cli_main_resume_from_output_dir_blocks_manual_stop_for_review_for_project(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -365,6 +435,105 @@ class CliTest(unittest.TestCase):
             self.assertEqual(exit_code, 0)
             self.assertEqual(len(calls), 1)
             self.assertEqual(calls[0][1]["resume_from"], run_dir)
+
+    def test_build_publish_bundle_summary_lines_prefers_saved_summary(self) -> None:
+        publish_ready_bundle = {
+            "title": "Case Bundle",
+            "chapter_count": 2,
+            "sections": {
+                "manuscript": {"field": "chapters"},
+                "story_summary": {"field": "story_summary"},
+            },
+            "source_artifacts": {
+                "story_summary": "story_summary.json",
+                "chapters": "revised_chapter_{n}_draft.json",
+            },
+            "summary": {
+                "title": "Saved Bundle Title",
+                "chapter_count": 2,
+                "section_names": ["manuscript", "story_summary"],
+                "source_artifact_names": [
+                    "story_summary.json",
+                    "revised_chapter_{n}_draft.json",
+                ],
+            },
+        }
+
+        lines = _build_publish_bundle_summary_lines(publish_ready_bundle)
+
+        self.assertEqual(
+            lines,
+            [
+                "publish_bundle.title: Saved Bundle Title",
+                "publish_bundle.chapter_count: 2",
+                "publish_bundle.section_names: manuscript, story_summary",
+                "publish_bundle.source_artifact_names: story_summary.json, revised_chapter_{n}_draft.json",
+            ],
+        )
+
+    def test_build_publish_bundle_summary_lines_backfills_missing_summary(self) -> None:
+        publish_ready_bundle = {
+            "title": "Fallback Bundle",
+            "chapter_count": 3,
+            "sections": {
+                "manuscript": {"field": "chapters"},
+                "quality": {"field": "overall_quality_report"},
+            },
+            "source_artifacts": {
+                "story_summary": "story_summary.json",
+                "overall_quality_report": "project_quality_report.json",
+            },
+        }
+
+        lines = _build_publish_bundle_summary_lines(publish_ready_bundle)
+
+        self.assertEqual(
+            lines,
+            [
+                "publish_bundle.title: Fallback Bundle",
+                "publish_bundle.chapter_count: 3",
+                "publish_bundle.section_names: manuscript, quality",
+                "publish_bundle.source_artifact_names: story_summary.json, project_quality_report.json",
+            ],
+        )
+
+    def test_print_run_summary_uses_saved_publish_bundle_summary(self) -> None:
+        artifacts = SimpleNamespace(
+            loglines=[{"title": "Selected Logline"}],
+            chapter_plan=[{"chapter_number": 1}, {"chapter_number": 2}],
+            continuity_report={"issue_counts": {}, "severity": "low"},
+            publish_ready_bundle={
+                "title": "Legacy Bundle Title",
+                "chapter_count": 2,
+                "sections": {
+                    "manuscript": {"field": "chapters"},
+                    "quality": {"field": "overall_quality_report"},
+                },
+                "source_artifacts": {
+                    "story_summary": "story_summary.json",
+                    "overall_quality_report": "project_quality_report.json",
+                },
+                "summary": {
+                    "title": "Saved Bundle Title",
+                    "chapter_count": 2,
+                    "section_names": ["manuscript", "quality"],
+                    "source_artifact_names": [
+                        "story_summary.json",
+                        "project_quality_report.json",
+                    ],
+                },
+            },
+        )
+
+        buffer = io.StringIO()
+        with patch("novel_writer.cli.build_run_comparison_lines", return_value=[]), redirect_stdout(buffer):
+            print_run_summary(artifacts, Path("/tmp/publish-ready-bundle"), {})
+
+        output = buffer.getvalue()
+
+        self.assertIn("publish_bundle.title: Saved Bundle Title", output)
+        self.assertIn("publish_bundle.section_names: manuscript, quality", output)
+        self.assertIn("publish_bundle.source_artifact_names: story_summary.json, project_quality_report.json", output)
 
     def test_cli_create_project_sets_default_autonomy_level_and_preserves_existing_value(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -1340,6 +1509,154 @@ class CliTest(unittest.TestCase):
 
         self.assertIn("Autonomy level: manual", lines)
 
+    def test_build_project_status_lines_surfaces_manual_stop_for_review_gate(self) -> None:
+        project_manifest = {
+            "project_id": "Case 07",
+            "project_slug": "case-07",
+            "autonomy_level": "manual",
+            "current_run": {
+                "name": "latest_run",
+                "output_dir": "data/projects/case-07/runs/latest_run",
+                "current_step": "publish_ready_bundle",
+                "completed_steps": ["story_input"],
+                "chapter_statuses": [],
+                "long_run_status": {},
+                "comparison_basis": ["long_run_should_stop"],
+                "comparison_reason": [],
+                "comparison_metrics": {
+                    "total_issue_score": 2,
+                    "completed_step_count": 1,
+                    "long_run_should_stop": False,
+                },
+                "comparison_reason_details": [
+                    {"code": "long_run_should_stop", "value": False},
+                    {"code": "total_issue_score", "value": 2},
+                ],
+                "policy_snapshot": {"long_run": {"max_high_severity_chapters": 6, "max_total_rerun_attempts": 20}},
+            },
+            "best_run": {},
+            "run_candidates": [],
+        }
+
+        with patch(
+            "novel_writer.cli.load_next_action_decision",
+            return_value={"action": "stop_for_review"},
+        ):
+            lines = build_project_status_lines(project_manifest)
+
+        self.assertIn("Resume gate: stop_for_review", lines)
+
+    def test_build_project_status_lines_hides_gate_for_manual_non_blocking_next_action(self) -> None:
+        project_manifest = {
+            "project_id": "Case 07",
+            "project_slug": "case-07",
+            "autonomy_level": "manual",
+            "current_run": {
+                "name": "latest_run",
+                "output_dir": "data/projects/case-07/runs/latest_run",
+                "current_step": "publish_ready_bundle",
+                "completed_steps": ["story_input"],
+                "chapter_statuses": [],
+                "long_run_status": {},
+                "comparison_basis": ["long_run_should_stop"],
+                "comparison_reason": [],
+                "comparison_metrics": {
+                    "total_issue_score": 2,
+                    "completed_step_count": 1,
+                    "long_run_should_stop": False,
+                },
+                "comparison_reason_details": [
+                    {"code": "long_run_should_stop", "value": False},
+                    {"code": "total_issue_score", "value": 2},
+                ],
+                "policy_snapshot": {"long_run": {"max_high_severity_chapters": 6, "max_total_rerun_attempts": 20}},
+            },
+            "best_run": {},
+            "run_candidates": [],
+        }
+
+        with patch(
+            "novel_writer.cli.load_next_action_decision",
+            return_value={"action": "continue"},
+        ):
+            lines = build_project_status_lines(project_manifest)
+
+        self.assertNotIn("Resume gate: stop_for_review", lines)
+
+    def test_build_project_status_lines_hides_gate_for_assist_projects(self) -> None:
+        project_manifest = {
+            "project_id": "Case 08",
+            "project_slug": "case-08",
+            "autonomy_level": "assist",
+            "current_run": {
+                "name": "latest_run",
+                "output_dir": "data/projects/case-08/runs/latest_run",
+                "current_step": "publish_ready_bundle",
+                "completed_steps": ["story_input"],
+                "chapter_statuses": [],
+                "long_run_status": {},
+                "comparison_basis": ["long_run_should_stop"],
+                "comparison_reason": [],
+                "comparison_metrics": {
+                    "total_issue_score": 2,
+                    "completed_step_count": 1,
+                    "long_run_should_stop": False,
+                },
+                "comparison_reason_details": [
+                    {"code": "long_run_should_stop", "value": False},
+                    {"code": "total_issue_score", "value": 2},
+                ],
+                "policy_snapshot": {"long_run": {"max_high_severity_chapters": 6, "max_total_rerun_attempts": 20}},
+            },
+            "best_run": {},
+            "run_candidates": [],
+        }
+
+        with patch(
+            "novel_writer.cli.load_next_action_decision",
+            return_value={"action": "stop_for_review"},
+        ):
+            lines = build_project_status_lines(project_manifest)
+
+        self.assertNotIn("Resume gate: stop_for_review", lines)
+
+    def test_build_project_status_lines_hides_gate_when_next_action_decision_is_missing(self) -> None:
+        project_manifest = {
+            "project_id": "Case 09",
+            "project_slug": "case-09",
+            "autonomy_level": "manual",
+            "current_run": {
+                "name": "latest_run",
+                "output_dir": "data/projects/case-09/runs/latest_run",
+                "current_step": "publish_ready_bundle",
+                "completed_steps": ["story_input"],
+                "chapter_statuses": [],
+                "long_run_status": {},
+                "comparison_basis": ["long_run_should_stop"],
+                "comparison_reason": [],
+                "comparison_metrics": {
+                    "total_issue_score": 2,
+                    "completed_step_count": 1,
+                    "long_run_should_stop": False,
+                },
+                "comparison_reason_details": [
+                    {"code": "long_run_should_stop", "value": False},
+                    {"code": "total_issue_score", "value": 2},
+                ],
+                "policy_snapshot": {"long_run": {"max_high_severity_chapters": 6, "max_total_rerun_attempts": 20}},
+            },
+            "best_run": {},
+            "run_candidates": [],
+        }
+
+        with patch(
+            "novel_writer.cli.load_next_action_decision",
+            side_effect=FileNotFoundError("missing next_action_decision"),
+        ):
+            lines = build_project_status_lines(project_manifest)
+
+        self.assertNotIn("Resume gate: stop_for_review", lines)
+
     def test_build_run_comparison_summary_returns_render_ready_sections(self) -> None:
         summary_artifact = {
             "project_id": "Case 05",
@@ -1651,6 +1968,48 @@ class CliTest(unittest.TestCase):
             )
 
             project_dir = Path(tmp_dir) / "compare-01"
+            publish_ready_bundle = {
+                "schema_name": "publish_ready_bundle",
+                "schema_version": "1.0",
+                "bundle_type": "publish_ready_bundle",
+                "title": "Saved Publish Bundle Title",
+                "synopsis": "Saved synopsis for the read-only CLI path.",
+                "chapter_count": 2,
+                "chapters": [
+                    {"chapter_number": 1, "title": "Chapter 1"},
+                    {"chapter_number": 2, "title": "Chapter 2"},
+                ],
+                "sections": {
+                    "manuscript": {"field": "chapters"},
+                    "story_summary": {"field": "story_summary"},
+                    "quality": {"field": "overall_quality_report"},
+                },
+                "source_artifacts": {
+                    "story_summary": "story_summary.json",
+                    "overall_quality_report": "project_quality_report.json",
+                    "chapters": "revised_chapter_{n}_draft.json",
+                },
+                "story_summary": {
+                    "schema_name": "story_summary",
+                    "schema_version": "1.0",
+                    "chapter_count": 2,
+                },
+                "overall_quality_report": {
+                    "schema_name": "project_quality_report",
+                    "schema_version": "1.0",
+                },
+                "selected_logline": {"id": "logline-1", "title": "Selected logline"},
+                "summary": {
+                    "title": "Saved Publish Bundle Title",
+                    "chapter_count": 2,
+                    "section_names": ["manuscript", "story_summary"],
+                    "source_artifact_names": [
+                        "story_summary.json",
+                        "revised_chapter_{n}_draft.json",
+                    ],
+                },
+            }
+            save_publish_ready_bundle(project_dir / "runs" / "latest_run", publish_ready_bundle)
             comparison_before = load_artifact(project_dir, "run_comparison_summary")
 
             buffer = io.StringIO()
@@ -1685,10 +2044,258 @@ class CliTest(unittest.TestCase):
             self.assertIn("run_candidate_names: latest_run", output)
             self.assertIn("run_candidate_scores: latest_run=13", output)
             self.assertIn("run_candidate_output_dirs: latest_run=", output)
+            self.assertIn("publish_bundle.title: Saved Publish Bundle Title", output)
+            self.assertIn("publish_bundle.section_names: manuscript, story_summary", output)
+            self.assertIn(
+                "publish_bundle.source_artifact_names: story_summary.json, revised_chapter_{n}_draft.json",
+                output,
+            )
+            self.assertNotIn("publish_bundle.title: Case Bundle", output)
+
+    def test_cli_show_run_comparison_backfills_legacy_publish_bundle_without_summary(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            main(
+                [
+                    "create-project",
+                    "--theme",
+                    "記憶",
+                    "--genre",
+                    "SF",
+                    "--tone",
+                    "静謐",
+                    "--target-length",
+                    "5000",
+                    "--project-id",
+                    "Compare Legacy 01",
+                    "--projects-dir",
+                    tmp_dir,
+                ]
+            )
+
+            project_dir = Path(tmp_dir) / "compare-legacy-01"
+            run_dir = project_dir / "runs" / "latest_run"
+            save_artifact(
+                run_dir,
+                "publish_ready_bundle",
+                {
+                    "schema_name": "publish_ready_bundle",
+                    "schema_version": "1.0",
+                    "bundle_type": "publish_ready_bundle",
+                    "title": "Legacy Publish Bundle Title",
+                    "synopsis": "Saved synopsis for the read-only CLI path.",
+                    "chapter_count": 2,
+                    "chapters": [
+                        {"chapter_number": 1, "title": "Chapter 1"},
+                        {"chapter_number": 2, "title": "Chapter 2"},
+                    ],
+                    "sections": {
+                        "manuscript": {"field": "chapters"},
+                        "story_summary": {"field": "story_summary"},
+                        "quality": {"field": "overall_quality_report"},
+                    },
+                    "source_artifacts": {
+                        "story_summary": "story_summary.json",
+                        "overall_quality_report": "project_quality_report.json",
+                        "chapters": "revised_chapter_{n}_draft.json",
+                    },
+                    "story_summary": {
+                        "schema_name": "story_summary",
+                        "schema_version": "1.0",
+                        "chapter_count": 2,
+                    },
+                    "overall_quality_report": {
+                        "schema_name": "project_quality_report",
+                        "schema_version": "1.0",
+                    },
+                    "selected_logline": {"id": "logline-1", "title": "Selected logline"},
+                },
+            )
+            comparison_before = load_artifact(project_dir, "run_comparison_summary")
+
+            buffer = io.StringIO()
+            with redirect_stdout(buffer):
+                exit_code = main(
+                    [
+                        "show-run-comparison",
+                        "--project-id",
+                        "Compare Legacy 01",
+                        "--projects-dir",
+                        tmp_dir,
+                        "--reason-detail-mode",
+                        "codes",
+                    ]
+                )
+
+            comparison_after = load_artifact(project_dir, "run_comparison_summary")
+            output = buffer.getvalue()
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(comparison_before, comparison_after)
+            self.assertIn("publish_bundle.title: Legacy Publish Bundle Title", output)
+            self.assertIn("publish_bundle.chapter_count: 2", output)
+            self.assertIn("publish_bundle.section_names: manuscript, story_summary, quality", output)
+            self.assertIn(
+                "publish_bundle.source_artifact_names: story_summary.json, project_quality_report.json, revised_chapter_{n}_draft.json",
+                output,
+            )
+            self.assertNotIn("publish_bundle.summary:", output)
+
+    def test_cli_show_run_comparison_fails_fast_for_invalid_schema_version(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            main(
+                [
+                    "create-project",
+                    "--theme",
+                    "記憶",
+                    "--genre",
+                    "SF",
+                    "--tone",
+                    "静謐",
+                    "--target-length",
+                    "5000",
+                    "--project-id",
+                    "Compare Invalid Schema 01",
+                    "--projects-dir",
+                    tmp_dir,
+                ]
+            )
+
+            project_dir = Path(tmp_dir) / "compare-invalid-schema-01"
+            run_dir = project_dir / "runs" / "latest_run"
+            save_artifact(
+                run_dir,
+                "publish_ready_bundle",
+                {
+                    "schema_name": "publish_ready_bundle",
+                    "schema_version": "2.0",
+                    "bundle_type": "publish_ready_bundle",
+                    "title": "Broken Publish Bundle Title",
+                    "synopsis": "Saved synopsis for the read-only CLI path.",
+                    "chapter_count": 2,
+                    "chapters": [
+                        {"chapter_number": 1, "title": "Chapter 1"},
+                        {"chapter_number": 2, "title": "Chapter 2"},
+                    ],
+                    "sections": {
+                        "manuscript": {"field": "chapters"},
+                        "story_summary": {"field": "story_summary"},
+                        "quality": {"field": "overall_quality_report"},
+                    },
+                    "source_artifacts": {
+                        "story_summary": "story_summary.json",
+                        "overall_quality_report": "project_quality_report.json",
+                        "chapters": "revised_chapter_{n}_draft.json",
+                    },
+                    "story_summary": {
+                        "schema_name": "story_summary",
+                        "schema_version": "1.0",
+                        "chapter_count": 2,
+                    },
+                    "overall_quality_report": {
+                        "schema_name": "project_quality_report",
+                        "schema_version": "1.0",
+                    },
+                    "selected_logline": {"id": "logline-1", "title": "Selected logline"},
+                },
+            )
+
+            buffer = io.StringIO()
+            with redirect_stdout(buffer):
+                with self.assertRaisesRegex(ValueError, r"schema_version='2\.0' is not supported"):
+                    main(
+                        [
+                            "show-run-comparison",
+                            "--project-id",
+                            "Compare Invalid Schema 01",
+                            "--projects-dir",
+                            tmp_dir,
+                            "--reason-detail-mode",
+                            "codes",
+                        ]
+                    )
+
+            self.assertEqual(buffer.getvalue(), "")
+
+    def test_cli_show_run_comparison_fails_fast_for_invalid_sections_shape(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            main(
+                [
+                    "create-project",
+                    "--theme",
+                    "記憶",
+                    "--genre",
+                    "SF",
+                    "--tone",
+                    "静謐",
+                    "--target-length",
+                    "5000",
+                    "--project-id",
+                    "Compare Invalid Sections 01",
+                    "--projects-dir",
+                    tmp_dir,
+                ]
+            )
+
+            project_dir = Path(tmp_dir) / "compare-invalid-sections-01"
+            run_dir = project_dir / "runs" / "latest_run"
+            save_artifact(
+                run_dir,
+                "publish_ready_bundle",
+                {
+                    "schema_name": "publish_ready_bundle",
+                    "schema_version": "1.0",
+                    "bundle_type": "publish_ready_bundle",
+                    "title": "Broken Publish Bundle Title",
+                    "synopsis": "Saved synopsis for the read-only CLI path.",
+                    "chapter_count": 2,
+                    "chapters": [
+                        {"chapter_number": 1, "title": "Chapter 1"},
+                        {"chapter_number": 2, "title": "Chapter 2"},
+                    ],
+                    "sections": {
+                        "manuscript": "broken",
+                        "story_summary": {"field": "story_summary"},
+                        "quality": {"field": "overall_quality_report"},
+                    },
+                    "source_artifacts": {
+                        "story_summary": "story_summary.json",
+                        "overall_quality_report": "project_quality_report.json",
+                        "chapters": "revised_chapter_{n}_draft.json",
+                    },
+                    "story_summary": {
+                        "schema_name": "story_summary",
+                        "schema_version": "1.0",
+                        "chapter_count": 2,
+                    },
+                    "overall_quality_report": {
+                        "schema_name": "project_quality_report",
+                        "schema_version": "1.0",
+                    },
+                    "selected_logline": {"id": "logline-1", "title": "Selected logline"},
+                },
+            )
+
+            buffer = io.StringIO()
+            with redirect_stdout(buffer):
+                with self.assertRaisesRegex(ValueError, r"sections\.manuscript must be an object"):
+                    main(
+                        [
+                            "show-run-comparison",
+                            "--project-id",
+                            "Compare Invalid Sections 01",
+                            "--projects-dir",
+                            tmp_dir,
+                            "--reason-detail-mode",
+                            "codes",
+                        ]
+                    )
+
+            self.assertEqual(buffer.getvalue(), "")
 
     def test_cli_show_run_comparison_reads_minimal_valid_artifact(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             project_dir = Path(tmp_dir) / "compare-optional-01"
+            run_dir = project_dir / "runs" / "latest_run"
             project_dir.mkdir(parents=True, exist_ok=True)
             comparison_payload = {
                 "schema_name": "run_comparison_summary",
@@ -1697,7 +2304,7 @@ class CliTest(unittest.TestCase):
                 "project_slug": "compare-optional-01",
                 "current_run": {
                     "run_name": "latest_run",
-                    "output_dir": "data/projects/compare-optional-01/runs/latest_run",
+                    "output_dir": str(run_dir),
                     "comparison_basis": ["long_run_should_stop"],
                     "comparison_metrics": {
                         "total_issue_score": 3,
@@ -1710,7 +2317,7 @@ class CliTest(unittest.TestCase):
                 },
                 "best_run": {
                     "run_name": "latest_run",
-                    "output_dir": "data/projects/compare-optional-01/runs/latest_run",
+                    "output_dir": str(run_dir),
                     "selection_source": "automatic",
                     "comparison_basis": ["long_run_should_stop"],
                     "comparison_metrics": {
@@ -1735,6 +2342,40 @@ class CliTest(unittest.TestCase):
                 },
                 "run_candidates": [],
             }
+            save_publish_ready_bundle(
+                run_dir,
+                {
+                    "schema_version": "1.0",
+                    "bundle_type": "publish_ready_bundle",
+                    "title": "Compare Optional 01 Bundle",
+                    "synopsis": "Saved synopsis for the read-only CLI path.",
+                    "chapter_count": 1,
+                    "chapters": [{"chapter_number": 1, "title": "Chapter 1"}],
+                    "sections": {
+                        "manuscript": {"field": "chapters"},
+                        "story_summary": {"field": "story_summary"},
+                        "quality": {"field": "overall_quality_report"},
+                    },
+                    "source_artifacts": {
+                        "story_summary": "story_summary.json",
+                        "overall_quality_report": "project_quality_report.json",
+                        "chapters": "revised_chapter_{n}_draft.json",
+                    },
+                    "story_summary": {},
+                    "overall_quality_report": {},
+                    "selected_logline": {"id": "logline-1", "title": "Selected logline"},
+                    "summary": {
+                        "title": "Compare Optional 01 Bundle",
+                        "chapter_count": 1,
+                        "section_names": ["manuscript", "story_summary", "quality"],
+                        "source_artifact_names": [
+                            "story_summary.json",
+                            "project_quality_report.json",
+                            "revised_chapter_{n}_draft.json",
+                        ],
+                    },
+                },
+            )
             save_run_comparison_summary(project_dir, comparison_payload)
             comparison_before = load_artifact(project_dir, "run_comparison_summary")
 
@@ -1773,6 +2414,79 @@ class CliTest(unittest.TestCase):
             self.assertNotIn("run_candidate_names:", output)
             self.assertNotIn("run_candidate_scores:", output)
             self.assertNotIn("run_candidate_output_dirs:", output)
+            self.assertIn("publish_bundle.title: Compare Optional 01 Bundle", output)
+
+    def test_cli_show_run_comparison_fails_when_publish_bundle_is_missing(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            project_dir = Path(tmp_dir) / "compare-missing-bundle-01"
+            run_dir = project_dir / "runs" / "latest_run"
+            run_dir.mkdir(parents=True, exist_ok=True)
+            comparison_payload = {
+                "schema_name": "run_comparison_summary",
+                "schema_version": "1.0",
+                "project_id": "Compare Missing Bundle 01",
+                "project_slug": "compare-missing-bundle-01",
+                "current_run": {
+                    "run_name": "latest_run",
+                    "output_dir": str(run_dir),
+                    "comparison_basis": ["long_run_should_stop"],
+                    "comparison_metrics": {
+                        "total_issue_score": 3,
+                        "completed_step_count": 4,
+                    },
+                    "comparison_reason": [],
+                    "comparison_reason_details": [
+                        {"code": "total_issue_score", "value": 3},
+                    ],
+                },
+                "best_run": {
+                    "run_name": "latest_run",
+                    "output_dir": str(run_dir),
+                    "selection_source": "automatic",
+                    "comparison_basis": ["long_run_should_stop"],
+                    "comparison_metrics": {
+                        "total_issue_score": 3,
+                        "completed_step_count": 4,
+                    },
+                    "selection_reason": [],
+                    "selection_reason_details": [
+                        {"code": "total_issue_score", "value": 3},
+                    ],
+                },
+                "candidate_count": 0,
+                "compact_summary": {
+                    "selection_source": "automatic",
+                    "issue_score": {"current": 3, "best": 3},
+                    "completed_step_count": {"current": 4, "best": 4},
+                    "long_run_should_stop": {"current": False, "best": False},
+                    "policy_limits": {
+                        "max_high_severity_chapters": {"current": 10, "best": 10},
+                        "max_total_rerun_attempts": {"current": 20, "best": 20},
+                    },
+                },
+                "run_candidates": [],
+            }
+            save_run_comparison_summary(project_dir, comparison_payload)
+
+            buffer = io.StringIO()
+            with redirect_stdout(buffer):
+                with self.assertRaisesRegex(
+                    FileNotFoundError,
+                    r"Artifact not found for phase 'publish_ready_bundle'",
+                ):
+                    main(
+                        [
+                            "show-run-comparison",
+                            "--project-id",
+                            "Compare Missing Bundle 01",
+                            "--projects-dir",
+                            tmp_dir,
+                            "--reason-detail-mode",
+                            "codes",
+                        ]
+                    )
+
+            self.assertEqual(buffer.getvalue(), "")
 
 
 if __name__ == "__main__":

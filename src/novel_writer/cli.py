@@ -8,10 +8,17 @@ from typing import Any, Callable
 from novel_writer.llm_client import build_llm_client
 from novel_writer.pipeline import PIPELINE_STEP_ORDER, StoryPipeline
 from novel_writer.rerun_policy import ContinuityRerunPolicy
-from novel_writer.schema import StoryInput, comparison_reason_detail_codes, project_manifest_contract
+from novel_writer.schema import (
+    StoryInput,
+    build_publish_ready_bundle_summary,
+    comparison_reason_detail_codes,
+    project_manifest_contract,
+    validate_publish_ready_bundle,
+)
 from novel_writer.storage import (
     build_project_layout,
     load_artifact,
+    load_publish_ready_bundle,
     load_next_action_decision,
     load_project_manifest,
     load_run_comparison_summary,
@@ -257,19 +264,36 @@ def load_project_run_context(projects_dir: Path, project_id: str) -> tuple[dict,
 
 
 def _enforce_resume_project_review_gate(project_manifest: dict[str, Any], output_dir: Path) -> None:
-    autonomy_level = project_manifest.get("autonomy_level")
-    if autonomy_level != "manual":
-        return
+    review_gate = _build_manual_review_gate(project_manifest, output_dir)
+    if review_gate is not None:
+        reason = review_gate["reason"]
+        if reason == "stop_for_review":
+            raise ValueError(
+                "resume-project is blocked for manual projects when next_action_decision.action is stop_for_review."
+            )
+
+
+def _build_manual_review_gate(project_manifest: dict[str, Any], output_dir: Path) -> dict[str, Any] | None:
+    """manual project の review gate を resume/status 共通の source of truth として返す。"""
+    if project_manifest.get("autonomy_level") != "manual":
+        return None
 
     try:
         next_action_decision = load_next_action_decision(output_dir)
     except FileNotFoundError:
-        return
+        return None
 
     if next_action_decision.get("action") == "stop_for_review":
-        raise ValueError(
-            "resume-project is blocked for manual projects when next_action_decision.action is stop_for_review."
-        )
+        return {"reason": "stop_for_review"}
+    return None
+
+
+def _build_project_resume_gate_summary(
+    project_manifest: dict[str, Any],
+    output_dir: Path,
+) -> dict[str, Any] | None:
+    """互換用の薄い wrapper として manual review gate を返す。"""
+    return _build_manual_review_gate(project_manifest, output_dir)
 
 
 def _load_existing_project_manifest(project_dir: Path) -> dict[str, Any]:
@@ -572,6 +596,16 @@ def build_rerun_policy_from_args(args: argparse.Namespace) -> ContinuityRerunPol
     return ContinuityRerunPolicy(config)
 
 
+def _build_publish_bundle_summary_lines(payload: dict[str, Any]) -> list[str]:
+    summary = build_publish_ready_bundle_summary(payload)
+    return [
+        f"publish_bundle.title: {summary['title']}",
+        f"publish_bundle.chapter_count: {summary['chapter_count']}",
+        f"publish_bundle.section_names: {', '.join(summary['section_names']) or 'none'}",
+        f"publish_bundle.source_artifact_names: {', '.join(summary['source_artifact_names']) or 'none'}",
+    ]
+
+
 def print_run_summary(artifacts, output_dir: Path, project_manifest: dict[str, Any] | None = None) -> None:
     issue_count = sum(artifacts.continuity_report.get("issue_counts", {}).values())
     print(f"Generated short-story artifacts in: {output_dir.resolve()}")
@@ -587,8 +621,37 @@ def print_run_summary(artifacts, output_dir: Path, project_manifest: dict[str, A
             f"reason={long_run_status.get('reason') or 'none'}, "
             f"remaining_rerun_budget={long_run_status.get('remaining_rerun_attempt_budget', 'n/a')}"
         )
+    if getattr(artifacts, "publish_ready_bundle", None):
+        for line in _build_publish_bundle_summary_lines(artifacts.publish_ready_bundle):
+            print(line)
     for line in build_run_comparison_lines(project_manifest or {}):
         print(line)
+
+
+def _build_saved_publish_bundle_summary_lines(output_dir: Path) -> list[str]:
+    publish_ready_bundle = _load_saved_publish_bundle_for_display(output_dir)
+    return _build_publish_bundle_summary_lines(publish_ready_bundle)
+
+
+def _load_saved_publish_bundle_for_display(output_dir: Path) -> dict[str, Any]:
+    """read-only CLI 用に strict load を優先し、summary 欠落だけ互換表示する。"""
+    try:
+        return load_publish_ready_bundle(output_dir)
+    except ValueError as strict_error:
+        if "summary must be an object" not in str(strict_error):
+            raise
+
+        raw_payload = load_artifact(output_dir, "publish_ready_bundle")
+        if not isinstance(raw_payload, dict) or "summary" in raw_payload:
+            raise
+
+        patched_payload = dict(raw_payload)
+        patched_payload["summary"] = build_publish_ready_bundle_summary(raw_payload)
+        try:
+            validate_publish_ready_bundle(patched_payload)
+        except ValueError:
+            raise strict_error
+        return patched_payload
 
 
 def build_project_status_summary(
@@ -610,9 +673,11 @@ def build_project_status_summary(
         chapter_statuses = current_run.get("chapter_statuses", [])
         long_run_status = current_run.get("long_run_status", {})
         comparison_metrics = current_run.get("comparison_metrics", {})
-        resume_gate_line = _build_resume_gate_status_line(
-            autonomy_level=summary["autonomy_level"],
-            output_dir=current_run.get("output_dir"),
+        current_output_dir = current_run.get("output_dir")
+        resume_gate = (
+            _build_manual_review_gate(project_manifest, Path(current_output_dir))
+            if current_output_dir
+            else None
         )
         summary["current_run"] = {
             "name": current_run.get("name", "unknown"),
@@ -623,6 +688,7 @@ def build_project_status_summary(
             "comparison_lines": _build_current_comparison_summary_lines(current_run, reason_detail_mode),
             "chapter_status_lines": _build_chapter_status_summary_lines(chapter_statuses),
             "long_run_status_lines": _build_long_run_status_lines(long_run_status),
+            "resume_gate": resume_gate,
         }
 
     if best_run:
@@ -660,6 +726,9 @@ def build_project_status_lines(project_manifest: dict[str, Any], reason_detail_m
 
     current_run = summary.get("current_run")
     if current_run:
+        resume_gate = current_run.get("resume_gate")
+        if resume_gate:
+            lines.append(f"Resume gate: {resume_gate['reason']}")
         lines.append(f"Current run: {current_run['name']}")
         lines.append(f"  output_dir: {current_run['output_dir']}")
         if current_run["resume_gate_line"]:
@@ -1047,8 +1116,17 @@ def print_project_status(project_manifest: dict[str, Any], reason_detail_mode: s
         print(line)
 
 
-def print_run_comparison(summary_artifact: dict[str, Any], reason_detail_mode: str = "summary") -> None:
-    for line in build_saved_run_comparison_lines(summary_artifact, reason_detail_mode=reason_detail_mode):
+def print_run_comparison(
+    summary_artifact: dict[str, Any],
+    reason_detail_mode: str = "summary",
+) -> None:
+    lines = build_saved_run_comparison_lines(summary_artifact, reason_detail_mode=reason_detail_mode)
+    current_run = summary_artifact.get("current_run", {})
+    current_output_dir = current_run.get("output_dir")
+    if current_output_dir:
+        lines.extend(_build_saved_publish_bundle_summary_lines(Path(current_output_dir)))
+
+    for line in lines:
         print(line)
 
 

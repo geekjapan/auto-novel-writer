@@ -6,11 +6,12 @@ from pathlib import Path
 from novel_writer.llm_client import MockLLMClient
 from novel_writer.pipeline import PIPELINE_STEP_ORDER, StoryPipeline
 from novel_writer.rerun_policy import ContinuityRerunPolicy
-from novel_writer.schema import StoryInput
+from novel_writer.schema import StoryInput, build_publish_ready_bundle_summary
 from novel_writer.storage import (
     load_chapter_briefs,
     load_next_action_decision,
     load_replan_history,
+    load_publish_ready_bundle,
     load_scene_cards,
     save_canon_ledger,
     save_thread_registry,
@@ -410,6 +411,19 @@ class StoryPipelineTest(unittest.TestCase):
                 "project_quality_report.json",
             )
             self.assertIn("manuscript", publish_ready_bundle["sections"])
+            self.assertEqual(
+                publish_ready_bundle["summary"],
+                {
+                    "title": publish_ready_bundle["title"],
+                    "chapter_count": len(artifacts.revised_chapter_drafts),
+                    "section_names": list(publish_ready_bundle["sections"].keys()),
+                    "source_artifact_names": [
+                        "story_summary.json",
+                        "project_quality_report.json",
+                        "revised_chapter_{n}_draft.json",
+                    ],
+                },
+            )
             self.assertEqual(manifest["artifacts"]["continuity_history"], manifest["continuity_history"])
             self.assertEqual(artifacts.revised_chapter_1_draft["chapter_number"], 1)
             self.assertEqual(manifest["revise_history"][0]["chapter_index"], 0)
@@ -1055,6 +1069,16 @@ class StoryPipelineTest(unittest.TestCase):
             )
             self.assertEqual(thread_registry["threads"][0]["introduced_in_chapter"], 1)
             self.assertEqual(thread_registry["threads"][0]["last_updated_in_chapter"], 2)
+
+            publish_ready_bundle = load_publish_ready_bundle(output_dir)
+            self.assertEqual(publish_ready_bundle["schema_version"], "1.0")
+            self.assertEqual(publish_ready_bundle["bundle_type"], "publish_ready_bundle")
+            self.assertEqual(
+                publish_ready_bundle["summary"],
+                build_publish_ready_bundle_summary(publish_ready_bundle),
+            )
+            self.assertIn("story_summary", publish_ready_bundle["sections"])
+            self.assertIn("source_artifacts", publish_ready_bundle)
 
     def test_resume_normalizes_compatibility_only_manifest_to_chapter_arrays(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

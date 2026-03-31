@@ -7,7 +7,7 @@ from pathlib import Path
 from novel_writer.continuity import ContinuityChecker
 from novel_writer.llm_client import BaseLLMClient
 from novel_writer.rerun_policy import ContinuityRerunPolicy
-from novel_writer.schema import StoryArtifacts, StoryInput
+from novel_writer.schema import StoryArtifacts, StoryInput, build_publish_ready_bundle_summary
 from novel_writer.storage import (
     apply_replan_updates,
     load_canon_ledger,
@@ -232,16 +232,8 @@ class StoryPipeline:
         save_progress_report(self.output_dir, artifacts.progress_report, "json")
         self._record_replan_decision(artifacts.progress_report, artifacts, selected_logline)
 
-        artifacts.publish_ready_bundle = {
-            "title": artifacts.story_summary.get("title") or selected_logline.get("title"),
-            "synopsis": artifacts.story_summary.get("synopsis", ""),
-            "chapter_count": len(artifacts.revised_chapter_drafts),
-            "chapters": artifacts.revised_chapter_drafts,
-            "story_summary": artifacts.story_summary,
-            "overall_quality_report": artifacts.project_quality_report,
-            "selected_logline": selected_logline,
-        }
-        save_artifact(self.output_dir, "publish_ready_bundle", artifacts.publish_ready_bundle, "json")
+        artifacts.publish_ready_bundle = self._build_publish_ready_bundle(artifacts, selected_logline)
+        save_publish_ready_bundle(self.output_dir, artifacts.publish_ready_bundle, "json")
 
         completed_steps = checkpoints[-1]["completed_steps"] if checkpoints else []
         rerun_checkpoints = list(checkpoints)
@@ -1114,8 +1106,13 @@ class StoryPipeline:
         checkpoints: list[dict],
         selected_logline: dict,
     ) -> None:
+        artifacts.publish_ready_bundle = self._build_publish_ready_bundle(artifacts, selected_logline)
+        save_publish_ready_bundle(self.output_dir, artifacts.publish_ready_bundle, "json")
+        self._mark_checkpoint("publish_ready_bundle", checkpoints, artifacts, selected_logline)
+
+    def _build_publish_ready_bundle(self, artifacts: StoryArtifacts, selected_logline: dict) -> dict:
         bundle_contract = artifacts.artifact_contract()["publish_ready_bundle"]
-        artifacts.publish_ready_bundle = {
+        publish_ready_bundle = {
             "schema_version": bundle_contract["schema_version"],
             "bundle_type": bundle_contract["schema_name"],
             "title": artifacts.story_summary.get("title") or selected_logline.get("title"),
@@ -1132,8 +1129,8 @@ class StoryPipeline:
             },
             "sections": bundle_contract["sections"],
         }
-        save_publish_ready_bundle(self.output_dir, artifacts.publish_ready_bundle, "json")
-        self._mark_checkpoint("publish_ready_bundle", checkpoints, artifacts, selected_logline)
+        publish_ready_bundle["summary"] = build_publish_ready_bundle_summary(publish_ready_bundle)
+        return publish_ready_bundle
 
     def _maybe_rerun_from_decision(
         self,

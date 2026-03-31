@@ -2650,6 +2650,34 @@ class SaveArtifactTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "sections.manuscript.field='wrong_field' is not supported"):
                 load_publish_ready_bundle(Path(tmp_dir))
 
+    def test_load_publish_ready_bundle_rejects_missing_or_invalid_summary(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            base_payload = {
+                "schema_version": "1.0",
+                "bundle_type": "publish_ready_bundle",
+                "title": "Case 01",
+                "synopsis": "Synopsis",
+                "chapter_count": 1,
+                "chapters": [],
+                "story_summary": {},
+                "overall_quality_report": {},
+                "selected_logline": {},
+                "source_artifacts": {},
+                "sections": {
+                    "manuscript": {"field": "chapters"},
+                    "story_summary": {"field": "story_summary"},
+                    "quality": {"field": "overall_quality_report"},
+                },
+            }
+
+            save_artifact(Path(tmp_dir), "publish_ready_bundle", base_payload, "json")
+            with self.assertRaisesRegex(ValueError, "Invalid publish_ready_bundle: summary must be an object."):
+                load_publish_ready_bundle(Path(tmp_dir))
+
+            save_artifact(Path(tmp_dir), "publish_ready_bundle", {**base_payload, "summary": "not-a-dict"}, "json")
+            with self.assertRaisesRegex(ValueError, "Invalid publish_ready_bundle: summary must be an object."):
+                load_publish_ready_bundle(Path(tmp_dir))
+
     def test_save_run_comparison_summary_validates_required_fields(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             with self.assertRaisesRegex(ValueError, "missing required fields: best_run, candidate_count"):
