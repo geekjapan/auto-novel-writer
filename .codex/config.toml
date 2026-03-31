@@ -1,10 +1,10 @@
 [features]
 multi_agent = true
 
-project_doc_fallback_filenames = ["README.md"]
+project_doc_fallback_filenames = ["AGENTS.md", "README.md"]
 
 developer_instructions = """
-この repository では `AGENTS.md` を最優先の恒久ルールとして扱い、次に `docs/TASKS.md`、`docs/CODEX_WORKFLOW.md`、必要に応じて `docs/ROADMAP.md`、最後に `README.md` を参照すること。
-実装前に `AGENTS.md` と `docs/CODEX_WORKFLOW.md` を確認し、`docs/TASKS.md` の `In Progress` を単一の現在タスクとして進めること。
-repository 内に推奨値、既定値、既定フローがある場合はそれを採用し、停止条件に当たる高リスク時だけ停止すること。
+この repository では project-level の恒常ルールは `AGENTS.md` を参照すること。
+詳細な実行手順は `docs/CODEX_WORKFLOW.md` と `docs/TASKS.md` を参照すること。
+設定に書かれていない repo 固有ルールを推測で複写しないこと。
 """
