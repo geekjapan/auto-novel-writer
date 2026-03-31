@@ -836,6 +836,75 @@ class CliTest(unittest.TestCase):
             self.assertIn("long_run_budget: remaining_rerun_attempt_budget=", output)
             self.assertIn("best_comparison_metrics: total_issue_score=", output)
 
+    def test_cli_show_project_status_surfaces_manual_review_gate_from_saved_next_action_decision(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            main(
+                [
+                    "create-project",
+                    "--theme",
+                    "境界",
+                    "--genre",
+                    "SF",
+                    "--tone",
+                    "ビター",
+                    "--target-length",
+                    "5000",
+                    "--project-id",
+                    "Manual Gate 01",
+                    "--projects-dir",
+                    tmp_dir,
+                ]
+            )
+
+            project_dir = Path(tmp_dir) / "manual-gate-01"
+            run_dir = project_dir / "runs" / "latest_run"
+            project_manifest_path = project_dir / "project_manifest.json"
+            project_manifest = load_artifact(project_dir, "project_manifest")
+            project_manifest["autonomy_level"] = "manual"
+            project_manifest_path.write_text(json.dumps(project_manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+            save_next_action_decision(
+                run_dir,
+                {
+                    "schema_name": "next_action_decision",
+                    "schema_version": "1.0",
+                    "evaluated_through_chapter": 5,
+                    "action": "stop_for_review",
+                    "reason": "manual review required",
+                    "issue_codes": ["manual_review"],
+                    "target_chapters": [],
+                    "policy_budget": {
+                        "max_high_severity_chapters": 0,
+                        "max_total_rerun_attempts": 0,
+                        "remaining_high_severity_chapter_budget": 0,
+                        "remaining_rerun_attempt_budget": 0,
+                    },
+                    "decision_trace": [
+                        {
+                            "code": "manual_review",
+                            "summary": "Manual review is required before continuing.",
+                            "value": "chapter-5",
+                        }
+                    ],
+                },
+            )
+
+            buffer = io.StringIO()
+            with redirect_stdout(buffer):
+                exit_code = main(
+                    [
+                        "show-project-status",
+                        "--project-id",
+                        "Manual Gate 01",
+                        "--projects-dir",
+                        tmp_dir,
+                    ]
+                )
+
+            output = buffer.getvalue()
+            self.assertEqual(exit_code, 0)
+            self.assertIn("Autonomy level: manual", output)
+            self.assertIn("Resume gate: blocked_by_review (saved next_action_decision.action=stop_for_review)", output)
+
     def test_cli_can_override_long_run_policy_limits(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             exit_code = main(
