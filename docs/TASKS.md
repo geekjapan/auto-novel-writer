@@ -5,13 +5,13 @@
 
 ## In Progress
 
-- [ ] M63h: manual project の review gate を status から見えるようにする
-  - Title: `show-project-status` に `stop_for_review` 由来の resume gate 状態を追加する
-  - Milestone: M63 Autonomous Policy
-  - Purpose: `manual` project が保存済みの `next_action_decision.action=stop_for_review` で `resume-project` を止めるなら、利用者が status 画面からその理由を確認できるようにして、挙動の見え方を current state と一致させる
-  - Target files or directories: `src/novel_writer/cli.py`, `tests/test_cli.py`, `README.md`, `docs/TASKS.md`
-  - Done when: `show-project-status` の出力で、`manual` project の saved `stop_for_review` gate が確認できる。既存の `autonomy_level` 表示と status / save-load contract は壊れない
-  - Required tests: `./venv/bin/python -m unittest tests.test_cli -v`, `./venv/bin/python -m unittest discover -s tests -v`
+- [ ] M64a: publish bundle に review / regenerate 用 control artifact を同梱する
+  - Title: `publish_ready_bundle` に `progress_report` と `next_action_decision` の参照情報を追加する
+  - Milestone: M64 Publish Bundle
+  - Purpose: 完成原稿 bundle だけでは downstream review / regenerate の材料が不足しているため、既存の control artifact を publish bundle から辿れるようにして、編集・レビュー・再生成に使いやすい束へ寄せる
+  - Target files or directories: `src/novel_writer/pipeline.py`, `src/novel_writer/schema.py`, `tests/test_pipeline.py`, `README.md`, `docs/TASKS.md`
+  - Done when: `publish_ready_bundle` から `progress_report` と `next_action_decision` を machine-readable に参照できる。既存 bundle contract と save/load validation は壊れない
+  - Required tests: `PYTHONPATH=src python3 -m unittest tests.test_pipeline -v`, `PYTHONPATH=src python3 -m unittest discover -s tests -v`
   - Docs to update: `README.md`, `docs/TASKS.md`
 
 ## Ready
@@ -20,6 +20,7 @@
 
 ### Recent completions
 
+- [x] M63h: `show-project-status` に `stop_for_review` 由来の resume gate 状態を追加した
 - [x] M63g: manual project は review-required decision で resume-project を停止する
 - [x] M63f: project autonomy level contract を追加する
 - [x] M63e-M63a: `next_action_decision` の schema、pipeline 保存、action mapping、target chapter validation を固定した
