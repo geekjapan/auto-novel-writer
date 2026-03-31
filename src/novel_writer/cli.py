@@ -610,11 +610,16 @@ def build_project_status_summary(
         chapter_statuses = current_run.get("chapter_statuses", [])
         long_run_status = current_run.get("long_run_status", {})
         comparison_metrics = current_run.get("comparison_metrics", {})
+        resume_gate_line = _build_resume_gate_status_line(
+            autonomy_level=summary["autonomy_level"],
+            output_dir=current_run.get("output_dir"),
+        )
         summary["current_run"] = {
             "name": current_run.get("name", "unknown"),
             "output_dir": current_run.get("output_dir", "unknown"),
             "current_step": current_run.get("current_step", "unknown"),
             "completed_steps": comparison_metrics.get("completed_step_count", "n/a"),
+            "resume_gate_line": resume_gate_line,
             "comparison_lines": _build_current_comparison_summary_lines(current_run, reason_detail_mode),
             "chapter_status_lines": _build_chapter_status_summary_lines(chapter_statuses),
             "long_run_status_lines": _build_long_run_status_lines(long_run_status),
@@ -657,6 +662,8 @@ def build_project_status_lines(project_manifest: dict[str, Any], reason_detail_m
     if current_run:
         lines.append(f"Current run: {current_run['name']}")
         lines.append(f"  output_dir: {current_run['output_dir']}")
+        if current_run["resume_gate_line"]:
+            lines.append(current_run["resume_gate_line"])
         lines.append(f"  current_step: {current_run['current_step']}")
         lines.append(f"  completed_steps: {current_run['completed_steps']}")
         lines.extend(current_run["comparison_lines"])
@@ -676,6 +683,21 @@ def build_project_status_lines(project_manifest: dict[str, Any], reason_detail_m
 
     lines.append(f"Run candidates: {summary['run_candidate_count']}")
     return lines
+
+
+def _build_resume_gate_status_line(autonomy_level: str, output_dir: Any) -> str | None:
+    if autonomy_level != "manual" or not output_dir:
+        return None
+
+    try:
+        next_action_decision = load_next_action_decision(Path(output_dir))
+    except FileNotFoundError:
+        return None
+
+    if next_action_decision.get("action") == "stop_for_review":
+        return "  Resume gate: blocked_by_review (saved next_action_decision.action=stop_for_review)"
+
+    return None
 
 
 def build_saved_run_comparison_summary(
