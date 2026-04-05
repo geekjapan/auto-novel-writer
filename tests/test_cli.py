@@ -456,6 +456,26 @@ class CliTest(unittest.TestCase):
                     "story_summary.json",
                     "revised_chapter_{n}_draft.json",
                 ],
+                "story_bible_summary": {
+                    "core_premise": "Saved premise",
+                    "theme_statement": "Saved theme",
+                    "ending_reveal": "Saved reveal",
+                },
+                "thread_summary": {
+                    "thread_count": 3,
+                    "resolved_thread_count": 0,
+                    "unresolved_thread_count": 2,
+                    "seeded_thread_count": 1,
+                    "progressed_thread_count": 1,
+                },
+                "handoff_summary": {
+                    "title": "Saved Bundle Title",
+                    "selected_logline_title": "",
+                    "chapter_count": 2,
+                    "quality_recommendation": "unknown",
+                    "issue_count": 0,
+                    "synopsis": "",
+                },
             },
         }
 
@@ -468,6 +488,9 @@ class CliTest(unittest.TestCase):
                 "publish_bundle.chapter_count: 2",
                 "publish_bundle.section_names: manuscript, story_summary",
                 "publish_bundle.source_artifact_names: story_summary.json, revised_chapter_{n}_draft.json",
+                "publish_bundle.story_bible_summary: core_premise=Saved premise, theme_statement=Saved theme, ending_reveal=Saved reveal",
+                "publish_bundle.thread_summary: thread_count=3, unresolved_count=2, resolved_count=0, seeded_count=1, progressed_count=1",
+                "publish_bundle.handoff_summary: title=Saved Bundle Title, logline=, recommendation=unknown, issue_count=0, chapter_count=2",
             ],
         )
 
@@ -521,6 +544,26 @@ class CliTest(unittest.TestCase):
                         "story_summary.json",
                         "project_quality_report.json",
                     ],
+                    "story_bible_summary": {
+                        "core_premise": "Summary premise",
+                        "ending_reveal": "Summary reveal",
+                        "theme_statement": "Summary theme",
+                    },
+                    "thread_summary": {
+                        "thread_count": 2,
+                        "resolved_thread_count": 1,
+                        "unresolved_thread_count": 1,
+                        "seeded_thread_count": 0,
+                        "progressed_thread_count": 1,
+                    },
+                    "handoff_summary": {
+                        "title": "Saved Bundle Title",
+                        "selected_logline_title": "Selected Logline",
+                        "chapter_count": 2,
+                        "quality_recommendation": "accept",
+                        "issue_count": 0,
+                        "synopsis": "Summary synopsis",
+                    },
                 },
             },
         )
@@ -534,6 +577,18 @@ class CliTest(unittest.TestCase):
         self.assertIn("publish_bundle.title: Saved Bundle Title", output)
         self.assertIn("publish_bundle.section_names: manuscript, quality", output)
         self.assertIn("publish_bundle.source_artifact_names: story_summary.json, project_quality_report.json", output)
+        self.assertIn(
+            "publish_bundle.story_bible_summary: core_premise=Summary premise, theme_statement=Summary theme, ending_reveal=Summary reveal",
+            output,
+        )
+        self.assertIn(
+            "publish_bundle.thread_summary: thread_count=2, unresolved_count=1, resolved_count=1, seeded_count=0, progressed_count=1",
+            output,
+        )
+        self.assertIn(
+            "publish_bundle.handoff_summary: title=Saved Bundle Title, logline=Selected Logline, recommendation=accept, issue_count=0, chapter_count=2",
+            output,
+        )
 
     def test_cli_create_project_sets_default_autonomy_level_and_preserves_existing_value(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

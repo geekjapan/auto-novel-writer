@@ -7,7 +7,14 @@ from pathlib import Path
 from novel_writer.continuity import ContinuityChecker
 from novel_writer.llm_client import BaseLLMClient
 from novel_writer.rerun_policy import ContinuityRerunPolicy
-from novel_writer.schema import StoryArtifacts, StoryInput, build_publish_ready_bundle_summary
+from novel_writer.schema import (
+    StoryArtifacts,
+    StoryInput,
+    build_handoff_summary,
+    build_publish_ready_bundle_summary,
+    build_story_bible_summary,
+    build_thread_summary,
+)
 from novel_writer.storage import (
     apply_replan_updates,
     load_canon_ledger,
@@ -232,7 +239,11 @@ class StoryPipeline:
         save_progress_report(self.output_dir, artifacts.progress_report, "json")
         self._record_replan_decision(artifacts.progress_report, artifacts, selected_logline)
 
-        artifacts.publish_ready_bundle = self._build_publish_ready_bundle(artifacts, selected_logline)
+        artifacts.publish_ready_bundle = self._build_publish_ready_bundle(
+            artifacts,
+            selected_logline,
+            thread_registry=thread_registry,
+        )
         save_publish_ready_bundle(self.output_dir, artifacts.publish_ready_bundle, "json")
 
         completed_steps = checkpoints[-1]["completed_steps"] if checkpoints else []
@@ -1110,7 +1121,15 @@ class StoryPipeline:
         save_publish_ready_bundle(self.output_dir, artifacts.publish_ready_bundle, "json")
         self._mark_checkpoint("publish_ready_bundle", checkpoints, artifacts, selected_logline)
 
-    def _build_publish_ready_bundle(self, artifacts: StoryArtifacts, selected_logline: dict) -> dict:
+    def _build_publish_ready_bundle(
+        self,
+        artifacts: StoryArtifacts,
+        selected_logline: dict,
+        thread_registry: dict | None = None,
+    ) -> dict:
+        if thread_registry is None:
+            _, thread_registry = self._load_memory_context(self.output_dir)
+
         bundle_contract = artifacts.artifact_contract()["publish_ready_bundle"]
         publish_ready_bundle = {
             "schema_version": bundle_contract["schema_version"],
@@ -1130,6 +1149,11 @@ class StoryPipeline:
             "sections": bundle_contract["sections"],
         }
         publish_ready_bundle["summary"] = build_publish_ready_bundle_summary(publish_ready_bundle)
+        publish_ready_bundle["summary"]["story_bible_summary"] = build_story_bible_summary(
+            artifacts.story_bible,
+        )
+        publish_ready_bundle["summary"]["thread_summary"] = build_thread_summary(thread_registry)
+        publish_ready_bundle["summary"]["handoff_summary"] = build_handoff_summary(publish_ready_bundle)
         return publish_ready_bundle
 
     def _maybe_rerun_from_decision(

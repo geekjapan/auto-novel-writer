@@ -34,6 +34,21 @@ def build_publish_ready_bundle_summary(payload: dict) -> dict:
             "chapter_count": summary.get("chapter_count", payload.get("chapter_count", 0)),
             "section_names": [str(section_name) for section_name in section_names],
             "source_artifact_names": [str(artifact_name) for artifact_name in source_artifact_names],
+            **(
+                {"story_bible_summary": summary["story_bible_summary"]}
+                if isinstance(summary.get("story_bible_summary"), dict)
+                else {}
+            ),
+            **(
+                {"thread_summary": summary["thread_summary"]}
+                if isinstance(summary.get("thread_summary"), dict)
+                else {}
+            ),
+            **(
+                {"handoff_summary": summary["handoff_summary"]}
+                if isinstance(summary.get("handoff_summary"), dict)
+                else {}
+            ),
         }
 
     return {
@@ -41,6 +56,90 @@ def build_publish_ready_bundle_summary(payload: dict) -> dict:
         "chapter_count": payload.get("chapter_count", 0),
         "section_names": _publish_bundle_section_names(payload),
         "source_artifact_names": _publish_bundle_source_artifact_names(payload),
+    }
+
+
+def build_story_bible_summary(story_bible: dict) -> dict:
+    """story_bible の read-only 用要約を machine-readable 形式で生成する。"""
+    if not isinstance(story_bible, dict):
+        story_bible = {}
+
+    return {
+        "core_premise": (
+            story_bible.get("core_premise")
+            if isinstance(story_bible.get("core_premise"), str)
+            else ""
+        ),
+        "ending_reveal": (
+            story_bible.get("ending_reveal")
+            if isinstance(story_bible.get("ending_reveal"), str)
+            else ""
+        ),
+        "theme_statement": (
+            story_bible.get("theme_statement")
+            if isinstance(story_bible.get("theme_statement"), str)
+            else ""
+        ),
+    }
+
+
+def build_thread_summary(thread_registry: dict) -> dict:
+    """thread_registry の read-only 用要約を machine-readable 形式で生成する。"""
+    if not isinstance(thread_registry, dict):
+        thread_registry = {}
+
+    threads = thread_registry.get("threads")
+    if not isinstance(threads, list):
+        threads = []
+
+    status_counts = {"seeded": 0, "progressed": 0, "resolved": 0, "dropped": 0}
+    for thread in threads:
+        if not isinstance(thread, dict):
+            continue
+        status = thread.get("status")
+        if isinstance(status, str) and status in status_counts:
+            status_counts[status] += 1
+
+    thread_count = len(threads)
+    resolved_thread_count = status_counts["resolved"]
+    dropped_thread_count = status_counts["dropped"]
+    return {
+        "thread_count": thread_count,
+        "resolved_thread_count": resolved_thread_count,
+        "unresolved_thread_count": thread_count - resolved_thread_count - dropped_thread_count,
+        "seeded_thread_count": status_counts["seeded"],
+        "progressed_thread_count": status_counts["progressed"],
+    }
+
+
+def build_handoff_summary(publish_ready_bundle: dict) -> dict:
+    """publish_ready_bundle の editor / review 向け要約を machine-readable 形式で生成する。"""
+    if not isinstance(publish_ready_bundle, dict):
+        publish_ready_bundle = {}
+
+    story_summary = publish_ready_bundle.get("story_summary")
+    if not isinstance(story_summary, dict):
+        story_summary = {}
+    overall_quality_report = publish_ready_bundle.get("overall_quality_report")
+    if not isinstance(overall_quality_report, dict):
+        overall_quality_report = {}
+    selected_logline = publish_ready_bundle.get("selected_logline")
+    if not isinstance(selected_logline, dict):
+        selected_logline = {}
+
+    issue_count = overall_quality_report.get("issue_count")
+    if not isinstance(issue_count, int) or isinstance(issue_count, bool):
+        issue_count = overall_quality_report.get("total_issue_count")
+    if not isinstance(issue_count, int) or isinstance(issue_count, bool):
+        issue_count = 0
+
+    return {
+        "title": publish_ready_bundle.get("title", "unknown"),
+        "selected_logline_title": selected_logline.get("title", ""),
+        "chapter_count": publish_ready_bundle.get("chapter_count", 0),
+        "quality_recommendation": overall_quality_report.get("overall_recommendation", "unknown"),
+        "issue_count": issue_count,
+        "synopsis": story_summary.get("synopsis", publish_ready_bundle.get("synopsis", "")),
     }
 
 
@@ -1057,6 +1156,26 @@ def publish_ready_bundle_contract() -> dict:
                 "section_names",
                 "source_artifact_names",
             ],
+            "story_bible_fields": [
+                "core_premise",
+                "ending_reveal",
+                "theme_statement",
+            ],
+            "thread_summary_fields": [
+                "thread_count",
+                "resolved_thread_count",
+                "unresolved_thread_count",
+                "seeded_thread_count",
+                "progressed_thread_count",
+            ],
+            "handoff_summary_fields": [
+                "title",
+                "selected_logline_title",
+                "chapter_count",
+                "quality_recommendation",
+                "issue_count",
+                "synopsis",
+            ],
         },
     }
 
@@ -1131,6 +1250,49 @@ def validate_publish_ready_bundle(payload: dict) -> dict:
             artifact_name,
             "publish_ready_bundle",
             f"summary.source_artifact_names[{index}]",
+        )
+    story_bible_summary = summary.get("story_bible_summary")
+    if story_bible_summary is not None:
+        if not isinstance(story_bible_summary, dict):
+            raise ValueError("Invalid publish_ready_bundle: summary.story_bible_summary must be an object.")
+
+        for field_name in summary_contract["story_bible_fields"]:
+            _validate_str_field(
+                story_bible_summary.get(field_name),
+                "publish_ready_bundle",
+                f"summary.story_bible_summary.{field_name}",
+            )
+    thread_summary = summary.get("thread_summary")
+    if thread_summary is not None:
+        if not isinstance(thread_summary, dict):
+            raise ValueError("Invalid publish_ready_bundle: summary.thread_summary must be an object.")
+
+        for field_name in summary_contract["thread_summary_fields"]:
+            _validate_int_field(
+                thread_summary.get(field_name),
+                "publish_ready_bundle",
+                f"summary.thread_summary.{field_name}",
+            )
+    handoff_summary = summary.get("handoff_summary")
+    if handoff_summary is not None:
+        if not isinstance(handoff_summary, dict):
+            raise ValueError("Invalid publish_ready_bundle: summary.handoff_summary must be an object.")
+
+        for field_name in ["title", "selected_logline_title", "quality_recommendation", "synopsis"]:
+            _validate_str_field(
+                handoff_summary.get(field_name),
+                "publish_ready_bundle",
+                f"summary.handoff_summary.{field_name}",
+            )
+        _validate_int_field(
+            handoff_summary.get("chapter_count"),
+            "publish_ready_bundle",
+            "summary.handoff_summary.chapter_count",
+        )
+        _validate_int_field(
+            handoff_summary.get("issue_count"),
+            "publish_ready_bundle",
+            "summary.handoff_summary.issue_count",
         )
 
     return payload

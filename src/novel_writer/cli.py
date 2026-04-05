@@ -598,12 +598,41 @@ def build_rerun_policy_from_args(args: argparse.Namespace) -> ContinuityRerunPol
 
 def _build_publish_bundle_summary_lines(payload: dict[str, Any]) -> list[str]:
     summary = build_publish_ready_bundle_summary(payload)
-    return [
+    lines = [
         f"publish_bundle.title: {summary['title']}",
         f"publish_bundle.chapter_count: {summary['chapter_count']}",
         f"publish_bundle.section_names: {', '.join(summary['section_names']) or 'none'}",
         f"publish_bundle.source_artifact_names: {', '.join(summary['source_artifact_names']) or 'none'}",
     ]
+    story_bible_summary = summary.get("story_bible_summary", {})
+    if isinstance(story_bible_summary, dict) and story_bible_summary:
+        lines.append(
+            "publish_bundle.story_bible_summary: "
+            f"core_premise={story_bible_summary.get('core_premise', '')}, "
+            f"theme_statement={story_bible_summary.get('theme_statement', '')}, "
+            f"ending_reveal={story_bible_summary.get('ending_reveal', '')}"
+        )
+    thread_summary = summary.get("thread_summary", {})
+    if isinstance(thread_summary, dict) and thread_summary:
+        lines.append(
+            "publish_bundle.thread_summary: "
+            f"thread_count={thread_summary.get('thread_count', 0)}, "
+            f"unresolved_count={thread_summary.get('unresolved_thread_count', 0)}, "
+            f"resolved_count={thread_summary.get('resolved_thread_count', 0)}, "
+            f"seeded_count={thread_summary.get('seeded_thread_count', 0)}, "
+            f"progressed_count={thread_summary.get('progressed_thread_count', 0)}"
+        )
+    handoff_summary = summary.get("handoff_summary", {})
+    if isinstance(handoff_summary, dict) and handoff_summary:
+        lines.append(
+            "publish_bundle.handoff_summary: "
+            f"title={handoff_summary.get('title', '')}, "
+            f"logline={handoff_summary.get('selected_logline_title', '')}, "
+            f"recommendation={handoff_summary.get('quality_recommendation', '')}, "
+            f"issue_count={handoff_summary.get('issue_count', 0)}, "
+            f"chapter_count={handoff_summary.get('chapter_count', 0)}"
+        )
+    return lines
 
 
 def print_run_summary(artifacts, output_dir: Path, project_manifest: dict[str, Any] | None = None) -> None:

@@ -6,7 +6,13 @@ from pathlib import Path
 from novel_writer.llm_client import MockLLMClient
 from novel_writer.pipeline import PIPELINE_STEP_ORDER, StoryPipeline
 from novel_writer.rerun_policy import ContinuityRerunPolicy
-from novel_writer.schema import StoryInput, build_publish_ready_bundle_summary
+from novel_writer.schema import (
+    StoryInput,
+    build_handoff_summary,
+    build_publish_ready_bundle_summary,
+    build_story_bible_summary,
+    build_thread_summary,
+)
 from novel_writer.storage import (
     load_chapter_briefs,
     load_next_action_decision,
@@ -350,6 +356,12 @@ class StoryPipelineTest(unittest.TestCase):
             publish_ready_bundle = json.loads(
                 (output_dir / "publish_ready_bundle.json").read_text(encoding="utf-8")
             )
+            try:
+                thread_registry = json.loads(
+                    (output_dir / "thread_registry.json").read_text(encoding="utf-8")
+                )
+            except FileNotFoundError:
+                thread_registry = {"schema_name": "thread_registry", "schema_version": "1.0", "threads": []}
             self.assertEqual(manifest["selected_logline"]["id"], "logline-1")
             self.assertEqual(
                 manifest["artifact_contract"]["chapter_artifacts"]["canonical_story_state"]["chapter_drafts"]["primary_collection"],
@@ -422,6 +434,9 @@ class StoryPipelineTest(unittest.TestCase):
                         "project_quality_report.json",
                         "revised_chapter_{n}_draft.json",
                     ],
+                    "story_bible_summary": build_story_bible_summary(story_bible),
+                    "thread_summary": build_thread_summary(thread_registry),
+                    "handoff_summary": build_handoff_summary(publish_ready_bundle),
                 },
             )
             self.assertEqual(manifest["artifacts"]["continuity_history"], manifest["continuity_history"])
