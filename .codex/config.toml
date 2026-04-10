@@ -1,10 +1,2 @@
 [features]
 multi_agent = true
-
-project_doc_fallback_filenames = ["AGENTS.md", "README.md"]
-
-developer_instructions = """
-この repository では project-level の恒常ルールは `AGENTS.md` を参照すること。
-詳細な実行手順は `docs/CODEX_WORKFLOW.md` と `docs/TASKS.md` を参照すること。
-設定に書かれていない repo 固有ルールを推測で複写しないこと。
-"""

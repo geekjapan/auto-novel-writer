@@ -708,6 +708,7 @@ def build_project_status_summary(
             if current_output_dir
             else None
         )
+        resume_gate_line = _build_resume_gate_status_line(summary["autonomy_level"], current_output_dir)
         summary["current_run"] = {
             "name": current_run.get("name", "unknown"),
             "output_dir": current_run.get("output_dir", "unknown"),

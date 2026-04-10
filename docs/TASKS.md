@@ -11,6 +11,8 @@
 
 ### Recent completions
 
+- [x] M65a: add unresolved thread snapshots to chapter_handoff_packet
+
 - [x] M64d: publish bundle に handoff summary を追加する
 - [x] M64c: publish bundle に thread summary を追加する
 - [x] M64b: publish bundle に story bible summary を追加する

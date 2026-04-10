@@ -1823,6 +1823,17 @@ class SaveArtifactTest(unittest.TestCase):
             ],
             "relevant_canon_facts": ["第1章で鍵を拾っている"],
             "unresolved_threads": ["seed-1"],
+            "unresolved_thread_entries": [
+                {
+                    "thread_id": "seed-1",
+                    "label": "壊れた鍵の出自",
+                    "status": "seeded",
+                    "introduced_in_chapter": 1,
+                    "last_updated_in_chapter": 1,
+                    "related_characters": ["ミナト"],
+                    "notes": ["第1章で鍵が反応した理由は未回収。"],
+                }
+            ],
             "previous_chapter_summary": "主人公は鍵を拾い、異変の始まりを知った。",
             "style_constraints": {
                 "tone": "静謐",
@@ -1837,6 +1848,51 @@ class SaveArtifactTest(unittest.TestCase):
 
             self.assertEqual(target.name, "chapter_handoff_packet.json")
             self.assertEqual(loaded, payload)
+
+    def test_save_chapter_handoff_packet_rejects_invalid_unresolved_thread_entry(self) -> None:
+        payload = {
+            "schema_name": "chapter_handoff_packet",
+            "schema_version": "1.0",
+            "chapter_number": 2,
+            "current_chapter_brief": {
+                "chapter_number": 2,
+                "purpose": "転機",
+                "goal": "秘密の扉を開く",
+                "conflict": "仲間を信じ切れない",
+                "turn": "鍵の正体に気づく",
+                "must_include": ["壊れた鍵"],
+                "continuity_dependencies": ["ミナト"],
+                "foreshadowing_targets": ["seed-1"],
+                "arc_progress": "疑いから決意へ進む",
+                "target_length_guidance": "standard",
+            },
+            "relevant_scene_cards": [],
+            "relevant_canon_facts": ["第1章で鍵を拾っている"],
+            "unresolved_threads": ["seed-1"],
+            "unresolved_thread_entries": [
+                {
+                    "label": "壊れた鍵の出自",
+                    "status": "seeded",
+                    "introduced_in_chapter": 1,
+                    "last_updated_in_chapter": 1,
+                    "related_characters": ["ミナト"],
+                    "notes": ["第1章で鍵が反応した理由は未回収。"],
+                }
+            ],
+            "previous_chapter_summary": "主人公は鍵を拾い、異変の始まりを知った。",
+            "style_constraints": {
+                "tone": "静謐",
+                "point_of_view": "ミナト",
+                "tense": "past",
+            },
+        }
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            with self.assertRaisesRegex(
+                ValueError,
+                "Invalid thread_registry: unresolved_thread_entries\\[0\\] is missing required fields: thread_id",
+            ):
+                save_chapter_handoff_packet(Path(tmp_dir), payload, "json")
 
     def test_save_chapter_handoff_packet_validates_required_fields(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

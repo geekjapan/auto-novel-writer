@@ -374,9 +374,10 @@ class StoryPipeline:
         artifacts: StoryArtifacts,
         checkpoints: list[dict],
     ) -> None:
-        canon_ledger, thread_registry = self._load_memory_context(self.output_dir)
+        draft_generation_canon_ledger, draft_generation_thread_registry = self._load_memory_context(self.output_dir)
         for chapter_index, _chapter in enumerate(artifacts.chapter_plan):
             self._require_chapter_generation_inputs(artifacts, chapter_index)
+            canon_ledger, thread_registry = self._load_memory_context(self.output_dir)
             handoff_packet = self._build_chapter_handoff_packet(
                 story_input,
                 artifacts,
@@ -393,8 +394,8 @@ class StoryPipeline:
                 artifacts.chapter_plan,
                 artifacts.chapter_briefs,
                 artifacts.scene_cards,
-                canon_ledger,
-                thread_registry,
+                draft_generation_canon_ledger,
+                draft_generation_thread_registry,
                 chapter_index=chapter_index,
                 chapter_handoff_packet=handoff_packet,
             )
@@ -851,9 +852,11 @@ class StoryPipeline:
                 relevant_canon_facts.extend(chapter_entry.get("new_facts", []))
 
         unresolved_threads = []
+        unresolved_thread_entries = []
         for thread in thread_registry.get("threads", []):
             if thread.get("status") not in {"resolved", "dropped"}:
                 unresolved_threads.append(str(thread.get("thread_id", "")))
+                unresolved_thread_entries.append(dict(thread))
 
         return {
             "schema_name": "chapter_handoff_packet",
@@ -863,6 +866,7 @@ class StoryPipeline:
             "relevant_scene_cards": list(scene_packet.get("scenes", [])),
             "relevant_canon_facts": relevant_canon_facts,
             "unresolved_threads": unresolved_threads,
+            "unresolved_thread_entries": unresolved_thread_entries,
             "previous_chapter_summary": previous_summary,
             "style_constraints": {
                 "tone": story_input.tone,

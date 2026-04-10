@@ -204,6 +204,9 @@ def chapter_handoff_packet_contract() -> dict:
             "previous_chapter_summary",
             "style_constraints",
         ],
+        "optional_fields": [
+            "unresolved_thread_entries",
+        ],
         "style_constraints_required_fields": [
             "tone",
             "point_of_view",
@@ -842,6 +845,16 @@ def validate_chapter_handoff_packet(payload: dict) -> dict:
 
     for field_name in ["relevant_canon_facts", "unresolved_threads"]:
         _validate_list_field(payload.get(field_name), "chapter_handoff_packet", field_name)
+
+    unresolved_thread_entries = payload.get("unresolved_thread_entries")
+    if unresolved_thread_entries is not None:
+        _validate_list_field(
+            unresolved_thread_entries,
+            "chapter_handoff_packet",
+            "unresolved_thread_entries",
+        )
+        for index, thread_entry in enumerate(unresolved_thread_entries):
+            validate_thread_registry_entry(thread_entry, f"unresolved_thread_entries[{index}]")
 
     _validate_str_field(
         payload.get("previous_chapter_summary"),

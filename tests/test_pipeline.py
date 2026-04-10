@@ -617,6 +617,17 @@ class StoryPipelineTest(unittest.TestCase):
                 chapter_2_packet["previous_chapter_summary"],
                 artifacts.chapter_drafts[0]["summary"],
             )
+            self.assertEqual(
+                [entry["thread_id"] for entry in chapter_2_packet["unresolved_thread_entries"]],
+                chapter_2_packet["unresolved_threads"],
+            )
+            self.assertTrue(chapter_2_packet["unresolved_thread_entries"])
+            self.assertTrue(
+                all(
+                    entry["status"] not in {"resolved", "dropped"}
+                    for entry in chapter_2_packet["unresolved_thread_entries"]
+                )
+            )
 
     def test_pipeline_resume_fails_fast_when_scene_cards_missing_before_chapter_drafts(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
