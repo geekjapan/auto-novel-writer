@@ -2810,27 +2810,27 @@ class SaveArtifactTest(unittest.TestCase):
                     "story_summary": {"field": "story_summary"},
                     "quality": {"field": "overall_quality_report"},
                 },
-                "summary": {
-                    "title": "Case 01",
-                    "chapter_count": 1,
-                    "section_names": ["manuscript", "story_summary", "quality"],
-                    "source_artifact_names": ["chapter_1_draft"],
-                    "story_state_summary": {
-                        "evaluated_through_chapter": 1,
-                        "canon_chapter_count": 1,
-                        "thread_count": 2,
-                        "unresolved_thread_count": -1,
-                        "resolved_thread_count": 1,
-                        "open_question_count": 3,
-                        "latest_timeline_event_count": 1,
+                    "summary": {
+                        "title": "Case 01",
+                        "chapter_count": 1,
+                        "section_names": ["manuscript", "story_summary", "quality"],
+                        "source_artifact_names": ["chapter_1_draft"],
+                        "story_state_summary": {
+                            "evaluated_through_chapter": 1,
+                            "canon_chapter_count": 1,
+                            "thread_count": 2,
+                            "unresolved_thread_count": 1,
+                            "resolved_thread_count": 1,
+                            "open_question_count": 3,
+                            "latest_timeline_event_count": "invalid",
+                        },
                     },
-                },
-            }
+                }
 
             save_artifact(Path(tmp_dir), "publish_ready_bundle", payload, "json")
             with self.assertRaisesRegex(
                 ValueError,
-                "Invalid publish_ready_bundle: summary.story_state_summary.unresolved_thread_count must be greater than or equal to 0.",
+                "Invalid publish_ready_bundle: summary.story_state_summary.latest_timeline_event_count must be an int.",
             ):
                 load_publish_ready_bundle(Path(tmp_dir))
 
