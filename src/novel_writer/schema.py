@@ -45,6 +45,11 @@ def build_publish_ready_bundle_summary(payload: dict) -> dict:
                 else {}
             ),
             **(
+                {"story_state_summary": summary["story_state_summary"]}
+                if isinstance(summary.get("story_state_summary"), dict)
+                else {}
+            ),
+            **(
                 {"handoff_summary": summary["handoff_summary"]}
                 if isinstance(summary.get("handoff_summary"), dict)
                 else {}
@@ -109,6 +114,80 @@ def build_thread_summary(thread_registry: dict) -> dict:
         "unresolved_thread_count": thread_count - resolved_thread_count - dropped_thread_count,
         "seeded_thread_count": status_counts["seeded"],
         "progressed_thread_count": status_counts["progressed"],
+    }
+
+
+def story_state_summary_contract() -> dict:
+    return {
+        "required_fields": [
+            "evaluated_through_chapter",
+            "canon_chapter_count",
+            "thread_count",
+            "unresolved_thread_count",
+            "resolved_thread_count",
+            "open_question_count",
+            "latest_timeline_event_count",
+        ],
+    }
+
+
+def build_story_state_summary(
+    canon_ledger: dict,
+    thread_registry: dict,
+    evaluated_through_chapter: int,
+) -> dict:
+    """progress_report と publish_ready_bundle で共有する story state 要約を作る。"""
+    _validate_int_field(evaluated_through_chapter, "story_state_summary", "evaluated_through_chapter")
+    if evaluated_through_chapter < 0:
+        raise ValueError(
+            "Invalid story_state_summary: evaluated_through_chapter must be greater than or equal to 0."
+        )
+
+    if not isinstance(canon_ledger, dict):
+        canon_ledger = {}
+    if not isinstance(thread_registry, dict):
+        thread_registry = {}
+
+    chapters = canon_ledger.get("chapters")
+    if not isinstance(chapters, list):
+        chapters = []
+
+    threads = thread_registry.get("threads")
+    if not isinstance(threads, list):
+        threads = []
+
+    latest_chapter = chapters[-1] if chapters and isinstance(chapters[-1], dict) else {}
+    latest_timeline_events = latest_chapter.get("timeline_events")
+    if not isinstance(latest_timeline_events, list):
+        latest_timeline_events = []
+
+    open_question_count = 0
+    for chapter in chapters:
+        if not isinstance(chapter, dict):
+            continue
+        open_questions = chapter.get("open_questions")
+        if isinstance(open_questions, list):
+            open_question_count += len(open_questions)
+
+    unresolved_thread_count = 0
+    resolved_thread_count = 0
+    for thread in threads:
+        if not isinstance(thread, dict):
+            continue
+        status = thread.get("status")
+        if status in {"seeded", "progressed"}:
+            unresolved_thread_count += 1
+        elif status == "resolved":
+            resolved_thread_count += 1
+
+    return {
+        "evaluated_through_chapter": evaluated_through_chapter,
+        "canon_chapter_count": len(chapters),
+        "thread_count": len(threads),
+        "unresolved_thread_count": unresolved_thread_count,
+        "resolved_thread_count": resolved_thread_count,
+        "open_question_count": open_question_count,
+        "latest_timeline_event_count": len(latest_timeline_events),
     }
 
 
@@ -267,6 +346,7 @@ def progress_report_contract() -> dict:
             "checks",
             "issue_codes",
             "recommended_action",
+            "story_state_summary",
         ],
         "check_names": [
             "chapter_role_coverage",
@@ -473,6 +553,12 @@ def validate_progress_report(payload: dict) -> dict:
     if payload.get("recommended_action") not in contract["allowed_actions"]:
         allowed = ", ".join(contract["allowed_actions"])
         raise ValueError(f"Invalid progress_report: recommended_action must be one of: {allowed}.")
+
+    _validate_story_state_summary(
+        payload.get("story_state_summary"),
+        "progress_report",
+        "story_state_summary",
+    )
 
     return payload
 
@@ -1114,6 +1200,27 @@ def _validate_list_field(value: object, prefix: str, field_name: str) -> None:
         raise ValueError(f"Invalid {prefix}: {field_name} must be a list.")
 
 
+def _validate_story_state_summary(payload: object, prefix: str, field_name: str) -> dict:
+    if not isinstance(payload, dict):
+        raise ValueError(f"Invalid {prefix}: {field_name} must be an object.")
+
+    contract = story_state_summary_contract()
+    missing_fields = [field for field in contract["required_fields"] if field not in payload]
+    if missing_fields:
+        missing = ", ".join(sorted(missing_fields))
+        raise ValueError(f"Invalid {prefix}: {field_name} is missing required fields: {missing}.")
+
+    for required_field in contract["required_fields"]:
+        value = payload.get(required_field)
+        _validate_int_field(value, prefix, f"{field_name}.{required_field}")
+        if value < 0:
+            raise ValueError(
+                f"Invalid {prefix}: {field_name}.{required_field} must be greater than or equal to 0."
+            )
+
+    return payload
+
+
 def _validate_sequential_numbers(
     values: list[object],
     prefix: str,
@@ -1173,6 +1280,15 @@ def publish_ready_bundle_contract() -> dict:
                 "core_premise",
                 "ending_reveal",
                 "theme_statement",
+            ],
+            "story_state_summary_fields": [
+                "evaluated_through_chapter",
+                "canon_chapter_count",
+                "thread_count",
+                "unresolved_thread_count",
+                "resolved_thread_count",
+                "open_question_count",
+                "latest_timeline_event_count",
             ],
             "thread_summary_fields": [
                 "thread_count",
@@ -1275,6 +1391,13 @@ def validate_publish_ready_bundle(payload: dict) -> dict:
                 "publish_ready_bundle",
                 f"summary.story_bible_summary.{field_name}",
             )
+    story_state_summary = summary.get("story_state_summary")
+    if story_state_summary is not None:
+        _validate_story_state_summary(
+            story_state_summary,
+            "publish_ready_bundle",
+            "summary.story_state_summary",
+        )
     thread_summary = summary.get("thread_summary")
     if thread_summary is not None:
         if not isinstance(thread_summary, dict):

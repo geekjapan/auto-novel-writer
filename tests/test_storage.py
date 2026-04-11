@@ -744,6 +744,15 @@ class SaveArtifactTest(unittest.TestCase):
             },
             "issue_codes": ["foreshadowing_coverage_gap", "climax_readiness_low"],
             "recommended_action": "replan",
+            "story_state_summary": {
+                "evaluated_through_chapter": 5,
+                "canon_chapter_count": 5,
+                "thread_count": 4,
+                "unresolved_thread_count": 2,
+                "resolved_thread_count": 2,
+                "open_question_count": 3,
+                "latest_timeline_event_count": 1,
+            },
         }
 
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -752,6 +761,55 @@ class SaveArtifactTest(unittest.TestCase):
 
             self.assertEqual(target.name, "progress_report.json")
             self.assertEqual(loaded, payload)
+
+    def test_save_progress_report_requires_story_state_summary(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            with self.assertRaisesRegex(
+                ValueError,
+                "Invalid progress_report: missing required fields: story_state_summary",
+            ):
+                save_progress_report(
+                    Path(tmp_dir),
+                    {
+                        "schema_name": "progress_report",
+                        "schema_version": "1.0",
+                        "evaluated_through_chapter": 5,
+                        "checks": {
+                            "chapter_role_coverage": {
+                                "status": "ok",
+                                "summary": "役割分担は維持されている",
+                                "evidence": [],
+                            },
+                            "escalation_pace": {
+                                "status": "warning",
+                                "summary": "中盤で伸びが鈍い",
+                                "evidence": ["chapter-4"],
+                            },
+                            "emotional_progression": {
+                                "status": "ok",
+                                "summary": "感情線は前進している",
+                                "evidence": [],
+                            },
+                            "foreshadowing_coverage": {
+                                "status": "warning",
+                                "summary": "伏線回収が遅れている",
+                                "evidence": ["seed-1"],
+                            },
+                            "unresolved_thread_load": {
+                                "status": "ok",
+                                "summary": "未解決 thread は許容範囲",
+                                "evidence": [],
+                            },
+                            "climax_readiness": {
+                                "status": "warning",
+                                "summary": "終盤準備がまだ弱い",
+                                "evidence": ["chapter-5"],
+                            },
+                        },
+                        "issue_codes": ["foreshadowing_coverage_gap", "climax_readiness_low"],
+                        "recommended_action": "replan",
+                    },
+                )
 
     def test_save_next_action_decision_round_trips_valid_payload(self) -> None:
         payload = {
@@ -2732,6 +2790,48 @@ class SaveArtifactTest(unittest.TestCase):
 
             save_artifact(Path(tmp_dir), "publish_ready_bundle", {**base_payload, "summary": "not-a-dict"}, "json")
             with self.assertRaisesRegex(ValueError, "Invalid publish_ready_bundle: summary must be an object."):
+                load_publish_ready_bundle(Path(tmp_dir))
+
+    def test_load_publish_ready_bundle_rejects_invalid_story_state_summary(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            payload = {
+                "schema_version": "1.0",
+                "bundle_type": "publish_ready_bundle",
+                "title": "Case 01",
+                "synopsis": "Synopsis",
+                "chapter_count": 1,
+                "chapters": [],
+                "story_summary": {},
+                "overall_quality_report": {},
+                "selected_logline": {},
+                "source_artifacts": {},
+                "sections": {
+                    "manuscript": {"field": "chapters"},
+                    "story_summary": {"field": "story_summary"},
+                    "quality": {"field": "overall_quality_report"},
+                },
+                "summary": {
+                    "title": "Case 01",
+                    "chapter_count": 1,
+                    "section_names": ["manuscript", "story_summary", "quality"],
+                    "source_artifact_names": ["chapter_1_draft"],
+                    "story_state_summary": {
+                        "evaluated_through_chapter": 1,
+                        "canon_chapter_count": 1,
+                        "thread_count": 2,
+                        "unresolved_thread_count": -1,
+                        "resolved_thread_count": 1,
+                        "open_question_count": 3,
+                        "latest_timeline_event_count": 1,
+                    },
+                },
+            }
+
+            save_artifact(Path(tmp_dir), "publish_ready_bundle", payload, "json")
+            with self.assertRaisesRegex(
+                ValueError,
+                "Invalid publish_ready_bundle: summary.story_state_summary.unresolved_thread_count must be greater than or equal to 0.",
+            ):
                 load_publish_ready_bundle(Path(tmp_dir))
 
     def test_save_run_comparison_summary_validates_required_fields(self) -> None:

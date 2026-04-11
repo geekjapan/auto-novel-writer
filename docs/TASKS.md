@@ -5,6 +5,8 @@
 
 ## In Progress
 
+- [ ] M65b: add shared story_state_summary to progress_report and publish bundle
+
 ## Ready
 
 ## Done
