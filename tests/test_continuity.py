@@ -457,6 +457,33 @@ class ContinuityCheckerTest(unittest.TestCase):
                 {"chapter_number": 3, "title": "第3章 転換", "summary": "核心へ近づき、climax 準備が見える。", "text": "本文3"},
             ],
         )
+        canon_ledger = {
+            "schema_name": "canon_ledger",
+            "schema_version": "1.0",
+            "chapters": [
+                {
+                    "chapter_number": 1,
+                    "new_facts": ["異変が始まる"],
+                    "changed_facts": [],
+                    "open_questions": ["seed-1"],
+                    "timeline_events": ["駅前で異変が起きた。"],
+                },
+                {
+                    "chapter_number": 2,
+                    "new_facts": ["対立が深まる"],
+                    "changed_facts": [],
+                    "open_questions": ["seed-2", "seed-3"],
+                    "timeline_events": ["疑念が公然化した。"],
+                },
+                {
+                    "chapter_number": 3,
+                    "new_facts": ["核心へ近づく"],
+                    "changed_facts": [],
+                    "open_questions": [],
+                    "timeline_events": ["真相の断片を掴んだ。", "終盤準備が整い始めた。"],
+                },
+            ],
+        }
         thread_registry = {
             "schema_name": "thread_registry",
             "schema_version": "1.0",
@@ -469,15 +496,45 @@ class ContinuityCheckerTest(unittest.TestCase):
                     "last_updated_in_chapter": 3,
                     "related_characters": ["篠崎 遥"],
                     "notes": ["第3章まで進展した"],
-                }
+                },
+                {
+                    "thread_id": "seed-2",
+                    "label": "seed-2",
+                    "status": "resolved",
+                    "introduced_in_chapter": 2,
+                    "last_updated_in_chapter": 3,
+                    "related_characters": ["篠崎 遥"],
+                    "notes": ["第3章で回収された"],
+                },
+                {
+                    "thread_id": "seed-3",
+                    "label": "seed-3",
+                    "status": "seeded",
+                    "introduced_in_chapter": 2,
+                    "last_updated_in_chapter": 2,
+                    "related_characters": ["篠崎 遥"],
+                    "notes": ["未回収のまま残っている"],
+                },
             ],
         }
 
-        progress_report = ContinuityChecker().build_progress_report(artifacts, thread_registry)
+        progress_report = ContinuityChecker().build_progress_report(artifacts, canon_ledger, thread_registry)
 
         self.assertEqual(progress_report["schema_name"], "progress_report")
         self.assertEqual(progress_report["schema_version"], "1.0")
         self.assertEqual(progress_report["evaluated_through_chapter"], 3)
+        self.assertEqual(
+            progress_report["story_state_summary"],
+            {
+                "evaluated_through_chapter": 3,
+                "canon_chapter_count": 3,
+                "thread_count": 3,
+                "unresolved_thread_count": 2,
+                "resolved_thread_count": 1,
+                "open_question_count": 3,
+                "latest_timeline_event_count": 2,
+            },
+        )
         self.assertIn("chapter_role_coverage", progress_report["checks"])
         self.assertIn("climax_readiness", progress_report["checks"])
         self.assertIn(progress_report["recommended_action"], {"continue", "revise", "rerun", "replan", "stop_for_review"})

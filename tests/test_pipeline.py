@@ -10,11 +10,13 @@ from novel_writer.schema import (
     StoryInput,
     build_handoff_summary,
     build_publish_ready_bundle_summary,
+    build_story_state_summary,
     build_story_bible_summary,
     build_thread_summary,
 )
 from novel_writer.storage import (
     load_chapter_briefs,
+    load_canon_ledger,
     load_next_action_decision,
     load_replan_history,
     load_publish_ready_bundle,
@@ -134,11 +136,16 @@ class NoRerunContinuityChecker:
             "issues": [],
         }
 
-    def build_progress_report(self, artifacts, thread_registry):
+    def build_progress_report(self, artifacts, canon_ledger, thread_registry):
         return {
             "schema_name": "progress_report",
             "schema_version": "1.0",
             "evaluated_through_chapter": len(artifacts.chapter_plan),
+            "story_state_summary": build_story_state_summary(
+                canon_ledger,
+                thread_registry,
+                len(artifacts.chapter_plan),
+            ),
             "checks": {
                 "chapter_role_coverage": {"status": "ok", "summary": "ok", "evidence": []},
                 "escalation_pace": {"status": "ok", "summary": "ok", "evidence": []},
@@ -173,8 +180,8 @@ class StopBeforeRevisionContinuityChecker(NoRerunContinuityChecker):
 
 
 class ReplanTriggerContinuityChecker(NoRerunContinuityChecker):
-    def build_progress_report(self, artifacts, thread_registry):
-        report = super().build_progress_report(artifacts, thread_registry)
+    def build_progress_report(self, artifacts, canon_ledger, thread_registry):
+        report = super().build_progress_report(artifacts, canon_ledger, thread_registry)
         report["issue_codes"] = ["climax_readiness_low"]
         report["recommended_action"] = "replan"
         report["checks"]["climax_readiness"] = {
@@ -186,9 +193,10 @@ class ReplanTriggerContinuityChecker(NoRerunContinuityChecker):
 
 
 class EarlyReplanTriggerContinuityChecker(NoRerunContinuityChecker):
-    def build_progress_report(self, artifacts, thread_registry):
-        report = super().build_progress_report(artifacts, thread_registry)
+    def build_progress_report(self, artifacts, canon_ledger, thread_registry):
+        report = super().build_progress_report(artifacts, canon_ledger, thread_registry)
         report["evaluated_through_chapter"] = 1
+        report["story_state_summary"]["evaluated_through_chapter"] = 1
         report["issue_codes"] = ["escalation_pace_flat"]
         report["recommended_action"] = "replan"
         report["checks"]["escalation_pace"] = {
@@ -200,9 +208,10 @@ class EarlyReplanTriggerContinuityChecker(NoRerunContinuityChecker):
 
 
 class ReviseTriggerContinuityChecker(NoRerunContinuityChecker):
-    def build_progress_report(self, artifacts, thread_registry):
-        report = super().build_progress_report(artifacts, thread_registry)
+    def build_progress_report(self, artifacts, canon_ledger, thread_registry):
+        report = super().build_progress_report(artifacts, canon_ledger, thread_registry)
         report["evaluated_through_chapter"] = 2
+        report["story_state_summary"]["evaluated_through_chapter"] = 2
         report["issue_codes"] = ["emotional_progression_stall"]
         report["recommended_action"] = "revise"
         report["checks"]["emotional_progression"] = {
@@ -214,9 +223,10 @@ class ReviseTriggerContinuityChecker(NoRerunContinuityChecker):
 
 
 class RerunTriggerContinuityChecker(NoRerunContinuityChecker):
-    def build_progress_report(self, artifacts, thread_registry):
-        report = super().build_progress_report(artifacts, thread_registry)
+    def build_progress_report(self, artifacts, canon_ledger, thread_registry):
+        report = super().build_progress_report(artifacts, canon_ledger, thread_registry)
         report["evaluated_through_chapter"] = 2
+        report["story_state_summary"]["evaluated_through_chapter"] = 2
         report["issue_codes"] = ["chapter_role_coverage_gap"]
         report["recommended_action"] = "rerun"
         report["checks"]["chapter_role_coverage"] = {
@@ -228,8 +238,8 @@ class RerunTriggerContinuityChecker(NoRerunContinuityChecker):
 
 
 class StopForReviewContinuityChecker(NoRerunContinuityChecker):
-    def build_progress_report(self, artifacts, thread_registry):
-        report = super().build_progress_report(artifacts, thread_registry)
+    def build_progress_report(self, artifacts, canon_ledger, thread_registry):
+        report = super().build_progress_report(artifacts, canon_ledger, thread_registry)
         report["issue_codes"] = ["human_review_required"]
         report["recommended_action"] = "stop_for_review"
         report["checks"]["unresolved_thread_load"] = {
@@ -356,12 +366,22 @@ class StoryPipelineTest(unittest.TestCase):
             publish_ready_bundle = json.loads(
                 (output_dir / "publish_ready_bundle.json").read_text(encoding="utf-8")
             )
+            canon_ledger = load_canon_ledger(output_dir)
             try:
                 thread_registry = json.loads(
                     (output_dir / "thread_registry.json").read_text(encoding="utf-8")
                 )
             except FileNotFoundError:
                 thread_registry = {"schema_name": "thread_registry", "schema_version": "1.0", "threads": []}
+            expected_story_state_summary = {
+                "evaluated_through_chapter": 4,
+                "canon_chapter_count": len(canon_ledger["chapters"]),
+                "thread_count": len(thread_registry["threads"]),
+                "unresolved_thread_count": 2,
+                "resolved_thread_count": 0,
+                "open_question_count": sum(len(chapter["open_questions"]) for chapter in canon_ledger["chapters"]),
+                "latest_timeline_event_count": len(canon_ledger["chapters"][-1]["timeline_events"]),
+            }
             self.assertEqual(manifest["selected_logline"]["id"], "logline-1")
             self.assertEqual(
                 manifest["artifact_contract"]["chapter_artifacts"]["canonical_story_state"]["chapter_drafts"]["primary_collection"],
@@ -407,6 +427,7 @@ class StoryPipelineTest(unittest.TestCase):
             self.assertEqual(manifest["artifacts"]["project_quality_report"], project_quality_report)
             self.assertIn("checks", project_quality_report)
             self.assertEqual(progress_report["schema_name"], "progress_report")
+            self.assertEqual(progress_report["story_state_summary"], expected_story_state_summary)
             self.assertEqual(manifest["artifacts"]["progress_report"], progress_report)
             self.assertEqual(next_action_decision["schema_name"], "next_action_decision")
             self.assertEqual(artifacts.next_action_decision, next_action_decision)
@@ -436,6 +457,7 @@ class StoryPipelineTest(unittest.TestCase):
                     ],
                     "story_bible_summary": build_story_bible_summary(story_bible),
                     "thread_summary": build_thread_summary(thread_registry),
+                    "story_state_summary": expected_story_state_summary,
                     "handoff_summary": build_handoff_summary(publish_ready_bundle),
                 },
             )
@@ -1084,6 +1106,12 @@ class StoryPipelineTest(unittest.TestCase):
             rerun_artifacts = pipeline.rerun_chapter(output_dir, 2)
             canon_ledger = json.loads((output_dir / "canon_ledger.json").read_text(encoding="utf-8"))
             thread_registry = json.loads((output_dir / "thread_registry.json").read_text(encoding="utf-8"))
+            progress_report = json.loads((output_dir / "progress_report.json").read_text(encoding="utf-8"))
+            expected_story_state_summary = build_story_state_summary(
+                canon_ledger,
+                thread_registry,
+                progress_report["evaluated_through_chapter"],
+            )
 
             self.assertEqual(
                 canon_ledger["chapters"][1]["new_facts"],
@@ -1102,6 +1130,11 @@ class StoryPipelineTest(unittest.TestCase):
             self.assertEqual(
                 publish_ready_bundle["summary"],
                 build_publish_ready_bundle_summary(publish_ready_bundle),
+            )
+            self.assertEqual(progress_report["story_state_summary"], expected_story_state_summary)
+            self.assertEqual(
+                publish_ready_bundle["summary"]["story_state_summary"],
+                expected_story_state_summary,
             )
             self.assertIn("story_summary", publish_ready_bundle["sections"])
             self.assertIn("source_artifacts", publish_ready_bundle)

@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from novel_writer.schema import StoryArtifacts
+from novel_writer.schema import StoryArtifacts, build_story_state_summary
 
 STOPWORDS = {
     "こと",
@@ -156,7 +156,13 @@ class ContinuityChecker:
             "issues": issues,
         }
 
-    def build_progress_report(self, artifacts: StoryArtifacts, thread_registry: dict[str, Any]) -> dict[str, Any]:
+    def build_progress_report(
+        self,
+        artifacts: StoryArtifacts,
+        canon_ledger: dict[str, Any],
+        thread_registry: dict[str, Any],
+    ) -> dict[str, Any]:
+        evaluated_through_chapter = len(artifacts.revised_chapter_drafts) or len(artifacts.chapter_plan)
         checks = {
             "chapter_role_coverage": self._evaluate_chapter_role_coverage(artifacts),
             "escalation_pace": self._evaluate_escalation_pace(artifacts),
@@ -173,7 +179,12 @@ class ContinuityChecker:
         return {
             "schema_name": "progress_report",
             "schema_version": "1.0",
-            "evaluated_through_chapter": len(artifacts.revised_chapter_drafts) or len(artifacts.chapter_plan),
+            "evaluated_through_chapter": evaluated_through_chapter,
+            "story_state_summary": build_story_state_summary(
+                canon_ledger,
+                thread_registry,
+                evaluated_through_chapter,
+            ),
             "checks": checks,
             "issue_codes": issue_codes,
             "recommended_action": self._recommend_progress_action(issue_codes, checks),

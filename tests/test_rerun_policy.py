@@ -5,7 +5,7 @@ from pathlib import Path
 
 from novel_writer.pipeline import StoryPipeline
 from novel_writer.rerun_policy import ContinuityRerunPolicy
-from novel_writer.schema import StoryInput
+from novel_writer.schema import StoryInput, build_story_state_summary
 
 
 class SequencedContinuityChecker:
@@ -39,11 +39,16 @@ class SequencedContinuityChecker:
             "issues": [],
         }
 
-    def build_progress_report(self, artifacts, thread_registry) -> dict:
+    def build_progress_report(self, artifacts, canon_ledger, thread_registry) -> dict:
         return {
             "schema_name": "progress_report",
             "schema_version": "1.0",
             "evaluated_through_chapter": len(artifacts.chapter_plan),
+            "story_state_summary": build_story_state_summary(
+                canon_ledger,
+                thread_registry,
+                len(artifacts.chapter_plan),
+            ),
             "checks": {
                 "chapter_role_coverage": {"status": "ok", "summary": "ok", "evidence": []},
                 "escalation_pace": {"status": "ok", "summary": "ok", "evidence": []},

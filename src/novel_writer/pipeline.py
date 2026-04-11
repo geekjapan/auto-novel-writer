@@ -12,6 +12,7 @@ from novel_writer.schema import (
     StoryInput,
     build_handoff_summary,
     build_publish_ready_bundle_summary,
+    build_story_state_summary,
     build_story_bible_summary,
     build_thread_summary,
 )
@@ -231,9 +232,10 @@ class StoryPipeline:
         artifacts.project_quality_report = self.continuity_checker.build_project_quality_report(artifacts)
         save_artifact(self.output_dir, "project_quality_report", artifacts.project_quality_report, "json")
 
-        _canon_ledger, thread_registry = self._load_memory_context(self.output_dir)
+        canon_ledger, thread_registry = self._load_memory_context(self.output_dir)
         artifacts.progress_report = self.continuity_checker.build_progress_report(
             artifacts,
+            canon_ledger,
             thread_registry,
         )
         save_progress_report(self.output_dir, artifacts.progress_report, "json")
@@ -242,6 +244,7 @@ class StoryPipeline:
         artifacts.publish_ready_bundle = self._build_publish_ready_bundle(
             artifacts,
             selected_logline,
+            canon_ledger=canon_ledger,
             thread_registry=thread_registry,
         )
         save_publish_ready_bundle(self.output_dir, artifacts.publish_ready_bundle, "json")
@@ -954,9 +957,10 @@ class StoryPipeline:
         checkpoints: list[dict],
         selected_logline: dict,
     ) -> None:
-        _canon_ledger, thread_registry = self._load_memory_context(self.output_dir)
+        canon_ledger, thread_registry = self._load_memory_context(self.output_dir)
         artifacts.progress_report = self.continuity_checker.build_progress_report(
             artifacts,
+            canon_ledger,
             thread_registry,
         )
         save_progress_report(self.output_dir, artifacts.progress_report, "json")
@@ -1121,7 +1125,13 @@ class StoryPipeline:
         checkpoints: list[dict],
         selected_logline: dict,
     ) -> None:
-        artifacts.publish_ready_bundle = self._build_publish_ready_bundle(artifacts, selected_logline)
+        canon_ledger, thread_registry = self._load_memory_context(self.output_dir)
+        artifacts.publish_ready_bundle = self._build_publish_ready_bundle(
+            artifacts,
+            selected_logline,
+            canon_ledger=canon_ledger,
+            thread_registry=thread_registry,
+        )
         save_publish_ready_bundle(self.output_dir, artifacts.publish_ready_bundle, "json")
         self._mark_checkpoint("publish_ready_bundle", checkpoints, artifacts, selected_logline)
 
@@ -1129,10 +1139,19 @@ class StoryPipeline:
         self,
         artifacts: StoryArtifacts,
         selected_logline: dict,
+        canon_ledger: dict | None = None,
         thread_registry: dict | None = None,
     ) -> dict:
-        if thread_registry is None:
-            _, thread_registry = self._load_memory_context(self.output_dir)
+        if canon_ledger is None or thread_registry is None:
+            loaded_canon_ledger, loaded_thread_registry = self._load_memory_context(self.output_dir)
+            if canon_ledger is None:
+                canon_ledger = loaded_canon_ledger
+            if thread_registry is None:
+                thread_registry = loaded_thread_registry
+
+        evaluated_through_chapter = len(artifacts.revised_chapter_drafts)
+        if "evaluated_through_chapter" in artifacts.progress_report:
+            evaluated_through_chapter = artifacts.progress_report["evaluated_through_chapter"]
 
         bundle_contract = artifacts.artifact_contract()["publish_ready_bundle"]
         publish_ready_bundle = {
@@ -1157,6 +1176,11 @@ class StoryPipeline:
             artifacts.story_bible,
         )
         publish_ready_bundle["summary"]["thread_summary"] = build_thread_summary(thread_registry)
+        publish_ready_bundle["summary"]["story_state_summary"] = build_story_state_summary(
+            canon_ledger,
+            thread_registry,
+            evaluated_through_chapter,
+        )
         publish_ready_bundle["summary"]["handoff_summary"] = build_handoff_summary(publish_ready_bundle)
         return publish_ready_bundle
 
