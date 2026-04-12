@@ -5,6 +5,15 @@
 
 ## In Progress
 
+- [ ] M67a: surface saved decision snapshot in best-run and run comparison views
+  - Milestone: M67 Operational
+  - Purpose: `next_action_decision.story_state_summary` を current run だけでなく best run / run comparison からも読めるようにして、判断時 state を比較表示へつなぐ
+  - Target files or directories: `src/novel_writer/cli.py`, `tests/test_cli.py`, `README.md`, `docs/TASKS.md`
+  - Done when: `show-run-comparison` と best-run 系の status 表示が保存済み decision snapshot を read-only で表示し、missing / legacy path の fail-fast 境界が保たれる
+  - Required tests: `tests/test_cli.py` の比較表示テスト、missing artifact / legacy artifact の境界テスト
+  - Docs to update: `README.md`, `docs/TASKS.md`
+  - Depends on: `M66a: carry shared story_state_summary into next_action_decision and replan history`
+
 ## Ready
 
 ## Done
