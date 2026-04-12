@@ -8,6 +8,8 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from novel_writer.cli import (
+    _build_resume_gate_status_line,
+    _build_saved_story_state_summary_line,
     _build_publish_bundle_summary_lines,
     _build_saved_publish_bundle_summary_lines,
     build_project_status_lines,
@@ -1650,11 +1652,28 @@ class CliTest(unittest.TestCase):
 
         with patch(
             "novel_writer.cli.load_next_action_decision",
-            return_value={"action": "stop_for_review"},
+            return_value={
+                "action": "stop_for_review",
+                "story_state_summary": {
+                    "evaluated_through_chapter": 3,
+                    "canon_chapter_count": 3,
+                    "thread_count": 4,
+                    "unresolved_thread_count": 2,
+                    "resolved_thread_count": 1,
+                    "open_question_count": 5,
+                    "latest_timeline_event_count": 2,
+                },
+            },
         ):
             lines = build_project_status_lines(project_manifest)
 
         self.assertIn("Resume gate: stop_for_review", lines)
+        self.assertIn(
+            "  saved_story_state_summary: "
+            "evaluated_through_chapter=3, canon_chapter_count=3, thread_count=4, "
+            "unresolved_count=2, resolved_count=1, open_question_count=5, latest_timeline_event_count=2",
+            lines,
+        )
 
     def test_build_project_status_lines_hides_gate_for_manual_non_blocking_next_action(self) -> None:
         project_manifest = {
@@ -1692,6 +1711,43 @@ class CliTest(unittest.TestCase):
             lines = build_project_status_lines(project_manifest)
 
         self.assertNotIn("Resume gate: stop_for_review", lines)
+
+    def test_build_project_status_lines_hides_saved_story_state_summary_when_next_action_has_no_summary(self) -> None:
+        project_manifest = {
+            "project_id": "Case 07",
+            "project_slug": "case-07",
+            "autonomy_level": "manual",
+            "current_run": {
+                "name": "latest_run",
+                "output_dir": "data/projects/case-07/runs/latest_run",
+                "current_step": "publish_ready_bundle",
+                "completed_steps": ["story_input"],
+                "chapter_statuses": [],
+                "long_run_status": {},
+                "comparison_basis": ["long_run_should_stop"],
+                "comparison_reason": [],
+                "comparison_metrics": {
+                    "total_issue_score": 2,
+                    "completed_step_count": 1,
+                    "long_run_should_stop": False,
+                },
+                "comparison_reason_details": [
+                    {"code": "long_run_should_stop", "value": False},
+                    {"code": "total_issue_score", "value": 2},
+                ],
+                "policy_snapshot": {"long_run": {"max_high_severity_chapters": 6, "max_total_rerun_attempts": 20}},
+            },
+            "best_run": {},
+            "run_candidates": [],
+        }
+
+        with patch(
+            "novel_writer.cli.load_next_action_decision",
+            return_value={"action": "continue"},
+        ):
+            lines = build_project_status_lines(project_manifest)
+
+        self.assertFalse(any(line.startswith("  saved_story_state_summary: ") for line in lines))
 
     def test_build_project_status_lines_hides_gate_for_assist_projects(self) -> None:
         project_manifest = {
@@ -1766,6 +1822,77 @@ class CliTest(unittest.TestCase):
             lines = build_project_status_lines(project_manifest)
 
         self.assertNotIn("Resume gate: stop_for_review", lines)
+
+    def test_build_resume_gate_status_line_uses_legacy_next_action_decision_without_story_state_summary(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            output_dir = Path(tmp_dir)
+            save_artifact(
+                output_dir,
+                "next_action_decision",
+                {
+                    "schema_name": "next_action_decision",
+                    "schema_version": "1.0",
+                    "evaluated_through_chapter": 3,
+                    "action": "stop_for_review",
+                    "reason": "manual review required",
+                    "issue_codes": ["manual_review"],
+                    "target_chapters": [],
+                    "policy_budget": {
+                        "max_high_severity_chapters": 0,
+                        "max_total_rerun_attempts": 0,
+                        "remaining_high_severity_chapter_budget": 0,
+                        "remaining_rerun_attempt_budget": 0,
+                    },
+                    "decision_trace": [
+                        {
+                            "code": "manual_review",
+                            "summary": "Manual review is required before continuing.",
+                            "value": "chapter-3",
+                        }
+                    ],
+                },
+            )
+
+            line = _build_resume_gate_status_line("manual", output_dir)
+
+        self.assertEqual(
+            line,
+            "  Resume gate: blocked_by_review (saved next_action_decision.action=stop_for_review)",
+        )
+
+    def test_build_saved_story_state_summary_line_uses_legacy_next_action_decision_without_story_state_summary(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            output_dir = Path(tmp_dir)
+            save_artifact(
+                output_dir,
+                "next_action_decision",
+                {
+                    "schema_name": "next_action_decision",
+                    "schema_version": "1.0",
+                    "evaluated_through_chapter": 3,
+                    "action": "stop_for_review",
+                    "reason": "manual review required",
+                    "issue_codes": ["manual_review"],
+                    "target_chapters": [],
+                    "policy_budget": {
+                        "max_high_severity_chapters": 0,
+                        "max_total_rerun_attempts": 0,
+                        "remaining_high_severity_chapter_budget": 0,
+                        "remaining_rerun_attempt_budget": 0,
+                    },
+                    "decision_trace": [
+                        {
+                            "code": "manual_review",
+                            "summary": "Manual review is required before continuing.",
+                            "value": "chapter-3",
+                        }
+                    ],
+                },
+            )
+
+            line = _build_saved_story_state_summary_line(output_dir)
+
+        self.assertIsNone(line)
 
     def test_build_run_comparison_summary_returns_render_ready_sections(self) -> None:
         summary_artifact = {
