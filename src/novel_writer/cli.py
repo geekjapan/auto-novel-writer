@@ -13,6 +13,7 @@ from novel_writer.schema import (
     build_publish_ready_bundle_summary,
     comparison_reason_detail_codes,
     project_manifest_contract,
+    validate_next_action_decision,
     validate_publish_ready_bundle,
 )
 from novel_writer.storage import (
@@ -300,6 +301,18 @@ def _load_next_action_decision_for_status(output_dir: Path) -> dict[str, Any] | 
         raw_payload = load_artifact(output_dir, "next_action_decision")
         if not isinstance(raw_payload, dict) or "story_state_summary" in raw_payload:
             raise
+
+        compatibility_payload = dict(raw_payload)
+        compatibility_payload["story_state_summary"] = {
+            "evaluated_through_chapter": 0,
+            "canon_chapter_count": 0,
+            "thread_count": 0,
+            "unresolved_thread_count": 0,
+            "resolved_thread_count": 0,
+            "open_question_count": 0,
+            "latest_timeline_event_count": 0,
+        }
+        validate_next_action_decision(compatibility_payload)
 
         return raw_payload
 

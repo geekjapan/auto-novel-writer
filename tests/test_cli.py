@@ -1894,6 +1894,75 @@ class CliTest(unittest.TestCase):
 
         self.assertIsNone(line)
 
+    def test_build_resume_gate_status_line_raises_for_invalid_legacy_next_action_decision(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            output_dir = Path(tmp_dir)
+            save_artifact(
+                output_dir,
+                "next_action_decision",
+                {
+                    "schema_name": "next_action_decision",
+                    "schema_version": "1.0",
+                    "evaluated_through_chapter": 3,
+                    "action": "invalid-action",
+                    "reason": "manual review required",
+                    "issue_codes": ["manual_review"],
+                    "target_chapters": [],
+                    "policy_budget": {
+                        "max_high_severity_chapters": 0,
+                        "max_total_rerun_attempts": 0,
+                        "remaining_high_severity_chapter_budget": 0,
+                        "remaining_rerun_attempt_budget": 0,
+                    },
+                    "decision_trace": [
+                        {
+                            "code": "manual_review",
+                            "summary": "Manual review is required before continuing.",
+                            "value": "chapter-3",
+                        }
+                    ],
+                },
+            )
+
+            with self.assertRaisesRegex(ValueError, "action must be one of"):
+                _build_resume_gate_status_line("manual", output_dir)
+
+    def test_build_resume_gate_status_line_surfaces_non_summary_validation_error_for_legacy_next_action(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            output_dir = Path(tmp_dir)
+            save_artifact(
+                output_dir,
+                "next_action_decision",
+                {
+                    "schema_name": "next_action_decision",
+                    "schema_version": "1.0",
+                    "evaluated_through_chapter": 3,
+                    "action": "invalid-action",
+                    "reason": "manual review required",
+                    "issue_codes": ["manual_review"],
+                    "target_chapters": [],
+                    "policy_budget": {
+                        "max_high_severity_chapters": 0,
+                        "max_total_rerun_attempts": 0,
+                        "remaining_high_severity_chapter_budget": 0,
+                        "remaining_rerun_attempt_budget": 0,
+                    },
+                    "decision_trace": [
+                        {
+                            "code": "manual_review",
+                            "summary": "Manual review is required before continuing.",
+                            "value": "chapter-3",
+                        }
+                    ],
+                },
+            )
+
+            with self.assertRaisesRegex(
+                ValueError,
+                "Invalid next_action_decision: action must be one of: continue, revise, rerun_chapter, replan_future, stop_for_review",
+            ):
+                _build_resume_gate_status_line("manual", output_dir)
+
     def test_build_run_comparison_summary_returns_render_ready_sections(self) -> None:
         summary_artifact = {
             "project_id": "Case 05",
