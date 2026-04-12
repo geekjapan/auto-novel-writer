@@ -1588,6 +1588,15 @@ class SaveArtifactTest(unittest.TestCase):
                     "trigger_chapter_number": 1,
                     "reason": "中盤の役割を前倒しで組み替える",
                     "issue_codes": ["escalation_pace_flat"],
+                    "story_state_summary": {
+                        "evaluated_through_chapter": 1,
+                        "canon_chapter_count": 1,
+                        "thread_count": 0,
+                        "unresolved_thread_count": 0,
+                        "resolved_thread_count": 0,
+                        "open_question_count": 0,
+                        "latest_timeline_event_count": 0,
+                    },
                     "impact_scope": {"from_chapter": 2, "to_chapter": 3, "chapter_numbers": [2, 3]},
                     "updated_artifacts": ["chapter_briefs", "scene_cards"],
                     "change_summary": ["第2章と第3章の役割を再構成する"],
@@ -1806,15 +1815,24 @@ class SaveArtifactTest(unittest.TestCase):
             ):
                 apply_replan_updates(
                     Path(tmp_dir),
-                    {
-                        "replan_id": "replan-001",
-                        "trigger_chapter_number": 1,
-                        "reason": "過去章まで巻き戻そうとしている",
-                        "issue_codes": ["bad-scope"],
-                        "impact_scope": {"from_chapter": 1, "to_chapter": 1, "chapter_numbers": [1]},
-                        "updated_artifacts": ["chapter_briefs", "scene_cards"],
-                        "change_summary": ["第1章を書き換える"],
+                {
+                    "replan_id": "replan-001",
+                    "trigger_chapter_number": 1,
+                    "reason": "過去章まで巻き戻そうとしている",
+                    "issue_codes": ["bad-scope"],
+                    "story_state_summary": {
+                        "evaluated_through_chapter": 1,
+                        "canon_chapter_count": 1,
+                        "thread_count": 0,
+                        "unresolved_thread_count": 0,
+                        "resolved_thread_count": 0,
+                        "open_question_count": 0,
+                        "latest_timeline_event_count": 0,
                     },
+                    "impact_scope": {"from_chapter": 1, "to_chapter": 1, "chapter_numbers": [1]},
+                    "updated_artifacts": ["chapter_briefs", "scene_cards"],
+                    "change_summary": ["第1章を書き換える"],
+                },
                     chapter_brief_updates=[],
                     scene_card_updates=[],
                 )
@@ -1956,15 +1974,24 @@ class SaveArtifactTest(unittest.TestCase):
             ):
                 apply_replan_updates(
                     Path(tmp_dir),
-                    {
-                        "replan_id": "replan-002",
-                        "trigger_chapter_number": 1,
-                        "reason": "対象章の差し替えが足りない",
-                        "issue_codes": ["scope-mismatch"],
-                        "impact_scope": {"from_chapter": 2, "to_chapter": 2, "chapter_numbers": [2]},
-                        "updated_artifacts": ["chapter_briefs", "scene_cards"],
-                        "change_summary": ["第2章だけ差し替える"],
+                {
+                    "replan_id": "replan-002",
+                    "trigger_chapter_number": 1,
+                    "reason": "対象章の差し替えが足りない",
+                    "issue_codes": ["scope-mismatch"],
+                    "story_state_summary": {
+                        "evaluated_through_chapter": 1,
+                        "canon_chapter_count": 2,
+                        "thread_count": 0,
+                        "unresolved_thread_count": 0,
+                        "resolved_thread_count": 0,
+                        "open_question_count": 0,
+                        "latest_timeline_event_count": 0,
                     },
+                    "impact_scope": {"from_chapter": 2, "to_chapter": 2, "chapter_numbers": [2]},
+                    "updated_artifacts": ["chapter_briefs", "scene_cards"],
+                    "change_summary": ["第2章だけ差し替える"],
+                },
                     chapter_brief_updates=[
                         {
                             "chapter_number": 1,
