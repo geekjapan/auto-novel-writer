@@ -9,6 +9,7 @@ from unittest.mock import patch
 
 from novel_writer.cli import (
     _build_publish_bundle_summary_lines,
+    _build_saved_publish_bundle_summary_lines,
     build_project_status_lines,
     build_project_status_summary,
     build_saved_run_comparison_lines,
@@ -529,6 +530,37 @@ class CliTest(unittest.TestCase):
                 "publish_bundle.source_artifact_names: story_summary.json, project_quality_report.json",
             ],
         )
+
+    def test_build_saved_publish_bundle_summary_lines_surfaces_post_backfill_validation_error(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            output_dir = Path(tmp_dir)
+            save_artifact(
+                output_dir,
+                "publish_ready_bundle",
+                {
+                    "schema_version": "1.0",
+                    "bundle_type": "publish_ready_bundle",
+                    "title": "Legacy Bundle",
+                    "synopsis": "Legacy synopsis",
+                    "chapter_count": 2,
+                    "chapters": [],
+                    "story_summary": {},
+                    "overall_quality_report": {},
+                    "selected_logline": {},
+                    "source_artifacts": {},
+                    "sections": {
+                        "manuscript": {"field": "chapters"},
+                        "story_summary": {"field": "story_summary"},
+                        "quality": {"field": "wrong_field"},
+                    },
+                },
+            )
+
+            with self.assertRaisesRegex(
+                ValueError,
+                r"Invalid publish_ready_bundle: sections\.quality\.field='wrong_field' is not supported; expected 'overall_quality_report'\.",
+            ):
+                _build_saved_publish_bundle_summary_lines(output_dir)
 
     def test_print_run_summary_uses_saved_publish_bundle_summary(self) -> None:
         artifacts = SimpleNamespace(

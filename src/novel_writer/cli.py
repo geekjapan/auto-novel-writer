@@ -688,10 +688,7 @@ def _load_saved_publish_bundle_for_display(output_dir: Path) -> dict[str, Any]:
 
         patched_payload = dict(raw_payload)
         patched_payload["summary"] = build_publish_ready_bundle_summary(raw_payload)
-        try:
-            validate_publish_ready_bundle(patched_payload)
-        except ValueError:
-            raise strict_error
+        validate_publish_ready_bundle(patched_payload)
         return patched_payload
 
 
