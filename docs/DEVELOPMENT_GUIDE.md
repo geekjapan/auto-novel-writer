@@ -17,6 +17,14 @@
 - その時点の active task は `TASKS.md` の先頭から読む
 - 対応する milestone は `ROADMAP.md` で確認する
 - この guide は、両者をどう解釈し、どう task 化するかの基準だけを定義する
+- shared `story_state_summary` の source of truth は `progress_report` で、判断系と read-only 系には保存済み story-state snapshot を再利用する
+- 現在の主な保存先は `progress_report`、`next_action_decision`、`replan_history`、`publish_ready_bundle.summary` である
+- `show-project-status` と `show-run-comparison` は、保存済み story-state snapshot を read-only に表示する側として扱う
+- docs 上で CLI 表示を指すときは、status / comparison 系の `saved_story_state_summary` 行と publish bundle 系の `publish_bundle.story_state_summary` 行を使い分ける
+- `next_action_decision` の説明では、処理方針本体の `action`、短い理由の `reason`、補足根拠の `decision_trace` を区別し、comparison 系の `reason_detail` 語彙とは混ぜない
+- autonomy policy の docs では、project-level の `autonomy_level` と run comparison 側の read-only reason 表示を別レイヤとして扱う
+- `show-project-status` は saved `next_action_decision` の全文表示ではなく、resume gate・autonomy policy・保存済み snapshot の確認面として説明する
+- `show-run-comparison` は comparison / selection context の reason 表示と saved summary を見る面として説明する
 
 ## Priority Rules
 
@@ -45,15 +53,18 @@
 - 軸の例は publish / handoff、story state、evaluation、operational である
 - この guide は、どの軸を選ぶべきかを固定せず、選び方の基準だけを示す
 - 未実装の方向性をこの文書で先取りして確定しない
+- story state 軸では、まず保存タイミングと参照面を揃え、そのあと利用先を広げる
 
 ## How To Turn Roadmap Into Tasks
 
 - 1 task は 1 回で実装・tests・docs 更新・commit まで閉じる粒度にする
 - milestone 完了条件は、schema / storage / pipeline / tests / docs のどこで満たすかを先に分けて考える
 - 仕様判断が一意でない場合は、task 化を進めず、まず論点を分解する
+- 停止の前に、task の再分割または再計画で安全に前進できないかを先に確認する
 - task は、ひとつの contract 変更で安全に閉じられる最小単位にする
 - task は、将来の分業オーケストレーションを支えられる artifact と制御の境界に沿って切る
 - task 名よりも、どの contract を fail-fast に固定するかを先に決める
+- implementation plan があり、実行方式の選択が必要な場合は既定で Subagent-Driven を採る
 
 ## Docs Sync Rules
 
@@ -62,3 +73,4 @@
 - `DEVELOPMENT_GUIDE.md` は「どう判断して順序づけるか」を書く
 - 実装で振る舞いが変わったときは README も同期する
 - 役割が重なる場合は、最初に `ROADMAP.md` と `TASKS.md` へ寄せ、guide には判断基準だけを残す
+- 実行方式の既定値のような運用ルールは `docs/CODEX_WORKFLOW.md` を正本とし、この guide では判断基準だけを補足する

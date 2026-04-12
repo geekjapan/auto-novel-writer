@@ -3,8 +3,10 @@
 ## Read order
 - Read `docs/TASKS.md` first for the active work queue; this repo expects at most one `In Progress` item.
 - Read `docs/CODEX_WORKFLOW.md` next for the implementation loop and guardrails.
+- Read `docs/DEVELOPMENT_GUIDE.md` when you need the current prioritization and task-decomposition rules.
+- Read `docs/ROADMAP.md` when you need the current milestone map and next-stage direction.
 - Treat `README.md` as current user-facing behavior only.
-- `README.md` and `docs/CODEX_WORKFLOW.md` reference `docs/ROADMAP.md` and `docs/DEVELOPMENT_GUIDE.md`, but those files are currently absent.
+- `README.md` stays current-state only, while `docs/CODEX_WORKFLOW.md` owns execution rules, `docs/DEVELOPMENT_GUIDE.md` owns prioritization guidance, and `docs/ROADMAP.md` owns milestone framing.
 
 ## Verified commands
 - Setup: `python -m pip install -e .`
