@@ -468,6 +468,15 @@ class CliTest(unittest.TestCase):
                     "seeded_thread_count": 1,
                     "progressed_thread_count": 1,
                 },
+                "story_state_summary": {
+                    "evaluated_through_chapter": 4,
+                    "canon_chapter_count": 2,
+                    "thread_count": 3,
+                    "unresolved_thread_count": 2,
+                    "resolved_thread_count": 1,
+                    "open_question_count": 5,
+                    "latest_timeline_event_count": 7,
+                },
                 "handoff_summary": {
                     "title": "Saved Bundle Title",
                     "selected_logline_title": "",
@@ -490,6 +499,7 @@ class CliTest(unittest.TestCase):
                 "publish_bundle.source_artifact_names: story_summary.json, revised_chapter_{n}_draft.json",
                 "publish_bundle.story_bible_summary: core_premise=Saved premise, theme_statement=Saved theme, ending_reveal=Saved reveal",
                 "publish_bundle.thread_summary: thread_count=3, unresolved_count=2, resolved_count=0, seeded_count=1, progressed_count=1",
+                "publish_bundle.story_state_summary: evaluated_through_chapter=4, canon_chapter_count=2, thread_count=3, unresolved_count=2, resolved_count=1, open_question_count=5, latest_timeline_event_count=7",
                 "publish_bundle.handoff_summary: title=Saved Bundle Title, logline=, recommendation=unknown, issue_count=0, chapter_count=2",
             ],
         )
@@ -556,6 +566,15 @@ class CliTest(unittest.TestCase):
                         "seeded_thread_count": 0,
                         "progressed_thread_count": 1,
                     },
+                    "story_state_summary": {
+                        "evaluated_through_chapter": 3,
+                        "canon_chapter_count": 2,
+                        "thread_count": 2,
+                        "unresolved_thread_count": 1,
+                        "resolved_thread_count": 1,
+                        "open_question_count": 1,
+                        "latest_timeline_event_count": 4,
+                    },
                     "handoff_summary": {
                         "title": "Saved Bundle Title",
                         "selected_logline_title": "Selected Logline",
@@ -583,6 +602,10 @@ class CliTest(unittest.TestCase):
         )
         self.assertIn(
             "publish_bundle.thread_summary: thread_count=2, unresolved_count=1, resolved_count=1, seeded_count=0, progressed_count=1",
+            output,
+        )
+        self.assertIn(
+            "publish_bundle.story_state_summary: evaluated_through_chapter=3, canon_chapter_count=2, thread_count=2, unresolved_count=1, resolved_count=1, open_question_count=1, latest_timeline_event_count=4",
             output,
         )
         self.assertIn(

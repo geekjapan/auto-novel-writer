@@ -622,6 +622,18 @@ def _build_publish_bundle_summary_lines(payload: dict[str, Any]) -> list[str]:
             f"seeded_count={thread_summary.get('seeded_thread_count', 0)}, "
             f"progressed_count={thread_summary.get('progressed_thread_count', 0)}"
         )
+    story_state_summary = summary.get("story_state_summary", {})
+    if isinstance(story_state_summary, dict) and story_state_summary:
+        lines.append(
+            "publish_bundle.story_state_summary: "
+            f"evaluated_through_chapter={story_state_summary.get('evaluated_through_chapter', 0)}, "
+            f"canon_chapter_count={story_state_summary.get('canon_chapter_count', 0)}, "
+            f"thread_count={story_state_summary.get('thread_count', 0)}, "
+            f"unresolved_count={story_state_summary.get('unresolved_thread_count', 0)}, "
+            f"resolved_count={story_state_summary.get('resolved_thread_count', 0)}, "
+            f"open_question_count={story_state_summary.get('open_question_count', 0)}, "
+            f"latest_timeline_event_count={story_state_summary.get('latest_timeline_event_count', 0)}"
+        )
     handoff_summary = summary.get("handoff_summary", {})
     if isinstance(handoff_summary, dict) and handoff_summary:
         lines.append(
