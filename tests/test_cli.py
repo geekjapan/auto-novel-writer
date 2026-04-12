@@ -1963,6 +1963,61 @@ class CliTest(unittest.TestCase):
             ):
                 _build_resume_gate_status_line("manual", output_dir)
 
+    def test_cli_resume_project_blocks_manual_legacy_stop_for_review_before_pipeline(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            project_dir = Path(tmp_dir) / "case-legacy"
+            run_dir = project_dir / "runs" / "latest_run"
+            run_dir.mkdir(parents=True)
+
+            save_artifact(
+                run_dir,
+                "next_action_decision",
+                {
+                    "schema_name": "next_action_decision",
+                    "schema_version": "1.0",
+                    "evaluated_through_chapter": 3,
+                    "action": "stop_for_review",
+                    "reason": "manual review required",
+                    "issue_codes": ["manual_review"],
+                    "target_chapters": [],
+                    "policy_budget": {
+                        "max_high_severity_chapters": 0,
+                        "max_total_rerun_attempts": 0,
+                        "remaining_high_severity_chapter_budget": 0,
+                        "remaining_rerun_attempt_budget": 0,
+                    },
+                    "decision_trace": [
+                        {
+                            "code": "manual_review",
+                            "summary": "Manual review is required before continuing.",
+                            "value": "chapter-3",
+                        }
+                    ],
+                },
+            )
+
+            with patch("novel_writer.cli.load_project_run_context", return_value=({"project_dir": project_dir}, run_dir)), patch(
+                "novel_writer.cli.load_project_manifest",
+                return_value={"autonomy_level": "manual"},
+            ), patch("novel_writer.cli.run_pipeline") as run_pipeline, patch(
+                "novel_writer.cli.save_project_state"
+            ), patch("novel_writer.cli.print_run_summary"):
+                with self.assertRaisesRegex(
+                    ValueError,
+                    "resume-project.*manual.*stop_for_review",
+                ):
+                    main(
+                        [
+                            "resume-project",
+                            "--project-id",
+                            "Case Legacy",
+                            "--projects-dir",
+                            tmp_dir,
+                        ]
+                    )
+
+            run_pipeline.assert_not_called()
+
     def test_build_run_comparison_summary_returns_render_ready_sections(self) -> None:
         summary_artifact = {
             "project_id": "Case 05",
