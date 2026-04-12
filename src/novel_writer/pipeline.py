@@ -993,6 +993,7 @@ class StoryPipeline:
             "reason": reason,
             "issue_codes": list(progress_report.get("issue_codes", [])),
             "target_chapters": target_chapters,
+            "story_state_summary": dict(progress_report.get("story_state_summary", {})),
             "policy_budget": {
                 "max_high_severity_chapters": int(self.long_run_status.get("max_high_severity_chapters", 0)),
                 "max_total_rerun_attempts": int(self.long_run_status.get("max_total_rerun_attempts", 0)),
@@ -1062,6 +1063,7 @@ class StoryPipeline:
             "trigger_chapter_number": trigger_chapter_number,
             "reason": "progress_report recommended replan",
             "issue_codes": list(progress_report.get("issue_codes", [])),
+            "story_state_summary": dict(progress_report.get("story_state_summary", {})),
             "impact_scope": {
                 "from_chapter": from_chapter,
                 "to_chapter": to_chapter,

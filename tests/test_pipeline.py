@@ -17,6 +17,7 @@ from novel_writer.schema import (
 from novel_writer.storage import (
     load_chapter_briefs,
     load_canon_ledger,
+    load_progress_report,
     load_next_action_decision,
     load_replan_history,
     load_publish_ready_bundle,
@@ -868,11 +869,16 @@ class StoryPipelineTest(unittest.TestCase):
                 StoryInput(theme="記憶", genre="SF", tone="ビター", target_length=8000)
             )
 
+            progress_report = load_progress_report(output_dir)
             replan_history = load_replan_history(output_dir)
             next_action_decision = load_next_action_decision(output_dir)
 
             self.assertEqual(replan_history["schema_name"], "replan_history")
             self.assertEqual(len(replan_history["replans"]), 1)
+            self.assertEqual(
+                replan_history["replans"][0]["story_state_summary"],
+                progress_report["story_state_summary"],
+            )
             self.assertEqual(
                 replan_history["replans"][0]["trigger_chapter_number"],
                 len(artifacts.chapter_plan),
@@ -938,10 +944,15 @@ class StoryPipelineTest(unittest.TestCase):
                 StoryInput(theme="記憶", genre="SF", tone="ビター", target_length=8000)
             )
 
+            progress_report = load_progress_report(output_dir)
             next_action_decision = load_next_action_decision(output_dir)
 
             self.assertTrue((output_dir / "next_action_decision.json").exists())
             self.assertEqual(next_action_decision["evaluated_through_chapter"], len(artifacts.chapter_plan))
+            self.assertEqual(
+                next_action_decision["story_state_summary"],
+                progress_report["story_state_summary"],
+            )
             self.assertEqual(next_action_decision["action"], "continue")
             self.assertEqual(next_action_decision["reason"], "progress_report recommended continue")
             self.assertEqual(next_action_decision["issue_codes"], [])
@@ -965,9 +976,14 @@ class StoryPipelineTest(unittest.TestCase):
                 StoryInput(theme="記憶", genre="SF", tone="ビター", target_length=8000)
             )
 
+            progress_report = load_progress_report(output_dir)
             next_action_decision = load_next_action_decision(output_dir)
 
             self.assertEqual(next_action_decision["action"], "replan_future")
+            self.assertEqual(
+                next_action_decision["story_state_summary"],
+                progress_report["story_state_summary"],
+            )
             self.assertEqual(next_action_decision["issue_codes"], ["escalation_pace_flat"])
             self.assertEqual(
                 next_action_decision["target_chapters"],
