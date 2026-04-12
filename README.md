@@ -36,7 +36,8 @@ novel-writer rerun-chapter --project-id "my-story-01" --chapter-number 2
 `project_manifest.json` には project 単位の `autonomy_level` が保存され、`show-project-status` で現在値を確認できます。
 `manual` project では、今回の run に保存された判定が「レビューしてから続けるべき」と示している場合、`resume-project` は自動再開せず停止します。
 `show-project-status` では、その review gate が `stop_for_review` 由来かどうかも確認できます。
-saved `next_action_decision` に `story_state_summary` が含まれている場合、`show-project-status` はその decision-time の story-state snapshot も表示できます。
+saved `next_action_decision` に `story_state_summary` が含まれている場合、`show-project-status` は current run に加えて best run でも、その decision-time の story-state snapshot を表示できます。
+`show-run-comparison` も current run / best run の両方で、saved `next_action_decision.story_state_summary` を read-only に表示できます。
 
 ### 3. 途中再開と rerun
 

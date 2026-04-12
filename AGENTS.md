@@ -1,133 +1,42 @@
 # AGENTS.md
 
-## プロジェクト目標
+## Read order
+- Read `docs/TASKS.md` first for the active work queue; this repo expects at most one `In Progress` item.
+- Read `docs/CODEX_WORKFLOW.md` next for the implementation loop and guardrails.
+- Treat `README.md` as current user-facing behavior only.
+- `README.md` and `docs/CODEX_WORKFLOW.md` reference `docs/ROADMAP.md` and `docs/DEVELOPMENT_GUIDE.md`, but those files are currently absent.
 
-- Python で小説執筆パイプラインを段階的に育てる
-- まずは CLI 中心で、短編から中編初期段階までを安全に前進させる
-- シンプルでテストしやすいアーキテクチャを優先する
-- 実際のリポジトリ、実際のコード、実際のデータに基づいて改善する
+## Verified commands
+- Setup: `python -m pip install -e .`
+- In a clean repo-root shell, plain `python -m unittest ...` fails because `src/` is not on `sys.path`; use `PYTHONPATH=src` unless you already installed the package editable.
+- Full test suite: `PYTHONPATH=src python -m unittest discover -s tests -v`
+- Single test: `PYTHONPATH=src python -m unittest tests.test_cli.CliTest.test_cli_main_runs_with_mock_provider -v`
+- CLI help: `PYTHONPATH=src python -m novel_writer --help`
+- No checked-in lint, typecheck, pre-commit, or CI config was found; the verified project-level check is the unittest suite.
 
-## 基本原則（絶対ルール）
+## Repo shape
+- This is a single-package Python repo under `src/novel_writer/`.
+- Console entrypoint: `novel_writer.cli:main`; `python -m novel_writer` just dispatches to that entrypoint.
+- Main runtime flow is `cli.main()` -> project/run helpers -> `StoryPipeline` in `src/novel_writer/pipeline.py`.
+- Keep provider-specific changes inside `src/novel_writer/llm/`; `docs/CODEX_WORKFLOW.md` treats that as a hard boundary.
+- `src/novel_writer/storage.py` and `src/novel_writer/schema.py` own artifact layout and validation. Artifact filenames, CLI names, and schema shapes are compatibility surfaces; do not change them casually.
 
-- 理論よりも、実際のコード、実際の入出力、実際の保存データを優先する
-- リポジトリを確認せずに一般論で判断しない
-- ユーザーや既存ドキュメントが示す事象には必ず理由がある前提で調査する
-- 失敗は早く、明確に検出する（fail fast）
-- エラーを握り潰さない
-- 暗黙の fallback を実装しない
-- 互換性を壊す変更は、互換層を追加するか、明示的に docs を更新する
+## Data and command quirks
+- Standalone runs default to `data/latest_run`.
+- Project-scoped runs live under `data/projects/<slug>/runs/latest_run`; `project_id` is slugified by `storage.normalize_project_id()`.
+- `data/*` is gitignored except `data/.gitkeep`; do not commit generated run artifacts.
+- `show-project-status` and `show-run-comparison` are read-only views over saved artifacts.
+- `select-best-run` updates manifest state without rerunning the pipeline.
+- `resume-project` blocks for `manual` projects when the saved `next_action_decision.action` is `stop_for_review`.
 
-## 作業ルール
+## Optional dependencies and provider defaults
+- `pyproject.toml` declares no runtime dependencies; non-mock providers and YAML support are opt-in.
+- Install `openai` for `openai`, `openai-compatible`, `lmstudio`, or `ollama` providers.
+- Install `PyYAML` for `--format yaml`.
+- `openai-compatible` requires an explicit base URL.
+- Code defaults local endpoints to `LMSTUDIO_BASE_URL=http://127.0.0.1:1234/v1` and `OLLAMA_BASE_URL=http://127.0.0.1:11434/v1` when flags/env vars do not override them.
 
-- 不要な依存関係は追加しない
-- OpenAI API へのアクセスは専用クライアントモジュールの内側に隔離する
-- 中間成果物は JSON または YAML で保存する
-- 新しいモジュールには必ずテストを追加する
-- 振る舞いが変わったら README と該当 docs を更新する
-- 必要以上に広い変更を避け、最小限の安全な変更で進める
-- 実装中に前提が崩れた場合は、推測で補わず停止して記録する
-
-## アーキテクチャ方針
-
-- パイプラインのオーケストレーション、ストレージ、スキーマ、LLM アクセスを分離する
-- まずは CLI を優先し、GUI は後回しにする
-- 初期段階ではモックまたはスタブを許可する
-- ただし、モックまたはスタブを導入する場合は、次を必ず満たす
-  - テスト容易性または段階的実装のために必要であること
-  - 本番実装との差分が docs またはコメントで明示されていること
-  - 無言の NO-OP ではないこと
-- 実 API 連携に進む際は、モック依存を縮小または除去する
-- 既存の互換 artifact を壊す場合は、互換層または明示的な docs 更新を伴わせる
-
-## 実装前の確認
-
-- コーディング前に `AGENTS.md`、`docs/TASKS.md`、`docs/CODEX_WORKFLOW.md` を読む
-- 現在地の確認が必要なら `docs/ROADMAP.md` を読む
-- 対象モジュール、関連テスト、関連ドキュメントを実際に確認する
-- 用語が曖昧な場合は、既存コード、README、docs 上の定義を優先する
-- 用語の意味が repository 内でも確定できない場合は、推測実装せず停止して報告する
-
-## 実行ワークフロー
-
-- `docs/TASKS.md` から単一の最優先タスクを選ぶ
-- 実装順序の正本は `docs/TASKS.md` とする
-- 一度に扱うタスクは必ず 1 件だけにする
-- ただし現在タスクが完全に終わったら、同じスレッド内で次の最優先タスクへ続けて進んでよい
-- まず `In Progress` を優先し、空なら `Ready` の先頭を `In Progress` に上げて続行する
-- 必要最小限の安全な変更で実装する
-- テストを実行する
-- docs を更新する
-- 作業状態に応じて `docs/TASKS.md` を更新する
-- 小さな単位でコミットする
-- ブロックした場合は停止し、`docs/BLOCKED.md` を更新して記録する
-
-## 実装制約
-
-- repository や filesystem を確認せずに一般論で実装しない
-- 既存コードの意図が読めない箇所を、推測だけで置き換えない
-- 暗黙の既定値補完、暗黙の成功扱い、エラー無視をしない
-- 設定不足、入力不正、前提不一致は、可能な限り早く例外または明示的エラーとして扱う
-- 一時しのぎの実装を入れる場合は、その旨と制約を docs またはコメントに明記する
-
-## テスト方針
-
-- テストは、外部の初学者エンジニアでも読めることを目標にする
-- テストコードだけで挙動が追えるようにする
-- 前提条件、入力条件、確認項目が複雑な場合は、日本語コメントで補足する
-- テストデータ名や文字列は、意味がすぐ分かる具体的なものを使う
-- 正常系だけでなく、失敗系と境界条件も確認する
-- fail fast の方針に沿って、異常時に明確に失敗することを確認する
-
-## ドキュメントとコメント方針
-
-- 公開インターフェース、複雑な関数、重要なデータ構造には docstring またはコメントを付ける
-- コメントと docstring は日本語で、目的・内容・注意点を明確に書く
-- 曖昧な仕様文を書かない
-- 実装の振る舞いが変わった場合は README と該当 docs を更新する
-
-## 報告ルール
-
-- 報告は必ず対象 repository の文脈に対応させる
-- 一般論だけの報告をしない
-- 報告は丁寧な日本語で記述する
-- 主語を省略しない
-- 省略しすぎず、単体で読んで理解できる報告にする
-- 最後に要約を付け、重要点を上位視点で整理する
-- ソースコード参照は次の形式に従う
-  - ディレクトリ: ディレクトリ名
-  - ファイル: `filename:line_number(要約)`
-  - データ保存形式: 対象ファイル名、必要ならキー名やスキーマ名
-
-
-## 自律継続ルール
-
-- Codex は現在タスクを完了したら、停止条件に該当しない限り、ユーザーの追加指示を待たずに次のタスクへ進む
-- Codex は repository 内に推奨値、既定値、既定フローがある場合、今後はそれを正として採用し、都度ユーザー確認を挟まずに進める
-- Codex は複数の実装案があり、既存 docs / code / tests / schema から推奨方針が読める場合、その推奨方針で自律的に決定してよい
-- Codex は長時間の連続実装を前提に、停止条件に当たらない限り、同一スレッド内で実装、テスト、docs 更新、タスク更新、次タスク着手まで継続してよい
-- `docs/TASKS.md` の `In Progress` が空で、`Ready` も空の場合、Codex は `docs/ROADMAP.md` と現在の実装状況を根拠に、次の最小実装単位の子タスクを 1 件以上 `Ready` に追加してよい
-- Codex は子タスクを追加する際、1 回の変更で安全に実装・テスト・docs 更新・コミットできる粒度へ分割する
-- Codex は、新規タスクを起票したら、その先頭 1 件を `In Progress` に上げて着手してよい
-- Codex は、同一マイルストーン内で依存関係が明確な限り、このループを継続してよい
-
-## 自律起票時の必須項目
-
-- Title
-- Milestone
-- Purpose
-- Target files or directories
-- Done when
-- Required tests
-- Docs to update
-- Depends on（必要な場合のみ）
-
-## 停止条件
-
-以下の場合は自律起票や推測実装を行わず停止し、`docs/BLOCKED.md` を更新して判断を求める
-
-- repository 内の docs / code / tests を見ても、推奨方針を採用してなお次の仕様判断が一意に決まらず、安全な実装境界も定まらない
-- 推奨方針で進めると、既存 CLI、artifact contract、schema version、保存形式の互換性を高い確率で壊す可能性がある
-- rename / remove / migration のような広範囲変更が必要で、互換層や段階的移行なしには安全に進められない
-- 外部 API 利用方針、品質評価軸、生成仕様のようなプロダクト判断が必要で、repository 内の推奨値や既定方針でも代替できない
-- 既存不具合と今回変更のどちらに起因するか切り分けできないテスト失敗があり、推奨方針で継続すると誤った修正を入れる可能性が高い
-- 破綻、データ破壊、復旧困難な状態を招く可能性が現実的に高く、このままの自律継続が安全ではない
+## Test behavior
+- Tests are `unittest` modules under `tests/`.
+- The full suite is noisy because CLI tests print generated run summaries to stdout; a passing run still ends with `OK`.
+- One YAML-path test skips when `PyYAML` is not installed.

@@ -36,7 +36,9 @@ def add_generation_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--theme", help="Story theme")
     parser.add_argument("--genre", help="Story genre")
     parser.add_argument("--tone", help="Story tone")
-    parser.add_argument("--target-length", type=int, help="Target length in words or characters")
+    parser.add_argument(
+        "--target-length", type=int, help="Target length in words or characters"
+    )
 
 
 def add_runtime_arguments(parser: argparse.ArgumentParser) -> None:
@@ -46,7 +48,9 @@ def add_runtime_arguments(parser: argparse.ArgumentParser) -> None:
         choices=["mock", "openai", "openai-compatible", "lmstudio", "ollama"],
         help="LLM provider",
     )
-    parser.add_argument("--model", default="gpt-4.1-mini", help="Model name for the selected provider")
+    parser.add_argument(
+        "--model", default="gpt-4.1-mini", help="Model name for the selected provider"
+    )
     parser.add_argument(
         "--base-url",
         help="Override the provider base URL. Required for provider=openai-compatible.",
@@ -55,7 +59,12 @@ def add_runtime_arguments(parser: argparse.ArgumentParser) -> None:
         "--api-key",
         help="Override the provider API key. Local OpenAI-compatible providers can use a dummy value if needed.",
     )
-    parser.add_argument("--format", default="json", choices=["json", "yaml"], help="Artifact serialization format")
+    parser.add_argument(
+        "--format",
+        default="json",
+        choices=["json", "yaml"],
+        help="Artifact serialization format",
+    )
     parser.add_argument(
         "--max-high-severity-chapters",
         type=int,
@@ -69,11 +78,23 @@ def add_runtime_arguments(parser: argparse.ArgumentParser) -> None:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Short-story generation support pipeline MVP")
+    parser = argparse.ArgumentParser(
+        description="Short-story generation support pipeline MVP"
+    )
     add_generation_arguments(parser)
-    parser.add_argument("--output-dir", default=DEFAULT_OUTPUT_DIR, help="Directory for generated artifacts")
-    parser.add_argument("--project-id", help="Project/story identifier for project-scoped run layout")
-    parser.add_argument("--projects-dir", default=DEFAULT_PROJECTS_DIR, help="Base directory for project-scoped runs")
+    parser.add_argument(
+        "--output-dir",
+        default=DEFAULT_OUTPUT_DIR,
+        help="Directory for generated artifacts",
+    )
+    parser.add_argument(
+        "--project-id", help="Project/story identifier for project-scoped run layout"
+    )
+    parser.add_argument(
+        "--projects-dir",
+        default=DEFAULT_PROJECTS_DIR,
+        help="Base directory for project-scoped runs",
+    )
     parser.add_argument(
         "--resume-from-output-dir",
         help="Read existing artifacts and manifest from this directory before continuing",
@@ -87,25 +108,53 @@ def build_parser() -> argparse.ArgumentParser:
 
     subparsers = parser.add_subparsers(dest="command")
 
-    create_project = subparsers.add_parser("create-project", help="Create or refresh a project-scoped run")
+    create_project = subparsers.add_parser(
+        "create-project", help="Create or refresh a project-scoped run"
+    )
     add_generation_arguments(create_project)
-    create_project.add_argument("--project-id", required=True, help="Project/story identifier")
-    create_project.add_argument("--projects-dir", default=DEFAULT_PROJECTS_DIR, help="Base directory for project-scoped runs")
-    create_project.add_argument("--output-dir", default=DEFAULT_OUTPUT_DIR, help="Optional custom run directory")
+    create_project.add_argument(
+        "--project-id", required=True, help="Project/story identifier"
+    )
+    create_project.add_argument(
+        "--projects-dir",
+        default=DEFAULT_PROJECTS_DIR,
+        help="Base directory for project-scoped runs",
+    )
+    create_project.add_argument(
+        "--output-dir", default=DEFAULT_OUTPUT_DIR, help="Optional custom run directory"
+    )
     add_runtime_arguments(create_project)
 
-    resume_project = subparsers.add_parser("resume-project", help="Resume the current run recorded in a project manifest")
-    resume_project.add_argument("--project-id", required=True, help="Project/story identifier")
-    resume_project.add_argument("--projects-dir", default=DEFAULT_PROJECTS_DIR, help="Base directory for project-scoped runs")
-    resume_project.add_argument("--rerun-from", choices=PIPELINE_STEP_ORDER, help="Optional rerun start step for the current run")
+    resume_project = subparsers.add_parser(
+        "resume-project", help="Resume the current run recorded in a project manifest"
+    )
+    resume_project.add_argument(
+        "--project-id", required=True, help="Project/story identifier"
+    )
+    resume_project.add_argument(
+        "--projects-dir",
+        default=DEFAULT_PROJECTS_DIR,
+        help="Base directory for project-scoped runs",
+    )
+    resume_project.add_argument(
+        "--rerun-from",
+        choices=PIPELINE_STEP_ORDER,
+        help="Optional rerun start step for the current run",
+    )
     add_runtime_arguments(resume_project)
 
     show_project_status = subparsers.add_parser(
         "show-project-status",
         help="Show the current project manifest summary without rerunning the pipeline",
     )
-    show_project_status.add_argument("--project-id", required=True, help="Project/story identifier")
-    show_project_status.add_argument("--projects-dir", default=DEFAULT_PROJECTS_DIR, help="Base directory for project-scoped runs")
+    show_project_status.add_argument(
+        "--project-id", required=True, help="Project/story identifier"
+    )
+    show_project_status.add_argument(
+        "--projects-dir",
+        default=DEFAULT_PROJECTS_DIR,
+        help="Base directory for project-scoped runs",
+    )
     show_project_status.add_argument(
         "--reason-detail-mode",
         default="summary",
@@ -117,8 +166,14 @@ def build_parser() -> argparse.ArgumentParser:
         "show-run-comparison",
         help="Show the saved run comparison summary without rerunning the pipeline",
     )
-    show_run_comparison.add_argument("--project-id", required=True, help="Project/story identifier")
-    show_run_comparison.add_argument("--projects-dir", default=DEFAULT_PROJECTS_DIR, help="Base directory for project-scoped runs")
+    show_run_comparison.add_argument(
+        "--project-id", required=True, help="Project/story identifier"
+    )
+    show_run_comparison.add_argument(
+        "--projects-dir",
+        default=DEFAULT_PROJECTS_DIR,
+        help="Base directory for project-scoped runs",
+    )
     show_run_comparison.add_argument(
         "--reason-detail-mode",
         default="summary",
@@ -130,21 +185,43 @@ def build_parser() -> argparse.ArgumentParser:
         "select-best-run",
         help="Manually promote a run candidate to best_run in the project manifest",
     )
-    select_best_run.add_argument("--project-id", required=True, help="Project/story identifier")
-    select_best_run.add_argument("--projects-dir", default=DEFAULT_PROJECTS_DIR, help="Base directory for project-scoped runs")
-    select_best_run.add_argument("--run-name", required=True, help="Run candidate name to promote")
+    select_best_run.add_argument(
+        "--project-id", required=True, help="Project/story identifier"
+    )
+    select_best_run.add_argument(
+        "--projects-dir",
+        default=DEFAULT_PROJECTS_DIR,
+        help="Base directory for project-scoped runs",
+    )
+    select_best_run.add_argument(
+        "--run-name", required=True, help="Run candidate name to promote"
+    )
 
-    rerun_chapter = subparsers.add_parser("rerun-chapter", help="Rerun chapter generation for the current project run")
-    rerun_chapter.add_argument("--project-id", required=True, help="Project/story identifier")
-    rerun_chapter.add_argument("--projects-dir", default=DEFAULT_PROJECTS_DIR, help="Base directory for project-scoped runs")
-    rerun_chapter.add_argument("--chapter-number", required=True, type=int, help="Chapter number to rerun")
+    rerun_chapter = subparsers.add_parser(
+        "rerun-chapter", help="Rerun chapter generation for the current project run"
+    )
+    rerun_chapter.add_argument(
+        "--project-id", required=True, help="Project/story identifier"
+    )
+    rerun_chapter.add_argument(
+        "--projects-dir",
+        default=DEFAULT_PROJECTS_DIR,
+        help="Base directory for project-scoped runs",
+    )
+    rerun_chapter.add_argument(
+        "--chapter-number", required=True, type=int, help="Chapter number to rerun"
+    )
     add_runtime_arguments(rerun_chapter)
     return parser
 
 
-def build_story_input_from_args(parser: argparse.ArgumentParser, args: argparse.Namespace) -> StoryInput:
+def build_story_input_from_args(
+    parser: argparse.ArgumentParser, args: argparse.Namespace
+) -> StoryInput:
     if not all([args.theme, args.genre, args.tone, args.target_length is not None]):
-        parser.error("--theme, --genre, --tone, and --target-length are required unless resuming.")
+        parser.error(
+            "--theme, --genre, --tone, and --target-length are required unless resuming."
+        )
     return StoryInput(
         theme=args.theme,
         genre=args.genre,
@@ -161,10 +238,14 @@ def save_project_state(
     file_format: str,
 ) -> None:
     run_manifest = load_artifact(output_dir, "manifest")
-    existing_project_manifest = _load_existing_project_manifest(project_layout["project_dir"])
+    existing_project_manifest = _load_existing_project_manifest(
+        project_layout["project_dir"]
+    )
     autonomy_level = _resolve_project_autonomy_level(existing_project_manifest)
     run_candidate = _build_run_candidate(run_manifest, output_dir)
-    run_candidates = _merge_run_candidates(existing_project_manifest.get("run_candidates", []), run_candidate)
+    run_candidates = _merge_run_candidates(
+        existing_project_manifest.get("run_candidates", []), run_candidate
+    )
     best_run = _select_best_run(run_candidates)
     chapter_statuses = _build_project_chapter_statuses(run_manifest)
     long_run_status = dict(run_manifest.get("long_run_status", {}))
@@ -200,7 +281,9 @@ def save_project_state(
         },
         file_format,
     )
-    save_run_comparison_summary(project_layout["project_dir"], comparison_summary, file_format)
+    save_run_comparison_summary(
+        project_layout["project_dir"], comparison_summary, file_format
+    )
 
 
 def _resolve_project_autonomy_level(existing_project_manifest: dict[str, Any]) -> str:
@@ -228,7 +311,9 @@ def build_run_comparison_lines(project_manifest: dict[str, Any]) -> list[str]:
     current_candidate = run_candidates.get(current_output_dir, {})
     best_candidate = run_candidates.get(best_output_dir, {})
     current_metrics = current_candidate.get("comparison_metrics", {})
-    best_metrics = best_run.get("comparison_metrics", best_candidate.get("comparison_metrics", {}))
+    best_metrics = best_run.get(
+        "comparison_metrics", best_candidate.get("comparison_metrics", {})
+    )
 
     lines = [
         f"Best run: {best_run.get('run_name', 'unknown')} (current: {current_run.get('name', 'unknown')})",
@@ -251,7 +336,9 @@ def build_run_comparison_lines(project_manifest: dict[str, Any]) -> list[str]:
         if current_value != best_value:
             lines.append(f"  {label}: current={current_value}, best={best_value}")
 
-    for reason in current_candidate.get("comparison_reason", _build_candidate_reason_lines(current_metrics)):
+    for reason in current_candidate.get(
+        "comparison_reason", _build_candidate_reason_lines(current_metrics)
+    ):
         lines.append(f"  current_reason: {reason}")
     for reason in best_run.get("selection_reason", []):
         lines.append(f"  best_reason: {reason}")
@@ -264,7 +351,9 @@ def load_project_run_context(projects_dir: Path, project_id: str) -> tuple[dict,
     return project_layout, Path(project_manifest["current_run"]["output_dir"])
 
 
-def _enforce_resume_project_review_gate(project_manifest: dict[str, Any], output_dir: Path) -> None:
+def _enforce_resume_project_review_gate(
+    project_manifest: dict[str, Any], output_dir: Path
+) -> None:
     review_gate = _build_manual_review_gate(project_manifest, output_dir)
     if review_gate is not None:
         reason = review_gate["reason"]
@@ -274,7 +363,9 @@ def _enforce_resume_project_review_gate(project_manifest: dict[str, Any], output
             )
 
 
-def _build_manual_review_gate(project_manifest: dict[str, Any], output_dir: Path) -> dict[str, Any] | None:
+def _build_manual_review_gate(
+    project_manifest: dict[str, Any], output_dir: Path
+) -> dict[str, Any] | None:
     """manual project の review gate を resume/status 共通の source of truth として返す。"""
     if project_manifest.get("autonomy_level") != "manual":
         return None
@@ -332,7 +423,9 @@ def _load_existing_project_manifest(project_dir: Path) -> dict[str, Any]:
         return {}
 
 
-def _build_run_candidate(run_manifest: dict[str, Any], output_dir: Path) -> dict[str, Any]:
+def _build_run_candidate(
+    run_manifest: dict[str, Any], output_dir: Path
+) -> dict[str, Any]:
     comparison_metrics = _build_comparison_metrics(run_manifest)
     score = comparison_metrics["total_issue_score"]
     candidate = {
@@ -356,7 +449,9 @@ def _build_run_candidate(run_manifest: dict[str, Any], output_dir: Path) -> dict
 def _build_comparison_metrics(run_manifest: dict[str, Any]) -> dict[str, Any]:
     continuity_report = run_manifest.get("artifacts", {}).get("continuity_report", {})
     quality_report = run_manifest.get("artifacts", {}).get("quality_report", {})
-    project_quality_report = run_manifest.get("artifacts", {}).get("project_quality_report", {})
+    project_quality_report = run_manifest.get("artifacts", {}).get(
+        "project_quality_report", {}
+    )
     continuity_history = run_manifest.get("continuity_history", [])
     rerun_history = run_manifest.get("rerun_history", [])
     revise_history = run_manifest.get("revise_history", [])
@@ -366,7 +461,9 @@ def _build_comparison_metrics(run_manifest: dict[str, Any]) -> dict[str, Any]:
     continuity_issue_total = sum(continuity_report.get("issue_counts", {}).values())
     quality_issue_total = int(quality_report.get("total_issue_count", 0) or 0)
     project_issue_total = int(project_quality_report.get("issue_count", 0) or 0)
-    high_severity_chapter_count = sum(1 for entry in continuity_history if entry.get("severity") == "high")
+    high_severity_chapter_count = sum(
+        1 for entry in continuity_history if entry.get("severity") == "high"
+    )
     rerun_attempt_total = len(rerun_history)
     revision_attempt_total = len(revise_history)
     completed_step_count = len(completed_steps)
@@ -376,7 +473,9 @@ def _build_comparison_metrics(run_manifest: dict[str, Any]) -> dict[str, Any]:
         "continuity_issue_total": continuity_issue_total,
         "quality_issue_total": quality_issue_total,
         "project_issue_total": project_issue_total,
-        "total_issue_score": continuity_issue_total + quality_issue_total + project_issue_total,
+        "total_issue_score": continuity_issue_total
+        + quality_issue_total
+        + project_issue_total,
         "high_severity_chapter_count": high_severity_chapter_count,
         "rerun_attempt_total": rerun_attempt_total,
         "revision_attempt_total": revision_attempt_total,
@@ -385,7 +484,9 @@ def _build_comparison_metrics(run_manifest: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _build_project_chapter_statuses(run_manifest: dict[str, Any]) -> list[dict[str, Any]]:
+def _build_project_chapter_statuses(
+    run_manifest: dict[str, Any],
+) -> list[dict[str, Any]]:
     chapter_histories = run_manifest.get("chapter_histories", [])
     chapter_statuses: list[dict[str, Any]] = []
     for chapter_history in chapter_histories:
@@ -399,11 +500,16 @@ def _build_project_chapter_statuses(run_manifest: dict[str, Any]) -> list[dict[s
             {
                 "chapter_index": chapter_history.get("chapter_index"),
                 "chapter_number": chapter_history.get("chapter_number"),
-                "continuity_issue_total": sum(latest_continuity.get("issue_counts", {}).values()),
+                "continuity_issue_total": sum(
+                    latest_continuity.get("issue_counts", {}).values()
+                ),
                 "continuity_severity": latest_continuity.get("severity"),
-                "continuity_recommended_action": latest_continuity.get("recommended_action"),
+                "continuity_recommended_action": latest_continuity.get(
+                    "recommended_action"
+                ),
                 "latest_rerun_attempt": latest_rerun.get("attempt"),
-                "latest_rerun_action": latest_rerun.get("action_taken") or latest_rerun.get("action"),
+                "latest_rerun_action": latest_rerun.get("action_taken")
+                or latest_rerun.get("action"),
                 "latest_revision_attempt": latest_revision.get("attempt"),
                 "latest_revision_stop_reason": latest_revision.get("stop_reason"),
             }
@@ -411,8 +517,14 @@ def _build_project_chapter_statuses(run_manifest: dict[str, Any]) -> list[dict[s
     return chapter_statuses
 
 
-def _merge_run_candidates(existing_candidates: list[dict[str, Any]], current_candidate: dict[str, Any]) -> list[dict[str, Any]]:
-    filtered = [candidate for candidate in existing_candidates if candidate.get("output_dir") != current_candidate["output_dir"]]
+def _merge_run_candidates(
+    existing_candidates: list[dict[str, Any]], current_candidate: dict[str, Any]
+) -> list[dict[str, Any]]:
+    filtered = [
+        candidate
+        for candidate in existing_candidates
+        if candidate.get("output_dir") != current_candidate["output_dir"]
+    ]
     filtered.append(current_candidate)
     return sorted(filtered, key=_candidate_sort_key)
 
@@ -425,7 +537,11 @@ def _candidate_sort_key(candidate: dict[str, Any]) -> tuple[Any, ...]:
         int(metrics.get("high_severity_chapter_count", 0)),
         int(metrics.get("rerun_attempt_total", 0)),
         int(metrics.get("revision_attempt_total", 0)),
-        -int(metrics.get("completed_step_count", len(candidate.get("completed_steps", [])))),
+        -int(
+            metrics.get(
+                "completed_step_count", len(candidate.get("completed_steps", []))
+            )
+        ),
         candidate.get("run_name", ""),
     )
 
@@ -451,7 +567,11 @@ def _build_run_comparison_summary(
     best_run: dict[str, Any],
 ) -> dict[str, Any]:
     current_candidate = next(
-        (candidate for candidate in run_candidates if candidate.get("output_dir") == str(current_output_dir)),
+        (
+            candidate
+            for candidate in run_candidates
+            if candidate.get("output_dir") == str(current_output_dir)
+        ),
         {},
     )
     return {
@@ -466,12 +586,16 @@ def _build_run_comparison_summary(
         },
         "best_run": best_run,
         "candidate_count": len(run_candidates),
-        "compact_summary": _build_run_comparison_compact_summary(current_candidate, best_run),
+        "compact_summary": _build_run_comparison_compact_summary(
+            current_candidate, best_run
+        ),
         "run_candidates": run_candidates,
     }
 
 
-def _build_run_comparison_compact_summary(current_candidate: dict[str, Any], best_run: dict[str, Any]) -> dict[str, Any]:
+def _build_run_comparison_compact_summary(
+    current_candidate: dict[str, Any], best_run: dict[str, Any]
+) -> dict[str, Any]:
     current_metrics = current_candidate.get("comparison_metrics", {})
     best_metrics = best_run.get("comparison_metrics", {})
     current_policy = current_candidate.get("policy_snapshot", {}).get("long_run", {})
@@ -517,16 +641,25 @@ def _comparison_basis_fields() -> list[str]:
 
 
 def _build_candidate_reason_lines(metrics: dict[str, Any]) -> list[str]:
-    return [_reason_detail_to_text(detail) for detail in _build_candidate_reason_details(metrics)]
+    return [
+        _reason_detail_to_text(detail)
+        for detail in _build_candidate_reason_details(metrics)
+    ]
 
 
 def _build_candidate_reason_details(metrics: dict[str, Any]) -> list[dict[str, Any]]:
     return [
         {"code": "long_run_should_stop", "value": metrics.get("long_run_should_stop")},
         {"code": "total_issue_score", "value": metrics.get("total_issue_score")},
-        {"code": "high_severity_chapter_count", "value": metrics.get("high_severity_chapter_count")},
+        {
+            "code": "high_severity_chapter_count",
+            "value": metrics.get("high_severity_chapter_count"),
+        },
         {"code": "rerun_attempt_total", "value": metrics.get("rerun_attempt_total")},
-        {"code": "revision_attempt_total", "value": metrics.get("revision_attempt_total")},
+        {
+            "code": "revision_attempt_total",
+            "value": metrics.get("revision_attempt_total"),
+        },
         {"code": "completed_step_count", "value": metrics.get("completed_step_count")},
     ]
 
@@ -537,7 +670,9 @@ def _build_candidate_comparison_context(candidate: dict[str, Any]) -> dict[str, 
     return {
         "comparison_metrics": metrics,
         "comparison_basis": _comparison_basis_fields(),
-        "comparison_reason": [_reason_detail_to_text(detail) for detail in comparison_reason_details],
+        "comparison_reason": [
+            _reason_detail_to_text(detail) for detail in comparison_reason_details
+        ],
         "comparison_reason_details": comparison_reason_details,
     }
 
@@ -549,14 +684,18 @@ def _build_candidate_selection_metadata(
 ) -> dict[str, Any]:
     selection_reason_details = []
     if manual_selection_run_name:
-        selection_reason_details.append({"code": "manual_selection", "value": manual_selection_run_name})
+        selection_reason_details.append(
+            {"code": "manual_selection", "value": manual_selection_run_name}
+        )
     comparison_context = _build_candidate_comparison_context(candidate)
     selection_reason_details.extend(comparison_context["comparison_reason_details"])
     return {
         "policy_snapshot": dict(candidate.get("policy_snapshot", {})),
         "comparison_metrics": comparison_context["comparison_metrics"],
         "comparison_basis": comparison_context["comparison_basis"],
-        "selection_reason": [_reason_detail_to_text(detail) for detail in selection_reason_details],
+        "selection_reason": [
+            _reason_detail_to_text(detail) for detail in selection_reason_details
+        ],
         "selection_reason_details": selection_reason_details,
         "selection_source": selection_source,
     }
@@ -572,7 +711,9 @@ def _reason_detail_summary(details: list[dict[str, Any]], limit: int = 2) -> str
 
 def _reason_detail_codes(details: list[dict[str, Any]]) -> list[str]:
     order = {code: index for index, code in enumerate(comparison_reason_detail_codes())}
-    codes = [str(detail.get("code")) for detail in details if detail.get("code") is not None]
+    codes = [
+        str(detail.get("code")) for detail in details if detail.get("code") is not None
+    ]
     return sorted(codes, key=lambda code: order.get(code, len(order)))
 
 
@@ -595,7 +736,9 @@ def run_pipeline(
         file_format=args.format,
         rerun_policy=build_rerun_policy_from_args(args),
     )
-    return pipeline.run(story_input=story_input, resume_from=resume_from, rerun_from=rerun_from)
+    return pipeline.run(
+        story_input=story_input, resume_from=resume_from, rerun_from=rerun_from
+    )
 
 
 def rerun_project_chapter(args: argparse.Namespace, output_dir: Path):
@@ -611,7 +754,9 @@ def rerun_project_chapter(args: argparse.Namespace, output_dir: Path):
         file_format=args.format,
         rerun_policy=build_rerun_policy_from_args(args),
     )
-    return pipeline.rerun_chapter(resume_from=output_dir, chapter_number=args.chapter_number)
+    return pipeline.rerun_chapter(
+        resume_from=output_dir, chapter_number=args.chapter_number
+    )
 
 
 def build_rerun_policy_from_args(args: argparse.Namespace) -> ContinuityRerunPolicy:
@@ -676,14 +821,20 @@ def _build_publish_bundle_summary_lines(payload: dict[str, Any]) -> list[str]:
     return lines
 
 
-def print_run_summary(artifacts, output_dir: Path, project_manifest: dict[str, Any] | None = None) -> None:
+def print_run_summary(
+    artifacts, output_dir: Path, project_manifest: dict[str, Any] | None = None
+) -> None:
     issue_count = sum(artifacts.continuity_report.get("issue_counts", {}).values())
     print(f"Generated short-story artifacts in: {output_dir.resolve()}")
     print(f"Selected logline: {artifacts.loglines[0]['title']}")
     print(f"Chapter count: {len(artifacts.chapter_plan)}")
-    print(f"Continuity severity: {artifacts.continuity_report.get('severity', 'unknown')}")
+    print(
+        f"Continuity severity: {artifacts.continuity_report.get('severity', 'unknown')}"
+    )
     print(f"Continuity issues flagged: {issue_count}")
-    long_run_status = (project_manifest or {}).get("current_run", {}).get("long_run_status", {})
+    long_run_status = (
+        (project_manifest or {}).get("current_run", {}).get("long_run_status", {})
+    )
     if long_run_status:
         print(
             "Long-run status: "
@@ -717,6 +868,17 @@ def _load_saved_publish_bundle_for_display(output_dir: Path) -> dict[str, Any]:
 
         patched_payload = dict(raw_payload)
         patched_payload["summary"] = build_publish_ready_bundle_summary(raw_payload)
+        if not isinstance(patched_payload["summary"].get("story_state_summary"), dict):
+            next_action_decision = _load_next_action_decision_for_status(output_dir)
+            if next_action_decision and isinstance(
+                next_action_decision.get("story_state_summary"), dict
+            ):
+                patched_payload["summary"] = {
+                    **patched_payload["summary"],
+                    "story_state_summary": dict(
+                        next_action_decision["story_state_summary"]
+                    ),
+                }
         validate_publish_ready_bundle(patched_payload)
         return patched_payload
 
@@ -731,9 +893,12 @@ def build_project_status_summary(
     current_run = project_manifest.get("current_run", {})
     best_run = project_manifest.get("best_run", {})
     summary: dict[str, Any] = {
-        "project_label": project_manifest.get("project_slug") or project_manifest.get("project_id", "unknown"),
+        "project_label": project_manifest.get("project_slug")
+        or project_manifest.get("project_id", "unknown"),
         "run_candidate_count": len(project_manifest.get("run_candidates", [])),
-        "autonomy_level": project_manifest.get("autonomy_level", project_manifest_contract()["autonomy_level"]["default"]),
+        "autonomy_level": project_manifest.get(
+            "autonomy_level", project_manifest_contract()["autonomy_level"]["default"]
+        ),
     }
 
     if current_run:
@@ -746,8 +911,12 @@ def build_project_status_summary(
             if current_output_dir
             else None
         )
-        resume_gate_line = _build_resume_gate_status_line(summary["autonomy_level"], current_output_dir)
-        saved_story_state_summary_line = _build_saved_story_state_summary_line(current_output_dir)
+        resume_gate_line = _build_resume_gate_status_line(
+            summary["autonomy_level"], current_output_dir
+        )
+        saved_story_state_summary_line = _build_saved_story_state_summary_line(
+            current_output_dir
+        )
         summary["current_run"] = {
             "name": current_run.get("name", "unknown"),
             "output_dir": current_run.get("output_dir", "unknown"),
@@ -755,19 +924,29 @@ def build_project_status_summary(
             "completed_steps": comparison_metrics.get("completed_step_count", "n/a"),
             "resume_gate_line": resume_gate_line,
             "saved_story_state_summary_line": saved_story_state_summary_line,
-            "comparison_lines": _build_current_comparison_summary_lines(current_run, reason_detail_mode),
-            "chapter_status_lines": _build_chapter_status_summary_lines(chapter_statuses),
+            "comparison_lines": _build_current_comparison_summary_lines(
+                current_run, reason_detail_mode
+            ),
+            "chapter_status_lines": _build_chapter_status_summary_lines(
+                chapter_statuses
+            ),
             "long_run_status_lines": _build_long_run_status_lines(long_run_status),
             "resume_gate": resume_gate,
         }
 
     if best_run:
         comparison_metrics = best_run.get("comparison_metrics", {})
+        best_output_dir = best_run.get("output_dir")
         summary["best_run"] = {
             "name": best_run.get("run_name", "unknown"),
             "output_dir": best_run.get("output_dir", "unknown"),
             "score": best_run.get("score", "unknown"),
-            "selection_lines": _build_selection_summary_lines(best_run, reason_detail_mode),
+            "saved_story_state_summary_line": _build_saved_story_state_summary_line(
+                best_output_dir
+            ),
+            "selection_lines": _build_selection_summary_lines(
+                best_run, reason_detail_mode
+            ),
             "diff_lines": _build_status_diff_summary_lines(current_run, best_run),
             "policy_diff_lines": _build_policy_diff_lines(
                 current_run.get("policy_snapshot", {}),
@@ -785,8 +964,12 @@ def build_project_status_summary(
     return summary
 
 
-def build_project_status_lines(project_manifest: dict[str, Any], reason_detail_mode: str = "summary") -> list[str]:
-    summary = build_project_status_summary(project_manifest, reason_detail_mode=reason_detail_mode)
+def build_project_status_lines(
+    project_manifest: dict[str, Any], reason_detail_mode: str = "summary"
+) -> list[str]:
+    summary = build_project_status_summary(
+        project_manifest, reason_detail_mode=reason_detail_mode
+    )
     lines: list[str] = []
     if not summary:
         return lines
@@ -816,6 +999,8 @@ def build_project_status_lines(project_manifest: dict[str, Any], reason_detail_m
         lines.append(f"Best run: {best_run['name']}")
         lines.append(f"  output_dir: {best_run['output_dir']}")
         lines.append(f"  score: {best_run['score']}")
+        if best_run["saved_story_state_summary_line"]:
+            lines.append(best_run["saved_story_state_summary_line"])
         lines.extend(best_run["selection_lines"])
         lines.extend(best_run["diff_lines"])
         if best_run["comparison_metrics_line"]:
@@ -875,17 +1060,28 @@ def build_saved_run_comparison_summary(
     best_run = summary_artifact.get("best_run", {})
     compact_summary = summary_artifact.get("compact_summary", {})
     return {
-        "project_label": summary_artifact.get("project_slug") or summary_artifact.get("project_id", "unknown"),
+        "project_label": summary_artifact.get("project_slug")
+        or summary_artifact.get("project_id", "unknown"),
         "candidate_count": summary_artifact.get("candidate_count", 0),
-        "run_candidates": _build_saved_run_candidate_section(summary_artifact.get("run_candidates", [])),
-        "current_run": _build_saved_run_current_section(current_run, reason_detail_mode) if current_run else None,
-        "best_run": _build_saved_run_best_section(best_run, reason_detail_mode) if best_run else None,
+        "run_candidates": _build_saved_run_candidate_section(
+            summary_artifact.get("run_candidates", [])
+        ),
+        "current_run": _build_saved_run_current_section(current_run, reason_detail_mode)
+        if current_run
+        else None,
+        "best_run": _build_saved_run_best_section(best_run, reason_detail_mode)
+        if best_run
+        else None,
         "compact_summary": _build_saved_run_compact_summary_section(compact_summary),
     }
 
 
-def build_saved_run_comparison_lines(summary_artifact: dict[str, Any], reason_detail_mode: str = "summary") -> list[str]:
-    summary = build_saved_run_comparison_summary(summary_artifact, reason_detail_mode=reason_detail_mode)
+def build_saved_run_comparison_lines(
+    summary_artifact: dict[str, Any], reason_detail_mode: str = "summary"
+) -> list[str]:
+    summary = build_saved_run_comparison_summary(
+        summary_artifact, reason_detail_mode=reason_detail_mode
+    )
     if not summary:
         return []
 
@@ -909,7 +1105,12 @@ def _build_saved_run_section_renderers(
         ("current_run", _build_saved_run_current_section_lines),
         ("best_run", _build_saved_run_best_section_lines),
         ("compact_summary", _build_saved_run_compact_section_lines),
-        ("run_candidates", lambda section: _build_saved_run_candidate_section_lines(candidate_count, section)),
+        (
+            "run_candidates",
+            lambda section: _build_saved_run_candidate_section_lines(
+                candidate_count, section
+            ),
+        ),
     )
 
 
@@ -918,6 +1119,8 @@ def _build_saved_run_current_section_lines(current_run: dict[str, Any]) -> list[
         f"Current run: {current_run['name']}",
         f"  output_dir: {current_run['output_dir']}",
     ]
+    if current_run["saved_story_state_summary_line"]:
+        lines.append(current_run["saved_story_state_summary_line"])
     lines.extend(current_run["comparison_summary"]["lines"])
     if current_run["comparison_metrics_line"]:
         lines.append(current_run["comparison_metrics_line"])
@@ -929,23 +1132,31 @@ def _build_saved_run_best_section_lines(best_run: dict[str, Any]) -> list[str]:
         f"Best run: {best_run['name']}",
         f"  output_dir: {best_run['output_dir']}",
     ]
+    if best_run["saved_story_state_summary_line"]:
+        lines.append(best_run["saved_story_state_summary_line"])
     lines.extend(best_run["selection_summary"]["lines"])
     if best_run["comparison_metrics_line"]:
         lines.append(best_run["comparison_metrics_line"])
     return lines
 
 
-def _build_saved_run_compact_section_lines(compact_summary: dict[str, Any]) -> list[str]:
+def _build_saved_run_compact_section_lines(
+    compact_summary: dict[str, Any],
+) -> list[str]:
     return list(compact_summary["lines"])
 
 
-def _build_saved_run_candidate_section_lines(candidate_count: int, run_candidates: dict[str, Any]) -> list[str]:
+def _build_saved_run_candidate_section_lines(
+    candidate_count: int, run_candidates: dict[str, Any]
+) -> list[str]:
     lines = [f"Run candidates: {candidate_count}"]
     lines.extend(run_candidates["lines"])
     return lines
 
 
-def _build_saved_run_compact_summary_section(compact_summary: dict[str, Any]) -> dict[str, Any]:
+def _build_saved_run_compact_summary_section(
+    compact_summary: dict[str, Any],
+) -> dict[str, Any]:
     return {
         "selection_source": compact_summary.get("selection_source", "unknown"),
         "issue_score": dict(compact_summary.get("issue_score", {})),
@@ -956,7 +1167,9 @@ def _build_saved_run_compact_summary_section(compact_summary: dict[str, Any]) ->
     }
 
 
-def _build_saved_run_candidate_section(run_candidates: list[dict[str, Any]]) -> dict[str, Any]:
+def _build_saved_run_candidate_section(
+    run_candidates: list[dict[str, Any]],
+) -> dict[str, Any]:
     names = [candidate.get("run_name", "unknown") for candidate in run_candidates]
     scores = [
         f"{candidate.get('run_name', 'unknown')}={candidate.get('score', 'n/a')}"
@@ -981,29 +1194,49 @@ def _build_saved_run_candidate_section(run_candidates: list[dict[str, Any]]) -> 
     }
 
 
-def _build_saved_run_current_section(current_run: dict[str, Any], reason_detail_mode: str) -> dict[str, Any]:
+def _build_saved_run_current_section(
+    current_run: dict[str, Any], reason_detail_mode: str
+) -> dict[str, Any]:
     comparison_metrics = dict(current_run.get("comparison_metrics", {}))
     return {
         "name": current_run.get("run_name", "unknown"),
         "output_dir": current_run.get("output_dir", "unknown"),
+        "saved_story_state_summary_line": _build_saved_story_state_summary_line(
+            current_run.get("output_dir")
+        ),
         "comparison_metrics": comparison_metrics,
-        "comparison_summary": _build_saved_run_current_comparison_section(current_run, reason_detail_mode),
-        "comparison_metrics_line": _build_comparison_metrics_line("current_comparison_metrics", comparison_metrics),
+        "comparison_summary": _build_saved_run_current_comparison_section(
+            current_run, reason_detail_mode
+        ),
+        "comparison_metrics_line": _build_comparison_metrics_line(
+            "current_comparison_metrics", comparison_metrics
+        ),
     }
 
 
-def _build_saved_run_best_section(best_run: dict[str, Any], reason_detail_mode: str) -> dict[str, Any]:
+def _build_saved_run_best_section(
+    best_run: dict[str, Any], reason_detail_mode: str
+) -> dict[str, Any]:
     comparison_metrics = dict(best_run.get("comparison_metrics", {}))
     return {
         "name": best_run.get("run_name", "unknown"),
         "output_dir": best_run.get("output_dir", "unknown"),
+        "saved_story_state_summary_line": _build_saved_story_state_summary_line(
+            best_run.get("output_dir")
+        ),
         "comparison_metrics": comparison_metrics,
-        "selection_summary": _build_saved_run_best_selection_section(best_run, reason_detail_mode),
-        "comparison_metrics_line": _build_comparison_metrics_line("best_comparison_metrics", comparison_metrics),
+        "selection_summary": _build_saved_run_best_selection_section(
+            best_run, reason_detail_mode
+        ),
+        "comparison_metrics_line": _build_comparison_metrics_line(
+            "best_comparison_metrics", comparison_metrics
+        ),
     }
 
 
-def _build_comparison_metrics_line(label: str, comparison_metrics: dict[str, Any]) -> str | None:
+def _build_comparison_metrics_line(
+    label: str, comparison_metrics: dict[str, Any]
+) -> str | None:
     if not comparison_metrics:
         return None
     return (
@@ -1013,11 +1246,17 @@ def _build_comparison_metrics_line(label: str, comparison_metrics: dict[str, Any
     )
 
 
-def _build_saved_run_current_comparison_section(current_run: dict[str, Any], reason_detail_mode: str) -> dict[str, Any]:
+def _build_saved_run_current_comparison_section(
+    current_run: dict[str, Any], reason_detail_mode: str
+) -> dict[str, Any]:
     comparison_basis = current_run.get("comparison_basis", [])
     comparison_reason_details = current_run.get("comparison_reason_details", [])
     basis_summary = ", ".join(comparison_basis[:3]) if comparison_basis else None
-    reason_summary = _reason_detail_summary(comparison_reason_details) if comparison_reason_details else None
+    reason_summary = (
+        _reason_detail_summary(comparison_reason_details)
+        if comparison_reason_details
+        else None
+    )
     reason_codes = (
         _reason_detail_codes(comparison_reason_details[:3])
         if reason_detail_mode == "codes" and comparison_reason_details
@@ -1038,12 +1277,18 @@ def _build_saved_run_current_comparison_section(current_run: dict[str, Any], rea
     }
 
 
-def _build_saved_run_best_selection_section(best_run: dict[str, Any], reason_detail_mode: str) -> dict[str, Any]:
+def _build_saved_run_best_selection_section(
+    best_run: dict[str, Any], reason_detail_mode: str
+) -> dict[str, Any]:
     selection_source = best_run.get("selection_source", "automatic")
     comparison_basis = best_run.get("comparison_basis", [])
     selection_reason_details = best_run.get("selection_reason_details", [])
     basis_summary = ", ".join(comparison_basis[:3]) if comparison_basis else None
-    reason_summary = _reason_detail_summary(selection_reason_details) if selection_reason_details else None
+    reason_summary = (
+        _reason_detail_summary(selection_reason_details)
+        if selection_reason_details
+        else None
+    )
     reason_codes = (
         _reason_detail_codes(selection_reason_details[:3])
         if reason_detail_mode == "codes" and selection_reason_details
@@ -1090,12 +1335,20 @@ def _build_compact_summary_lines(compact_summary: dict[str, Any]) -> list[str]:
     ]
 
 
-def _build_chapter_status_summary_lines(chapter_statuses: list[dict[str, Any]]) -> list[str]:
+def _build_chapter_status_summary_lines(
+    chapter_statuses: list[dict[str, Any]],
+) -> list[str]:
     if not chapter_statuses:
         return ["  chapter_statuses: none"]
 
-    issue_chapter_count = sum(1 for status in chapter_statuses if int(status.get("continuity_issue_total", 0) or 0) > 0)
-    high_severity_count = sum(1 for status in chapter_statuses if status.get("continuity_severity") == "high")
+    issue_chapter_count = sum(
+        1
+        for status in chapter_statuses
+        if int(status.get("continuity_issue_total", 0) or 0) > 0
+    )
+    high_severity_count = sum(
+        1 for status in chapter_statuses if status.get("continuity_severity") == "high"
+    )
     lines = [
         f"  chapter_statuses: {len(chapter_statuses)} tracked",
         f"  chapters_with_issues: {issue_chapter_count}",
@@ -1105,7 +1358,9 @@ def _build_chapter_status_summary_lines(chapter_statuses: list[dict[str, Any]]) 
     return lines
 
 
-def _build_chapter_status_detail_lines(chapter_statuses: list[dict[str, Any]]) -> list[str]:
+def _build_chapter_status_detail_lines(
+    chapter_statuses: list[dict[str, Any]],
+) -> list[str]:
     lines = ["  chapter_details:"]
     for status in chapter_statuses:
         lines.append(
@@ -1132,7 +1387,9 @@ def _build_long_run_status_lines(long_run_status: dict[str, Any]) -> list[str]:
     ]
 
 
-def _build_policy_diff_lines(current_policy: dict[str, Any], best_policy: dict[str, Any]) -> list[str]:
+def _build_policy_diff_lines(
+    current_policy: dict[str, Any], best_policy: dict[str, Any]
+) -> list[str]:
     current_long_run = current_policy.get("long_run", {})
     best_long_run = best_policy.get("long_run", {})
     if not current_long_run and not best_long_run:
@@ -1147,33 +1404,49 @@ def _build_policy_diff_lines(current_policy: dict[str, Any], best_policy: dict[s
         current_value = current_long_run.get(key, "n/a")
         best_value = best_long_run.get(key, "n/a")
         if current_value != best_value:
-            diff_lines.append(f"  policy_diff.{key}: current={current_value}, best={best_value}")
+            diff_lines.append(
+                f"  policy_diff.{key}: current={current_value}, best={best_value}"
+            )
     return diff_lines
 
 
-def _build_selection_summary_lines(best_run: dict[str, Any], reason_detail_mode: str) -> list[str]:
+def _build_selection_summary_lines(
+    best_run: dict[str, Any], reason_detail_mode: str
+) -> list[str]:
     selection_source = best_run.get("selection_source", "automatic")
     comparison_basis = best_run.get("comparison_basis", [])
     selection_reason_details = best_run.get("selection_reason_details", [])
     lines = [f"  best_selection_source: {selection_source}"]
     if comparison_basis:
-        lines.append(f"  best_comparison_basis_summary: {', '.join(comparison_basis[:3])}")
+        lines.append(
+            f"  best_comparison_basis_summary: {', '.join(comparison_basis[:3])}"
+        )
     if selection_reason_details:
-        lines.append(f"  best_selection_reason_summary: {_reason_detail_summary(selection_reason_details)}")
+        lines.append(
+            f"  best_selection_reason_summary: {_reason_detail_summary(selection_reason_details)}"
+        )
     if reason_detail_mode == "codes" and selection_reason_details:
-        lines.append(f"  best_selection_reason_codes: {', '.join(_reason_detail_codes(selection_reason_details[:3]))}")
+        lines.append(
+            f"  best_selection_reason_codes: {', '.join(_reason_detail_codes(selection_reason_details[:3]))}"
+        )
     return lines
 
 
-def _build_current_comparison_summary_lines(current_run: dict[str, Any], reason_detail_mode: str) -> list[str]:
+def _build_current_comparison_summary_lines(
+    current_run: dict[str, Any], reason_detail_mode: str
+) -> list[str]:
     comparison_basis = current_run.get("comparison_basis", [])
     comparison_metrics = current_run.get("comparison_metrics", {})
     comparison_reason_details = current_run.get("comparison_reason_details", [])
     lines: list[str] = []
     if comparison_basis:
-        lines.append(f"  current_comparison_basis_summary: {', '.join(comparison_basis[:3])}")
+        lines.append(
+            f"  current_comparison_basis_summary: {', '.join(comparison_basis[:3])}"
+        )
     if comparison_reason_details:
-        lines.append(f"  current_comparison_reason_summary: {_reason_detail_summary(comparison_reason_details)}")
+        lines.append(
+            f"  current_comparison_reason_summary: {_reason_detail_summary(comparison_reason_details)}"
+        )
     if reason_detail_mode == "codes" and comparison_reason_details:
         lines.append(
             f"  current_comparison_reason_codes: {', '.join(_reason_detail_codes(comparison_reason_details[:3]))}"
@@ -1187,7 +1460,9 @@ def _build_current_comparison_summary_lines(current_run: dict[str, Any], reason_
     return lines
 
 
-def _build_status_diff_summary_lines(current_run: dict[str, Any], best_run: dict[str, Any]) -> list[str]:
+def _build_status_diff_summary_lines(
+    current_run: dict[str, Any], best_run: dict[str, Any]
+) -> list[str]:
     current_metrics = current_run.get("comparison_metrics", {})
     best_metrics = best_run.get("comparison_metrics", {})
     current_policy = current_run.get("policy_snapshot", {}).get("long_run", {})
@@ -1206,8 +1481,12 @@ def _build_status_diff_summary_lines(current_run: dict[str, Any], best_run: dict
     ]
 
 
-def print_project_status(project_manifest: dict[str, Any], reason_detail_mode: str = "summary") -> None:
-    for line in build_project_status_lines(project_manifest, reason_detail_mode=reason_detail_mode):
+def print_project_status(
+    project_manifest: dict[str, Any], reason_detail_mode: str = "summary"
+) -> None:
+    for line in build_project_status_lines(
+        project_manifest, reason_detail_mode=reason_detail_mode
+    ):
         print(line)
 
 
@@ -1215,20 +1494,30 @@ def print_run_comparison(
     summary_artifact: dict[str, Any],
     reason_detail_mode: str = "summary",
 ) -> None:
-    lines = build_saved_run_comparison_lines(summary_artifact, reason_detail_mode=reason_detail_mode)
+    lines = build_saved_run_comparison_lines(
+        summary_artifact, reason_detail_mode=reason_detail_mode
+    )
     current_run = summary_artifact.get("current_run", {})
     current_output_dir = current_run.get("output_dir")
     if current_output_dir:
-        lines.extend(_build_saved_publish_bundle_summary_lines(Path(current_output_dir)))
+        lines.extend(
+            _build_saved_publish_bundle_summary_lines(Path(current_output_dir))
+        )
 
     for line in lines:
         print(line)
 
 
-def promote_best_run(project_dir: Path, run_name: str, projects_dir: Path, file_format: str = "json") -> dict[str, Any]:
+def promote_best_run(
+    project_dir: Path, run_name: str, projects_dir: Path, file_format: str = "json"
+) -> dict[str, Any]:
     project_manifest = load_project_manifest(project_dir)
     candidate = next(
-        (item for item in project_manifest.get("run_candidates", []) if item.get("run_name") == run_name),
+        (
+            item
+            for item in project_manifest.get("run_candidates", [])
+            if item.get("run_name") == run_name
+        ),
         None,
     )
     if candidate is None:
@@ -1245,14 +1534,18 @@ def promote_best_run(project_dir: Path, run_name: str, projects_dir: Path, file_
         ),
     }
     project_manifest["best_run"] = best_run
-    save_project_manifest(projects_dir, project_manifest["project_id"], project_manifest, file_format)
+    save_project_manifest(
+        projects_dir, project_manifest["project_id"], project_manifest, file_format
+    )
     comparison_summary = _build_run_comparison_summary(
         project_layout={
             "project_id": project_manifest["project_id"],
             "project_slug": project_manifest["project_slug"],
         },
         current_run_name=project_manifest.get("current_run", {}).get("name", ""),
-        current_output_dir=Path(project_manifest.get("current_run", {}).get("output_dir", "")),
+        current_output_dir=Path(
+            project_manifest.get("current_run", {}).get("output_dir", "")
+        ),
         run_candidates=project_manifest.get("run_candidates", []),
         best_run=best_run,
     )
@@ -1271,17 +1564,33 @@ def main(argv: list[str] | None = None) -> int:
             output_dir = project_layout["run_dir"]
         story_input = build_story_input_from_args(parser, args)
         artifacts = run_pipeline(args, output_dir, story_input=story_input)
-        save_project_state(project_layout, Path(args.projects_dir), args.project_id, output_dir, args.format)
+        save_project_state(
+            project_layout,
+            Path(args.projects_dir),
+            args.project_id,
+            output_dir,
+            args.format,
+        )
         project_manifest = load_project_manifest(project_layout["project_dir"])
         print_run_summary(artifacts, output_dir, project_manifest)
         return 0
 
     if args.command == "resume-project":
-        project_layout, output_dir = load_project_run_context(Path(args.projects_dir), args.project_id)
+        project_layout, output_dir = load_project_run_context(
+            Path(args.projects_dir), args.project_id
+        )
         project_manifest = load_project_manifest(project_layout["project_dir"])
         _enforce_resume_project_review_gate(project_manifest, output_dir)
-        artifacts = run_pipeline(args, output_dir, resume_from=output_dir, rerun_from=args.rerun_from)
-        save_project_state(project_layout, Path(args.projects_dir), args.project_id, output_dir, args.format)
+        artifacts = run_pipeline(
+            args, output_dir, resume_from=output_dir, rerun_from=args.rerun_from
+        )
+        save_project_state(
+            project_layout,
+            Path(args.projects_dir),
+            args.project_id,
+            output_dir,
+            args.format,
+        )
         project_manifest = load_project_manifest(project_layout["project_dir"])
         print_run_summary(artifacts, output_dir, project_manifest)
         return 0
@@ -1289,13 +1598,17 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "show-project-status":
         project_layout = build_project_layout(Path(args.projects_dir), args.project_id)
         project_manifest = load_project_manifest(project_layout["project_dir"])
-        print_project_status(project_manifest, reason_detail_mode=args.reason_detail_mode)
+        print_project_status(
+            project_manifest, reason_detail_mode=args.reason_detail_mode
+        )
         return 0
 
     if args.command == "show-run-comparison":
         project_layout = build_project_layout(Path(args.projects_dir), args.project_id)
         summary_artifact = load_run_comparison_summary(project_layout["project_dir"])
-        print_run_comparison(summary_artifact, reason_detail_mode=args.reason_detail_mode)
+        print_run_comparison(
+            summary_artifact, reason_detail_mode=args.reason_detail_mode
+        )
         return 0
 
     if args.command == "select-best-run":
@@ -1309,14 +1622,24 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "rerun-chapter":
-        project_layout, output_dir = load_project_run_context(Path(args.projects_dir), args.project_id)
+        project_layout, output_dir = load_project_run_context(
+            Path(args.projects_dir), args.project_id
+        )
         artifacts = rerun_project_chapter(args, output_dir)
-        save_project_state(project_layout, Path(args.projects_dir), args.project_id, output_dir, args.format)
+        save_project_state(
+            project_layout,
+            Path(args.projects_dir),
+            args.project_id,
+            output_dir,
+            args.format,
+        )
         project_manifest = load_project_manifest(project_layout["project_dir"])
         print_run_summary(artifacts, output_dir, project_manifest)
         return 0
 
-    resume_from = Path(args.resume_from_output_dir) if args.resume_from_output_dir else None
+    resume_from = (
+        Path(args.resume_from_output_dir) if args.resume_from_output_dir else None
+    )
     if args.rerun_from and resume_from is None:
         parser.error("--rerun-from requires --resume-from-output-dir.")
 
@@ -1341,10 +1664,26 @@ def main(argv: list[str] | None = None) -> int:
     elif project_layout is not None and args.output_dir == DEFAULT_OUTPUT_DIR:
         output_dir = project_layout["run_dir"]
 
-    artifacts = run_pipeline(args, output_dir, story_input=story_input, resume_from=resume_from, rerun_from=args.rerun_from)
+    artifacts = run_pipeline(
+        args,
+        output_dir,
+        story_input=story_input,
+        resume_from=resume_from,
+        rerun_from=args.rerun_from,
+    )
     if project_layout is not None:
-        save_project_state(project_layout, Path(args.projects_dir), args.project_id, output_dir, args.format)
-    project_manifest = load_project_manifest(project_layout["project_dir"]) if project_layout is not None else None
+        save_project_state(
+            project_layout,
+            Path(args.projects_dir),
+            args.project_id,
+            output_dir,
+            args.format,
+        )
+    project_manifest = (
+        load_project_manifest(project_layout["project_dir"])
+        if project_layout is not None
+        else None
+    )
     print_run_summary(artifacts, output_dir, project_manifest)
     return 0
 
