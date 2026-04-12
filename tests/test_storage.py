@@ -1031,6 +1031,15 @@ class SaveArtifactTest(unittest.TestCase):
                     },
                     "issue_codes": [],
                     "recommended_action": "continue",
+                    "story_state_summary": {
+                        "evaluated_through_chapter": 5,
+                        "canon_chapter_count": 5,
+                        "thread_count": 0,
+                        "unresolved_thread_count": 0,
+                        "resolved_thread_count": 0,
+                        "open_question_count": 0,
+                        "latest_timeline_event_count": 0,
+                    },
                 },
             )
 
