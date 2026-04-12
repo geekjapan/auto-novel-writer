@@ -5,14 +5,13 @@
 
 ## In Progress
 
-- [ ] M66a: carry shared story_state_summary into next_action_decision and replan history
-
 ## Ready
 
 ## Done
 
 ### Recent completions
 
+- [x] M66a: carry shared story_state_summary into next_action_decision and replan history
 - [x] M65b: add shared story_state_summary to progress_report and publish bundle
 - [x] M65a: add unresolved thread snapshots to chapter_handoff_packet
 
