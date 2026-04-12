@@ -13,6 +13,7 @@ from novel_writer.schema import (
     build_publish_ready_bundle_summary,
     comparison_reason_detail_codes,
     project_manifest_contract,
+    validate_next_action_decision,
     validate_publish_ready_bundle,
 )
 from novel_writer.storage import (
@@ -278,14 +279,42 @@ def _build_manual_review_gate(project_manifest: dict[str, Any], output_dir: Path
     if project_manifest.get("autonomy_level") != "manual":
         return None
 
-    try:
-        next_action_decision = load_next_action_decision(output_dir)
-    except FileNotFoundError:
+    next_action_decision = _load_next_action_decision_for_status(output_dir)
+    if next_action_decision is None:
         return None
 
     if next_action_decision.get("action") == "stop_for_review":
         return {"reason": "stop_for_review"}
     return None
+
+
+def _load_next_action_decision_for_status(output_dir: Path) -> dict[str, Any] | None:
+    """read-only の status/manual gate 用に legacy next_action_decision を互換読み込みする。"""
+    try:
+        return load_next_action_decision(output_dir)
+    except FileNotFoundError:
+        return None
+    except ValueError as strict_error:
+        if "missing required fields: story_state_summary" not in str(strict_error):
+            raise
+
+        raw_payload = load_artifact(output_dir, "next_action_decision")
+        if not isinstance(raw_payload, dict) or "story_state_summary" in raw_payload:
+            raise
+
+        compatibility_payload = dict(raw_payload)
+        compatibility_payload["story_state_summary"] = {
+            "evaluated_through_chapter": 0,
+            "canon_chapter_count": 0,
+            "thread_count": 0,
+            "unresolved_thread_count": 0,
+            "resolved_thread_count": 0,
+            "open_question_count": 0,
+            "latest_timeline_event_count": 0,
+        }
+        validate_next_action_decision(compatibility_payload)
+
+        return raw_payload
 
 
 def _build_project_resume_gate_summary(
@@ -622,6 +651,18 @@ def _build_publish_bundle_summary_lines(payload: dict[str, Any]) -> list[str]:
             f"seeded_count={thread_summary.get('seeded_thread_count', 0)}, "
             f"progressed_count={thread_summary.get('progressed_thread_count', 0)}"
         )
+    story_state_summary = summary.get("story_state_summary", {})
+    if isinstance(story_state_summary, dict) and story_state_summary:
+        lines.append(
+            "publish_bundle.story_state_summary: "
+            f"evaluated_through_chapter={story_state_summary.get('evaluated_through_chapter', 0)}, "
+            f"canon_chapter_count={story_state_summary.get('canon_chapter_count', 0)}, "
+            f"thread_count={story_state_summary.get('thread_count', 0)}, "
+            f"unresolved_count={story_state_summary.get('unresolved_thread_count', 0)}, "
+            f"resolved_count={story_state_summary.get('resolved_thread_count', 0)}, "
+            f"open_question_count={story_state_summary.get('open_question_count', 0)}, "
+            f"latest_timeline_event_count={story_state_summary.get('latest_timeline_event_count', 0)}"
+        )
     handoff_summary = summary.get("handoff_summary", {})
     if isinstance(handoff_summary, dict) and handoff_summary:
         lines.append(
@@ -676,10 +717,7 @@ def _load_saved_publish_bundle_for_display(output_dir: Path) -> dict[str, Any]:
 
         patched_payload = dict(raw_payload)
         patched_payload["summary"] = build_publish_ready_bundle_summary(raw_payload)
-        try:
-            validate_publish_ready_bundle(patched_payload)
-        except ValueError:
-            raise strict_error
+        validate_publish_ready_bundle(patched_payload)
         return patched_payload
 
 
@@ -709,12 +747,14 @@ def build_project_status_summary(
             else None
         )
         resume_gate_line = _build_resume_gate_status_line(summary["autonomy_level"], current_output_dir)
+        saved_story_state_summary_line = _build_saved_story_state_summary_line(current_output_dir)
         summary["current_run"] = {
             "name": current_run.get("name", "unknown"),
             "output_dir": current_run.get("output_dir", "unknown"),
             "current_step": current_run.get("current_step", "unknown"),
             "completed_steps": comparison_metrics.get("completed_step_count", "n/a"),
             "resume_gate_line": resume_gate_line,
+            "saved_story_state_summary_line": saved_story_state_summary_line,
             "comparison_lines": _build_current_comparison_summary_lines(current_run, reason_detail_mode),
             "chapter_status_lines": _build_chapter_status_summary_lines(chapter_statuses),
             "long_run_status_lines": _build_long_run_status_lines(long_run_status),
@@ -763,6 +803,8 @@ def build_project_status_lines(project_manifest: dict[str, Any], reason_detail_m
         lines.append(f"  output_dir: {current_run['output_dir']}")
         if current_run["resume_gate_line"]:
             lines.append(current_run["resume_gate_line"])
+        if current_run["saved_story_state_summary_line"]:
+            lines.append(current_run["saved_story_state_summary_line"])
         lines.append(f"  current_step: {current_run['current_step']}")
         lines.append(f"  completed_steps: {current_run['completed_steps']}")
         lines.extend(current_run["comparison_lines"])
@@ -788,15 +830,38 @@ def _build_resume_gate_status_line(autonomy_level: str, output_dir: Any) -> str 
     if autonomy_level != "manual" or not output_dir:
         return None
 
-    try:
-        next_action_decision = load_next_action_decision(Path(output_dir))
-    except FileNotFoundError:
+    next_action_decision = _load_next_action_decision_for_status(Path(output_dir))
+    if next_action_decision is None:
         return None
 
     if next_action_decision.get("action") == "stop_for_review":
         return "  Resume gate: blocked_by_review (saved next_action_decision.action=stop_for_review)"
 
     return None
+
+
+def _build_saved_story_state_summary_line(output_dir: Any) -> str | None:
+    if not output_dir:
+        return None
+
+    next_action_decision = _load_next_action_decision_for_status(Path(output_dir))
+    if not next_action_decision:
+        return None
+
+    story_state_summary = next_action_decision.get("story_state_summary")
+    if not isinstance(story_state_summary, dict):
+        return None
+
+    return (
+        "  saved_story_state_summary: "
+        f"evaluated_through_chapter={story_state_summary.get('evaluated_through_chapter', 'n/a')}, "
+        f"canon_chapter_count={story_state_summary.get('canon_chapter_count', 'n/a')}, "
+        f"thread_count={story_state_summary.get('thread_count', 'n/a')}, "
+        f"unresolved_count={story_state_summary.get('unresolved_thread_count', 'n/a')}, "
+        f"resolved_count={story_state_summary.get('resolved_thread_count', 'n/a')}, "
+        f"open_question_count={story_state_summary.get('open_question_count', 'n/a')}, "
+        f"latest_timeline_event_count={story_state_summary.get('latest_timeline_event_count', 'n/a')}"
+    )
 
 
 def build_saved_run_comparison_summary(

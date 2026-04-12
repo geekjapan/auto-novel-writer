@@ -8,7 +8,10 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from novel_writer.cli import (
+    _build_resume_gate_status_line,
+    _build_saved_story_state_summary_line,
     _build_publish_bundle_summary_lines,
+    _build_saved_publish_bundle_summary_lines,
     build_project_status_lines,
     build_project_status_summary,
     build_saved_run_comparison_lines,
@@ -199,6 +202,15 @@ class CliTest(unittest.TestCase):
                     "schema_name": "next_action_decision",
                     "schema_version": "1.0",
                     "evaluated_through_chapter": 5,
+                    "story_state_summary": {
+                        "evaluated_through_chapter": 5,
+                        "canon_chapter_count": 5,
+                        "thread_count": 0,
+                        "unresolved_thread_count": 0,
+                        "resolved_thread_count": 0,
+                        "open_question_count": 0,
+                        "latest_timeline_event_count": 0,
+                    },
                     "action": "stop_for_review",
                     "reason": "manual review required",
                     "issue_codes": ["manual_review"],
@@ -468,6 +480,15 @@ class CliTest(unittest.TestCase):
                     "seeded_thread_count": 1,
                     "progressed_thread_count": 1,
                 },
+                "story_state_summary": {
+                    "evaluated_through_chapter": 4,
+                    "canon_chapter_count": 2,
+                    "thread_count": 3,
+                    "unresolved_thread_count": 2,
+                    "resolved_thread_count": 1,
+                    "open_question_count": 5,
+                    "latest_timeline_event_count": 7,
+                },
                 "handoff_summary": {
                     "title": "Saved Bundle Title",
                     "selected_logline_title": "",
@@ -490,6 +511,7 @@ class CliTest(unittest.TestCase):
                 "publish_bundle.source_artifact_names: story_summary.json, revised_chapter_{n}_draft.json",
                 "publish_bundle.story_bible_summary: core_premise=Saved premise, theme_statement=Saved theme, ending_reveal=Saved reveal",
                 "publish_bundle.thread_summary: thread_count=3, unresolved_count=2, resolved_count=0, seeded_count=1, progressed_count=1",
+                "publish_bundle.story_state_summary: evaluated_through_chapter=4, canon_chapter_count=2, thread_count=3, unresolved_count=2, resolved_count=1, open_question_count=5, latest_timeline_event_count=7",
                 "publish_bundle.handoff_summary: title=Saved Bundle Title, logline=, recommendation=unknown, issue_count=0, chapter_count=2",
             ],
         )
@@ -519,6 +541,37 @@ class CliTest(unittest.TestCase):
                 "publish_bundle.source_artifact_names: story_summary.json, project_quality_report.json",
             ],
         )
+
+    def test_build_saved_publish_bundle_summary_lines_surfaces_post_backfill_validation_error(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            output_dir = Path(tmp_dir)
+            save_artifact(
+                output_dir,
+                "publish_ready_bundle",
+                {
+                    "schema_version": "1.0",
+                    "bundle_type": "publish_ready_bundle",
+                    "title": "Legacy Bundle",
+                    "synopsis": "Legacy synopsis",
+                    "chapter_count": 2,
+                    "chapters": [],
+                    "story_summary": {},
+                    "overall_quality_report": {},
+                    "selected_logline": {},
+                    "source_artifacts": {},
+                    "sections": {
+                        "manuscript": {"field": "chapters"},
+                        "story_summary": {"field": "story_summary"},
+                        "quality": {"field": "wrong_field"},
+                    },
+                },
+            )
+
+            with self.assertRaisesRegex(
+                ValueError,
+                r"Invalid publish_ready_bundle: sections\.quality\.field='wrong_field' is not supported; expected 'overall_quality_report'\.",
+            ):
+                _build_saved_publish_bundle_summary_lines(output_dir)
 
     def test_print_run_summary_uses_saved_publish_bundle_summary(self) -> None:
         artifacts = SimpleNamespace(
@@ -556,6 +609,15 @@ class CliTest(unittest.TestCase):
                         "seeded_thread_count": 0,
                         "progressed_thread_count": 1,
                     },
+                    "story_state_summary": {
+                        "evaluated_through_chapter": 3,
+                        "canon_chapter_count": 2,
+                        "thread_count": 2,
+                        "unresolved_thread_count": 1,
+                        "resolved_thread_count": 1,
+                        "open_question_count": 1,
+                        "latest_timeline_event_count": 4,
+                    },
                     "handoff_summary": {
                         "title": "Saved Bundle Title",
                         "selected_logline_title": "Selected Logline",
@@ -583,6 +645,10 @@ class CliTest(unittest.TestCase):
         )
         self.assertIn(
             "publish_bundle.thread_summary: thread_count=2, unresolved_count=1, resolved_count=1, seeded_count=0, progressed_count=1",
+            output,
+        )
+        self.assertIn(
+            "publish_bundle.story_state_summary: evaluated_through_chapter=3, canon_chapter_count=2, thread_count=2, unresolved_count=1, resolved_count=1, open_question_count=1, latest_timeline_event_count=4",
             output,
         )
         self.assertIn(
@@ -923,6 +989,15 @@ class CliTest(unittest.TestCase):
                     "schema_name": "next_action_decision",
                     "schema_version": "1.0",
                     "evaluated_through_chapter": 5,
+                    "story_state_summary": {
+                        "evaluated_through_chapter": 5,
+                        "canon_chapter_count": 5,
+                        "thread_count": 0,
+                        "unresolved_thread_count": 0,
+                        "resolved_thread_count": 0,
+                        "open_question_count": 0,
+                        "latest_timeline_event_count": 0,
+                    },
                     "action": "stop_for_review",
                     "reason": "manual review required",
                     "issue_codes": ["manual_review"],
@@ -1595,11 +1670,28 @@ class CliTest(unittest.TestCase):
 
         with patch(
             "novel_writer.cli.load_next_action_decision",
-            return_value={"action": "stop_for_review"},
+            return_value={
+                "action": "stop_for_review",
+                "story_state_summary": {
+                    "evaluated_through_chapter": 3,
+                    "canon_chapter_count": 3,
+                    "thread_count": 4,
+                    "unresolved_thread_count": 2,
+                    "resolved_thread_count": 1,
+                    "open_question_count": 5,
+                    "latest_timeline_event_count": 2,
+                },
+            },
         ):
             lines = build_project_status_lines(project_manifest)
 
         self.assertIn("Resume gate: stop_for_review", lines)
+        self.assertIn(
+            "  saved_story_state_summary: "
+            "evaluated_through_chapter=3, canon_chapter_count=3, thread_count=4, "
+            "unresolved_count=2, resolved_count=1, open_question_count=5, latest_timeline_event_count=2",
+            lines,
+        )
 
     def test_build_project_status_lines_hides_gate_for_manual_non_blocking_next_action(self) -> None:
         project_manifest = {
@@ -1637,6 +1729,43 @@ class CliTest(unittest.TestCase):
             lines = build_project_status_lines(project_manifest)
 
         self.assertNotIn("Resume gate: stop_for_review", lines)
+
+    def test_build_project_status_lines_hides_saved_story_state_summary_when_next_action_has_no_summary(self) -> None:
+        project_manifest = {
+            "project_id": "Case 07",
+            "project_slug": "case-07",
+            "autonomy_level": "manual",
+            "current_run": {
+                "name": "latest_run",
+                "output_dir": "data/projects/case-07/runs/latest_run",
+                "current_step": "publish_ready_bundle",
+                "completed_steps": ["story_input"],
+                "chapter_statuses": [],
+                "long_run_status": {},
+                "comparison_basis": ["long_run_should_stop"],
+                "comparison_reason": [],
+                "comparison_metrics": {
+                    "total_issue_score": 2,
+                    "completed_step_count": 1,
+                    "long_run_should_stop": False,
+                },
+                "comparison_reason_details": [
+                    {"code": "long_run_should_stop", "value": False},
+                    {"code": "total_issue_score", "value": 2},
+                ],
+                "policy_snapshot": {"long_run": {"max_high_severity_chapters": 6, "max_total_rerun_attempts": 20}},
+            },
+            "best_run": {},
+            "run_candidates": [],
+        }
+
+        with patch(
+            "novel_writer.cli.load_next_action_decision",
+            return_value={"action": "continue"},
+        ):
+            lines = build_project_status_lines(project_manifest)
+
+        self.assertFalse(any(line.startswith("  saved_story_state_summary: ") for line in lines))
 
     def test_build_project_status_lines_hides_gate_for_assist_projects(self) -> None:
         project_manifest = {
@@ -1711,6 +1840,201 @@ class CliTest(unittest.TestCase):
             lines = build_project_status_lines(project_manifest)
 
         self.assertNotIn("Resume gate: stop_for_review", lines)
+
+    def test_build_resume_gate_status_line_uses_legacy_next_action_decision_without_story_state_summary(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            output_dir = Path(tmp_dir)
+            save_artifact(
+                output_dir,
+                "next_action_decision",
+                {
+                    "schema_name": "next_action_decision",
+                    "schema_version": "1.0",
+                    "evaluated_through_chapter": 3,
+                    "action": "stop_for_review",
+                    "reason": "manual review required",
+                    "issue_codes": ["manual_review"],
+                    "target_chapters": [],
+                    "policy_budget": {
+                        "max_high_severity_chapters": 0,
+                        "max_total_rerun_attempts": 0,
+                        "remaining_high_severity_chapter_budget": 0,
+                        "remaining_rerun_attempt_budget": 0,
+                    },
+                    "decision_trace": [
+                        {
+                            "code": "manual_review",
+                            "summary": "Manual review is required before continuing.",
+                            "value": "chapter-3",
+                        }
+                    ],
+                },
+            )
+
+            line = _build_resume_gate_status_line("manual", output_dir)
+
+        self.assertEqual(
+            line,
+            "  Resume gate: blocked_by_review (saved next_action_decision.action=stop_for_review)",
+        )
+
+    def test_build_saved_story_state_summary_line_uses_legacy_next_action_decision_without_story_state_summary(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            output_dir = Path(tmp_dir)
+            save_artifact(
+                output_dir,
+                "next_action_decision",
+                {
+                    "schema_name": "next_action_decision",
+                    "schema_version": "1.0",
+                    "evaluated_through_chapter": 3,
+                    "action": "stop_for_review",
+                    "reason": "manual review required",
+                    "issue_codes": ["manual_review"],
+                    "target_chapters": [],
+                    "policy_budget": {
+                        "max_high_severity_chapters": 0,
+                        "max_total_rerun_attempts": 0,
+                        "remaining_high_severity_chapter_budget": 0,
+                        "remaining_rerun_attempt_budget": 0,
+                    },
+                    "decision_trace": [
+                        {
+                            "code": "manual_review",
+                            "summary": "Manual review is required before continuing.",
+                            "value": "chapter-3",
+                        }
+                    ],
+                },
+            )
+
+            line = _build_saved_story_state_summary_line(output_dir)
+
+        self.assertIsNone(line)
+
+    def test_build_resume_gate_status_line_raises_for_invalid_legacy_next_action_decision(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            output_dir = Path(tmp_dir)
+            save_artifact(
+                output_dir,
+                "next_action_decision",
+                {
+                    "schema_name": "next_action_decision",
+                    "schema_version": "1.0",
+                    "evaluated_through_chapter": 3,
+                    "action": "invalid-action",
+                    "reason": "manual review required",
+                    "issue_codes": ["manual_review"],
+                    "target_chapters": [],
+                    "policy_budget": {
+                        "max_high_severity_chapters": 0,
+                        "max_total_rerun_attempts": 0,
+                        "remaining_high_severity_chapter_budget": 0,
+                        "remaining_rerun_attempt_budget": 0,
+                    },
+                    "decision_trace": [
+                        {
+                            "code": "manual_review",
+                            "summary": "Manual review is required before continuing.",
+                            "value": "chapter-3",
+                        }
+                    ],
+                },
+            )
+
+            with self.assertRaisesRegex(ValueError, "action must be one of"):
+                _build_resume_gate_status_line("manual", output_dir)
+
+    def test_build_resume_gate_status_line_surfaces_non_summary_validation_error_for_legacy_next_action(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            output_dir = Path(tmp_dir)
+            save_artifact(
+                output_dir,
+                "next_action_decision",
+                {
+                    "schema_name": "next_action_decision",
+                    "schema_version": "1.0",
+                    "evaluated_through_chapter": 3,
+                    "action": "invalid-action",
+                    "reason": "manual review required",
+                    "issue_codes": ["manual_review"],
+                    "target_chapters": [],
+                    "policy_budget": {
+                        "max_high_severity_chapters": 0,
+                        "max_total_rerun_attempts": 0,
+                        "remaining_high_severity_chapter_budget": 0,
+                        "remaining_rerun_attempt_budget": 0,
+                    },
+                    "decision_trace": [
+                        {
+                            "code": "manual_review",
+                            "summary": "Manual review is required before continuing.",
+                            "value": "chapter-3",
+                        }
+                    ],
+                },
+            )
+
+            with self.assertRaisesRegex(
+                ValueError,
+                "Invalid next_action_decision: action must be one of: continue, revise, rerun_chapter, replan_future, stop_for_review",
+            ):
+                _build_resume_gate_status_line("manual", output_dir)
+
+    def test_cli_resume_project_blocks_manual_legacy_stop_for_review_before_pipeline(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            project_dir = Path(tmp_dir) / "case-legacy"
+            run_dir = project_dir / "runs" / "latest_run"
+            run_dir.mkdir(parents=True)
+
+            save_artifact(
+                run_dir,
+                "next_action_decision",
+                {
+                    "schema_name": "next_action_decision",
+                    "schema_version": "1.0",
+                    "evaluated_through_chapter": 3,
+                    "action": "stop_for_review",
+                    "reason": "manual review required",
+                    "issue_codes": ["manual_review"],
+                    "target_chapters": [],
+                    "policy_budget": {
+                        "max_high_severity_chapters": 0,
+                        "max_total_rerun_attempts": 0,
+                        "remaining_high_severity_chapter_budget": 0,
+                        "remaining_rerun_attempt_budget": 0,
+                    },
+                    "decision_trace": [
+                        {
+                            "code": "manual_review",
+                            "summary": "Manual review is required before continuing.",
+                            "value": "chapter-3",
+                        }
+                    ],
+                },
+            )
+
+            with patch("novel_writer.cli.load_project_run_context", return_value=({"project_dir": project_dir}, run_dir)), patch(
+                "novel_writer.cli.load_project_manifest",
+                return_value={"autonomy_level": "manual"},
+            ), patch("novel_writer.cli.run_pipeline") as run_pipeline, patch(
+                "novel_writer.cli.save_project_state"
+            ), patch("novel_writer.cli.print_run_summary"):
+                with self.assertRaisesRegex(
+                    ValueError,
+                    "resume-project.*manual.*stop_for_review",
+                ):
+                    main(
+                        [
+                            "resume-project",
+                            "--project-id",
+                            "Case Legacy",
+                            "--projects-dir",
+                            tmp_dir,
+                        ]
+                    )
+
+            run_pipeline.assert_not_called()
 
     def test_build_run_comparison_summary_returns_render_ready_sections(self) -> None:
         summary_artifact = {
