@@ -62,6 +62,7 @@ novel-writer --resume-from-output-dir data/sample_run --rerun-from chapter_draft
 
 - 草稿と改稿稿
 - continuity / quality 系の確認結果
+- 評価と handoff に再利用できる story state summary
 - project / run の管理情報
 - 比較・選抜用の run summary
 - 公開用の bundle
