@@ -5,6 +5,8 @@
 
 ## In Progress
 
+- [ ] M66a: carry shared story_state_summary into next_action_decision and replan history
+
 ## Ready
 
 ## Done

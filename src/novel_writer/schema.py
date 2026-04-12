@@ -374,6 +374,7 @@ def next_action_decision_contract() -> dict:
             "schema_name",
             "schema_version",
             "evaluated_through_chapter",
+            "story_state_summary",
             "action",
             "reason",
             "issue_codes",
@@ -423,6 +424,7 @@ def replan_history_contract() -> dict:
             "trigger_chapter_number",
             "reason",
             "issue_codes",
+            "story_state_summary",
             "impact_scope",
             "updated_artifacts",
             "change_summary",
@@ -656,6 +658,12 @@ def validate_next_action_decision(payload: dict) -> dict:
         _validate_str_field(entry.get("code"), "next_action_decision", f"decision_trace[{index}].code")
         _validate_str_field(entry.get("summary"), "next_action_decision", f"decision_trace[{index}].summary")
 
+    _validate_story_state_summary(
+        payload.get("story_state_summary"),
+        "next_action_decision",
+        "story_state_summary",
+    )
+
     return payload
 
 
@@ -712,6 +720,11 @@ def validate_replan_entry(payload: dict, field_name: str = "replan") -> dict:
     )
     _validate_str_field(payload.get("reason"), "replan_history", f"{field_name}.reason")
     _validate_list_field(payload.get("issue_codes"), "replan_history", f"{field_name}.issue_codes")
+    _validate_story_state_summary(
+        payload.get("story_state_summary"),
+        "replan_history",
+        f"{field_name}.story_state_summary",
+    )
     _validate_list_field(payload.get("updated_artifacts"), "replan_history", f"{field_name}.updated_artifacts")
     _validate_list_field(payload.get("change_summary"), "replan_history", f"{field_name}.change_summary")
 

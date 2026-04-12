@@ -816,6 +816,15 @@ class SaveArtifactTest(unittest.TestCase):
             "schema_name": "next_action_decision",
             "schema_version": "1.0",
             "evaluated_through_chapter": 5,
+            "story_state_summary": {
+                "evaluated_through_chapter": 5,
+                "canon_chapter_count": 5,
+                "thread_count": 4,
+                "unresolved_thread_count": 2,
+                "resolved_thread_count": 1,
+                "open_question_count": 3,
+                "latest_timeline_event_count": 1,
+            },
             "action": "replan_future",
             "reason": "中盤停滞のため future chapter を再計画する",
             "issue_codes": ["escalation_pace_flat", "climax_readiness_low"],
@@ -847,6 +856,32 @@ class SaveArtifactTest(unittest.TestCase):
             self.assertEqual(target.name, "next_action_decision.json")
             self.assertEqual(loaded, payload)
 
+    def test_save_next_action_decision_requires_story_state_summary(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            with self.assertRaisesRegex(
+                ValueError,
+                "Invalid next_action_decision: missing required fields: story_state_summary",
+            ):
+                save_next_action_decision(
+                    Path(tmp_dir),
+                    {
+                        "schema_name": "next_action_decision",
+                        "schema_version": "1.0",
+                        "evaluated_through_chapter": 5,
+                        "action": "replan_future",
+                        "reason": "story_state_summary が未設定",
+                        "issue_codes": ["escalation_pace_flat"],
+                        "target_chapters": [6, 7, 8],
+                        "policy_budget": {
+                            "max_high_severity_chapters": 10,
+                            "max_total_rerun_attempts": 20,
+                            "remaining_high_severity_chapter_budget": 7,
+                            "remaining_rerun_attempt_budget": 14,
+                        },
+                        "decision_trace": [],
+                    },
+                )
+
     def test_save_next_action_decision_validates_allowed_action(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             with self.assertRaisesRegex(
@@ -859,6 +894,15 @@ class SaveArtifactTest(unittest.TestCase):
                         "schema_name": "next_action_decision",
                         "schema_version": "1.0",
                         "evaluated_through_chapter": 5,
+                        "story_state_summary": {
+                            "evaluated_through_chapter": 5,
+                            "canon_chapter_count": 5,
+                            "thread_count": 4,
+                            "unresolved_thread_count": 2,
+                            "resolved_thread_count": 1,
+                            "open_question_count": 3,
+                            "latest_timeline_event_count": 1,
+                        },
                         "action": "rerun",
                         "reason": "旧 action 名を使っている",
                         "issue_codes": [],
@@ -885,6 +929,15 @@ class SaveArtifactTest(unittest.TestCase):
                         "schema_name": "next_action_decision",
                         "schema_version": "1.0",
                         "evaluated_through_chapter": 5,
+                        "story_state_summary": {
+                            "evaluated_through_chapter": 5,
+                            "canon_chapter_count": 5,
+                            "thread_count": 4,
+                            "unresolved_thread_count": 2,
+                            "resolved_thread_count": 1,
+                            "open_question_count": 3,
+                            "latest_timeline_event_count": 1,
+                        },
                         "action": "replan_future",
                         "reason": "根拠を保存する",
                         "issue_codes": ["escalation_pace_flat"],
@@ -923,6 +976,15 @@ class SaveArtifactTest(unittest.TestCase):
                                 "schema_name": "next_action_decision",
                                 "schema_version": "1.0",
                                 "evaluated_through_chapter": 5,
+                                "story_state_summary": {
+                                    "evaluated_through_chapter": 5,
+                                    "canon_chapter_count": 5,
+                                    "thread_count": 4,
+                                    "unresolved_thread_count": 2,
+                                    "resolved_thread_count": 1,
+                                    "open_question_count": 3,
+                                    "latest_timeline_event_count": 1,
+                                },
                                 "action": action,
                                 "reason": "不要な target_chapters が入っている",
                                 "issue_codes": [],
@@ -956,6 +1018,15 @@ class SaveArtifactTest(unittest.TestCase):
                                 "schema_name": "next_action_decision",
                                 "schema_version": "1.0",
                                 "evaluated_through_chapter": 5,
+                                "story_state_summary": {
+                                    "evaluated_through_chapter": 5,
+                                    "canon_chapter_count": 5,
+                                    "thread_count": 4,
+                                    "unresolved_thread_count": 2,
+                                    "resolved_thread_count": 1,
+                                    "open_question_count": 3,
+                                    "latest_timeline_event_count": 1,
+                                },
                                 "action": action,
                                 "reason": "target chapter 数が不正である",
                                 "issue_codes": ["needs_followup"],
@@ -982,6 +1053,15 @@ class SaveArtifactTest(unittest.TestCase):
                         "schema_name": "next_action_decision",
                         "schema_version": "1.0",
                         "evaluated_through_chapter": 5,
+                        "story_state_summary": {
+                            "evaluated_through_chapter": 5,
+                            "canon_chapter_count": 5,
+                            "thread_count": 4,
+                            "unresolved_thread_count": 2,
+                            "resolved_thread_count": 1,
+                            "open_question_count": 3,
+                            "latest_timeline_event_count": 1,
+                        },
                         "action": "replan_future",
                         "reason": "future chapter が指定されていない",
                         "issue_codes": ["escalation_pace_flat"],
@@ -1059,6 +1139,15 @@ class SaveArtifactTest(unittest.TestCase):
                     "trigger_chapter_number": 5,
                     "reason": "progress_report が中盤停滞を示したため",
                     "issue_codes": ["escalation_pace_flat", "climax_readiness_low"],
+                    "story_state_summary": {
+                        "evaluated_through_chapter": 5,
+                        "canon_chapter_count": 5,
+                        "thread_count": 4,
+                        "unresolved_thread_count": 2,
+                        "resolved_thread_count": 1,
+                        "open_question_count": 3,
+                        "latest_timeline_event_count": 1,
+                    },
                     "impact_scope": {
                         "from_chapter": 6,
                         "to_chapter": 8,
@@ -1105,6 +1194,15 @@ class SaveArtifactTest(unittest.TestCase):
                             "trigger_chapter_number": 5,
                             "reason": "理由",
                             "issue_codes": ["code-1"],
+                            "story_state_summary": {
+                                "evaluated_through_chapter": 5,
+                                "canon_chapter_count": 5,
+                                "thread_count": 4,
+                                "unresolved_thread_count": 2,
+                                "resolved_thread_count": 1,
+                                "open_question_count": 3,
+                                "latest_timeline_event_count": 1,
+                            },
                             "impact_scope": {
                                 "from_chapter": 6,
                                 "chapter_numbers": [6, 7],
@@ -1122,12 +1220,53 @@ class SaveArtifactTest(unittest.TestCase):
             ):
                 load_replan_history(Path(tmp_dir))
 
+    def test_load_replan_history_rejects_missing_story_state_summary(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            save_artifact(
+                Path(tmp_dir),
+                "replan_history",
+                {
+                    "schema_name": "replan_history",
+                    "schema_version": "1.0",
+                    "replans": [
+                        {
+                            "replan_id": "replan-001",
+                            "trigger_chapter_number": 5,
+                            "reason": "理由",
+                            "issue_codes": ["code-1"],
+                            "impact_scope": {
+                                "from_chapter": 6,
+                                "to_chapter": 7,
+                                "chapter_numbers": [6, 7],
+                            },
+                            "updated_artifacts": ["chapter_briefs"],
+                            "change_summary": ["差分"],
+                        }
+                    ],
+                },
+            )
+
+            with self.assertRaisesRegex(
+                ValueError,
+                "Invalid replan_history: replans\\[0\\] is missing required fields: story_state_summary",
+            ):
+                load_replan_history(Path(tmp_dir))
+
     def test_upsert_replan_history_entry_creates_new_history_when_missing(self) -> None:
         entry = {
             "replan_id": "replan-001",
             "trigger_chapter_number": 5,
             "reason": "理由",
             "issue_codes": ["code-1"],
+            "story_state_summary": {
+                "evaluated_through_chapter": 5,
+                "canon_chapter_count": 5,
+                "thread_count": 4,
+                "unresolved_thread_count": 2,
+                "resolved_thread_count": 1,
+                "open_question_count": 3,
+                "latest_timeline_event_count": 1,
+            },
             "impact_scope": {"from_chapter": 6, "to_chapter": 7, "chapter_numbers": [6, 7]},
             "updated_artifacts": ["chapter_briefs"],
             "change_summary": ["差分"],
@@ -1153,6 +1292,15 @@ class SaveArtifactTest(unittest.TestCase):
                             "trigger_chapter_number": 5,
                             "reason": "理由1",
                             "issue_codes": ["code-1"],
+                            "story_state_summary": {
+                                "evaluated_through_chapter": 5,
+                                "canon_chapter_count": 5,
+                                "thread_count": 4,
+                                "unresolved_thread_count": 2,
+                                "resolved_thread_count": 1,
+                                "open_question_count": 3,
+                                "latest_timeline_event_count": 1,
+                            },
                             "impact_scope": {"from_chapter": 6, "to_chapter": 7, "chapter_numbers": [6, 7]},
                             "updated_artifacts": ["chapter_briefs"],
                             "change_summary": ["差分1"],
@@ -1168,6 +1316,15 @@ class SaveArtifactTest(unittest.TestCase):
                     "trigger_chapter_number": 7,
                     "reason": "理由2",
                     "issue_codes": ["code-2"],
+                    "story_state_summary": {
+                        "evaluated_through_chapter": 7,
+                        "canon_chapter_count": 7,
+                        "thread_count": 4,
+                        "unresolved_thread_count": 2,
+                        "resolved_thread_count": 1,
+                        "open_question_count": 3,
+                        "latest_timeline_event_count": 1,
+                    },
                     "impact_scope": {"from_chapter": 8, "to_chapter": 9, "chapter_numbers": [8, 9]},
                     "updated_artifacts": ["scene_cards"],
                     "change_summary": ["差分2"],
@@ -1190,6 +1347,15 @@ class SaveArtifactTest(unittest.TestCase):
                             "trigger_chapter_number": 5,
                             "reason": "古い理由",
                             "issue_codes": ["code-1"],
+                            "story_state_summary": {
+                                "evaluated_through_chapter": 5,
+                                "canon_chapter_count": 5,
+                                "thread_count": 4,
+                                "unresolved_thread_count": 2,
+                                "resolved_thread_count": 1,
+                                "open_question_count": 3,
+                                "latest_timeline_event_count": 1,
+                            },
                             "impact_scope": {"from_chapter": 6, "to_chapter": 7, "chapter_numbers": [6, 7]},
                             "updated_artifacts": ["chapter_briefs"],
                             "change_summary": ["古い差分"],
@@ -1205,6 +1371,15 @@ class SaveArtifactTest(unittest.TestCase):
                     "trigger_chapter_number": 5,
                     "reason": "新しい理由",
                     "issue_codes": ["code-1", "code-2"],
+                    "story_state_summary": {
+                        "evaluated_through_chapter": 5,
+                        "canon_chapter_count": 5,
+                        "thread_count": 4,
+                        "unresolved_thread_count": 2,
+                        "resolved_thread_count": 1,
+                        "open_question_count": 3,
+                        "latest_timeline_event_count": 1,
+                    },
                     "impact_scope": {"from_chapter": 6, "to_chapter": 8, "chapter_numbers": [6, 7, 8]},
                     "updated_artifacts": ["chapter_briefs", "scene_cards"],
                     "change_summary": ["新しい差分"],
