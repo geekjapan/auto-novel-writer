@@ -60,61 +60,65 @@ CLI から小説プロジェクトを作成し、長編小説を
 
 ## Remaining Roadmap
 
-### M63. 自律実行ポリシーを完成させる
+### M68–M70. 自律継続ループを固定する
 
 目的:
-project-level の運用方針を、続行・改稿・再実行・再計画・停止の制御へ一貫して結び付ける。
+`TASKS.md` の queue 補充、停止記録、autonomy level と workflow の接続を整理し、
+「次に何をやるか」で止まりにくい運転ルールを固定する。
 
 完了条件:
 
-- project-level `autonomy_level` が project の制御判断に反映される
-- `manual` / `assist` / `auto` の差が behavior / control として一貫する
+- `Ready` が空のときの最小子 task 補充ルールを説明できる
+- `BLOCKED.md` の停止記録粒度が一定になる
+- `manual` / `assist` / `auto` の差を workflow として説明できる
 
-### M64. 長編 publish bundle を強化する
+### M71–M75. Story State の共有断面を広げる
 
 目的:
-完成原稿を、編集・レビュー・再生成に使える成果物束へ広げる。
+resume / rerun / comparison / publish で使う最小 story-state を揃え、
+長編途中でも文脈を再利用しやすくする。
 
 完了条件:
 
-- 編集、レビュー、再生成に使える成果物束になる
-- 長編進捗を比較しやすくなる
+- 再開判断に必要な story-state が各 saved artifact で揃う
+- view 間の story-state 表示がより一貫する
 
-### M65. Story State をさらに深める
+### M76–M80. 次アクション自動判断を強化する
 
 目的:
-長編の途中で積み上がる事実と状態を、より再利用しやすい形へ育てる。
+continue / revise / rerun / stop_for_review の判断を、
+saved decision と project autonomy policy からより説明しやすくする。
 
 完了条件:
 
-- 章をまたぐ参照性がさらに高まる
-- 状態の再利用が長編全体で安定する
+- action 選択理由を artifact から説明できる
+- `resume-project` と rerun 判断の一貫性が上がる
 
-### M66. Evaluation をさらに深める
+### M81–M86. 長編安定運用を強化する
 
 目的:
-長編特有の崩れを、より早く、より明確に見つけられるようにする。
+chapter 間依存、thread 回収、replan を強化し、中盤以降で崩れにくくする。
 
 完了条件:
 
-- 長編の失速や偏りを検知しやすくなる
-- 再実行と再計画の判断がより明確になる
+- 長編の再計画で持ち直しやすくなる
+- 中盤以降の崩れを早めに検知しやすくなる
 
-### M67. Operational 能力を強化する
+### M87–M90. 選抜・公開ワークフローを完成させる
 
 目的:
-運用中の状況把握と復旧を、読みやすく扱いやすい形へ整える。
+生成、比較、採用、公開準備までの実務フローを閉じる。
 
 完了条件:
 
-- 状態確認と比較がしやすくなる
-- 長編運用の見通しがよくなる
+- best run の選抜根拠が整理される
+- publish bundle が公開候補判断に使いやすくなる
 
 ## Sequencing Rationale
 
-- まず M63 で自律判断の軸を固める
-- 次に M64 で成果物束を広げる
-- その後は Story State、Evaluation、Operational の順に長編運用を厚くする
+- まず M68〜M70 で「止まりにくい運転ルール」を固定する
+- 次に M71〜M75 と M76〜M80 で story state と next action decision を強化する
+- その後 M81〜M86 で長編安定運用を厚くし、M87〜M90 で選抜・公開まで閉じる
 
 ## Roadmap Notes
 

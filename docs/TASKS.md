@@ -5,11 +5,31 @@
 
 ## In Progress
 
+- [ ] M71a: Story State 共有断面の docs 参照面を comparison / status / publish で整理する
+
 ## Ready
+
+- [ ] M71b: Story State 共有断面の source-of-truth を ROADMAP / guide / README で揃える
+
 
 ## Done
 
 ### Recent completions
+
+- [x] M70c: action / reason / decision_trace と comparison reason_detail の docs 用語を分離する
+- [x] M70b: saved next_action_decision の read-only view と docs wording を揃える
+- [x] M70a: next_action_decision の action reason と autonomy policy の docs 棚卸しを始める
+- [x] M69e: story_state_summary の docs 用語を publish bundle summary label と照合する
+- [x] M69d: story_state_summary の docs 用語を status / comparison helper 名と照合する
+- [x] M69c: status / comparison / publish で参照する story_state_summary の docs 用語を揃える
+- [x] M69b: story_state_summary の source of truth と read-only consumer の wording を README / guide で揃える
+- [x] M69a: story_state_summary の保存タイミングと参照面を docs 上で棚卸しする
+- [x] M68f: README / AGENTS / workflow の read order と docs roles を微調整する
+- [x] M68e: AGENTS / workflow / guide の docs 参照差分を整理する
+- [x] M68d: DEVELOPMENT_GUIDE に long-running autonomy の再計画基準と既定実行方式を同期する
+- [x] M68c: `ROADMAP.md` に M68〜M90 の wording を反映する
+- [x] M68b: `BLOCKED.md` を long-running autonomy 向けテンプレートへ更新する
+- [x] M68a: long-running autonomy workflow の replan / stop ルールを docs で固定する
 
 - [x] M67b: lock legacy publish bundle story_state_summary backfill in read-only CLI tests
 - [x] M67a: surface saved decision snapshot in best-run and run comparison views
