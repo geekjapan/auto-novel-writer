@@ -134,12 +134,45 @@ class OpenAIClient(BaseLLMClient):
             "Return JSON with key 'loglines' as an array of 3 items. " + self._story_context(story_input),
         )
         root = self._require_dict(data, "loglines root")
-        return self._require_object_list(
-            root.get("loglines"),
-            "loglines",
-            ("id", "title", "premise", "hook"),
-            expected_length=3,
-        )
+        raw_loglines = self._require_list(root.get("loglines"), "loglines")
+        if len(raw_loglines) != 3:
+            raise ValueError("OpenAI response for loglines must contain 3 items.")
+
+        normalized_loglines: list[dict[str, Any]] = []
+        for index, item in enumerate(raw_loglines):
+            label = f"loglines[{index}]"
+            if isinstance(item, str):
+                text = item.strip()
+                if not text:
+                    raise ValueError(f"OpenAI response for {label} must not be empty.")
+                normalized_loglines.append(
+                    {
+                        "id": f"logline-{index + 1}",
+                        "title": text,
+                        "premise": text,
+                        "hook": text,
+                    }
+                )
+                continue
+
+            logline = self._require_dict(item, label)
+            title = logline.get("title")
+            if not isinstance(title, str) or not title.strip():
+                raise ValueError(f"OpenAI response for {label}.title must be a non-empty string.")
+            logline_id = logline.get("id")
+            if not isinstance(logline_id, str) or not logline_id.strip():
+                logline_id = f"logline-{index + 1}"
+
+            premise = logline.get("premise")
+            if not isinstance(premise, str) or not premise.strip():
+                premise = title
+
+            hook = logline.get("hook")
+            if not isinstance(hook, str) or not hook.strip():
+                hook = title
+
+            normalized_loglines.append({"id": logline_id, "title": title, "premise": premise, "hook": hook})
+        return normalized_loglines
 
     def generate_characters(self, story_input: StoryInput, logline: dict[str, Any]) -> list[dict[str, Any]]:
         data = self._generate_json(
@@ -150,12 +183,54 @@ class OpenAIClient(BaseLLMClient):
             ),
         )
         root = self._require_dict(data, "characters root")
-        return self._require_object_list(
-            root.get("characters"),
-            "characters",
-            ("name", "role", "goal", "conflict", "arc"),
-            expected_length=3,
-        )
+        raw_characters = self._require_list(root.get("characters"), "characters")
+        if len(raw_characters) != 3:
+            raise ValueError("OpenAI response for characters must contain 3 items.")
+
+        normalized_characters: list[dict[str, Any]] = []
+        for index, item in enumerate(raw_characters):
+            label = f"characters[{index}]"
+            if isinstance(item, str):
+                name = item.strip()
+                if not name:
+                    raise ValueError(f"OpenAI response for {label} must not be empty.")
+                normalized_characters.append(
+                    {
+                        "name": name,
+                        "role": "unknown",
+                        "goal": "",
+                        "conflict": "",
+                        "arc": "",
+                    }
+                )
+                continue
+
+            character = self._require_dict(item, label)
+            name = character.get("name") or character.get("character_name")
+            if not isinstance(name, str) or not name.strip():
+                raise ValueError(f"OpenAI response for {label}.name must be a non-empty string.")
+
+            role = character.get("role")
+            if not isinstance(role, str) or not role.strip():
+                role = "unknown"
+
+            goal = character.get("goal")
+            if not isinstance(goal, str):
+                goal = ""
+
+            conflict = character.get("conflict")
+            if not isinstance(conflict, str):
+                conflict = ""
+
+            arc = character.get("arc")
+            if not isinstance(arc, str):
+                arc = ""
+
+            normalized_characters.append(
+                {"name": name, "role": role, "goal": goal, "conflict": conflict, "arc": arc}
+            )
+
+        return normalized_characters
 
     def generate_three_act_plot(
         self,

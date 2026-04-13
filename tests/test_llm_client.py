@@ -491,12 +491,75 @@ class MockLLMClientTest(unittest.TestCase):
                 chapter_index=1,
             )
 
-    def test_openai_client_validates_logline_schema(self) -> None:
-        client = FakeOpenAIClient({"loglines": [{"id": "1", "title": "t"}]})
+    def test_openai_client_accepts_logline_string_items(self) -> None:
+        client = FakeOpenAIClient({"loglines": ["喪失の雨", "鏡の街", "終わらない手紙"]})
         story_input = StoryInput(theme="喪失", genre="ミステリ", tone="静謐", target_length=6000)
 
-        with self.assertRaises(ValueError):
-            client.generate_loglines(story_input)
+        loglines = client.generate_loglines(story_input)
+
+        self.assertEqual(loglines[0]["id"], "logline-1")
+        self.assertEqual(loglines[0]["title"], "喪失の雨")
+        self.assertEqual(loglines[0]["premise"], "喪失の雨")
+        self.assertEqual(loglines[0]["hook"], "喪失の雨")
+
+    def test_openai_client_fills_missing_optional_logline_fields(self) -> None:
+        client = FakeOpenAIClient(
+            {
+                "loglines": [
+                    {"title": "鏡の街"},
+                    {"id": "x2", "title": "終わらない手紙", "premise": "p2"},
+                    {"id": "x3", "title": "喪失の雨", "hook": "h3"},
+                ]
+            }
+        )
+        story_input = StoryInput(theme="喪失", genre="ミステリ", tone="静謐", target_length=6000)
+
+        loglines = client.generate_loglines(story_input)
+
+        self.assertEqual(loglines[0]["id"], "logline-1")
+        self.assertEqual(loglines[1]["premise"], "p2")
+        self.assertEqual(loglines[1]["hook"], "終わらない手紙")
+        self.assertEqual(loglines[2]["premise"], "喪失の雨")
+        self.assertEqual(loglines[2]["hook"], "h3")
+
+    def test_openai_client_accepts_character_string_items(self) -> None:
+        client = FakeOpenAIClient({"characters": ["篠崎 遥", "藤堂 慧", "霧島 凛"]})
+        story_input = StoryInput(theme="喪失", genre="ミステリ", tone="静謐", target_length=6000)
+
+        characters = client.generate_characters(
+            story_input,
+            {"id": "logline-1", "title": "鏡", "premise": "p", "hook": "h"},
+        )
+
+        self.assertEqual(characters[0]["name"], "篠崎 遥")
+        self.assertEqual(characters[0]["role"], "unknown")
+        self.assertEqual(characters[0]["goal"], "")
+        self.assertEqual(characters[0]["conflict"], "")
+        self.assertEqual(characters[0]["arc"], "")
+
+    def test_openai_client_accepts_character_name_alias_and_fills_optionals(self) -> None:
+        client = FakeOpenAIClient(
+            {
+                "characters": [
+                    {"character_name": "篠崎 遥"},
+                    {"name": "藤堂 慧", "role": "detective", "goal": "真相解明"},
+                    {"name": "霧島 凛", "conflict": "記憶障害", "arc": "受容"},
+                ]
+            }
+        )
+        story_input = StoryInput(theme="喪失", genre="ミステリ", tone="静謐", target_length=6000)
+
+        characters = client.generate_characters(
+            story_input,
+            {"id": "logline-1", "title": "鏡", "premise": "p", "hook": "h"},
+        )
+
+        self.assertEqual(characters[0]["name"], "篠崎 遥")
+        self.assertEqual(characters[0]["role"], "unknown")
+        self.assertEqual(characters[1]["role"], "detective")
+        self.assertEqual(characters[1]["goal"], "真相解明")
+        self.assertEqual(characters[2]["conflict"], "記憶障害")
+        self.assertEqual(characters[2]["arc"], "受容")
 
     def test_openai_client_accepts_chapter_draft_compatibility_key(self) -> None:
         client = FakeOpenAIClient(
