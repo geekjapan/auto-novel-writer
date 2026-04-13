@@ -105,17 +105,35 @@ class OpenAIClient(BaseLLMClient):
         label: str,
         required_keys: tuple[str, ...],
         expected_length: int | None = None,
+        key_aliases: dict[str, tuple[str, ...]] | None = None,
     ) -> list[dict[str, Any]]:
         items = self._require_list(payload, label)
         if expected_length is not None and len(items) != expected_length:
             raise ValueError(f"OpenAI response for {label} must contain {expected_length} items.")
+        normalized_items: list[dict[str, Any]] = []
         for index, item in enumerate(items):
-            self._require_required_keys(
+            normalized_item = self._normalize_object_keys(
                 self._require_dict(item, f"{label}[{index}]"),
-                f"{label}[{index}]",
-                required_keys,
+                key_aliases or {},
             )
-        return items
+            self._require_required_keys(normalized_item, f"{label}[{index}]", required_keys)
+            normalized_items.append(normalized_item)
+        return normalized_items
+
+    def _normalize_object_keys(
+        self,
+        payload: dict[str, Any],
+        key_aliases: dict[str, tuple[str, ...]],
+    ) -> dict[str, Any]:
+        normalized = dict(payload)
+        for canonical_key, aliases in key_aliases.items():
+            if canonical_key in normalized:
+                continue
+            for alias in aliases:
+                if alias in payload:
+                    normalized[canonical_key] = payload[alias]
+                    break
+        return normalized
 
     def _require_required_keys(
         self,
@@ -188,6 +206,13 @@ class OpenAIClient(BaseLLMClient):
             "characters",
             ("name", "role", "goal", "conflict", "arc"),
             expected_length=3,
+            key_aliases={
+                "name": ("名前",),
+                "role": ("役割",),
+                "goal": ("目標",),
+                "conflict": ("葛藤",),
+                "arc": ("成長", "変化", "アーク"),
+            },
         )
 
     def generate_three_act_plot(

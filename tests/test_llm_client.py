@@ -608,6 +608,27 @@ class MockLLMClientTest(unittest.TestCase):
         self.assertEqual(chapter_draft["chapter_number"], 1)
         self.assertEqual(chapter_draft["title"], "第1章 導入")
 
+    def test_openai_client_accepts_japanese_character_keys(self) -> None:
+        client = FakeOpenAIClient(
+            {
+                "characters": [
+                    {"名前": "篠崎 遥", "役割": "主人公", "目標": "真相を暴く", "葛藤": "過去を直視できない", "成長": "喪失を受容する"},
+                    {"名前": "九条 凛", "役割": "協力者", "目標": "主人公を支える", "葛藤": "信頼と秘密の板挟み", "変化": "秘密を明かす"},
+                    {"名前": "白峰", "役割": "敵対者", "目標": "境界を守る", "葛藤": "信念と良心の衝突", "アーク": "退場時に揺らぐ"},
+                ]
+            }
+        )
+        story_input = StoryInput(theme="境界", genre="SF", tone="ビター", target_length=5000)
+
+        characters = client.generate_characters(
+            story_input,
+            {"id": "logline-1", "title": "鏡", "premise": "p", "hook": "h"},
+        )
+
+        self.assertEqual(characters[0]["name"], "篠崎 遥")
+        self.assertEqual(characters[1]["arc"], "秘密を明かす")
+        self.assertEqual(characters[2]["arc"], "退場時に揺らぐ")
+
     def test_openai_client_validates_revised_draft_notes_type(self) -> None:
         client = FakeOpenAIClient(
             {
