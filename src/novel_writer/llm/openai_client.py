@@ -134,12 +134,45 @@ class OpenAIClient(BaseLLMClient):
             "Return JSON with key 'loglines' as an array of 3 items. " + self._story_context(story_input),
         )
         root = self._require_dict(data, "loglines root")
-        return self._require_object_list(
-            root.get("loglines"),
-            "loglines",
-            ("id", "title", "premise", "hook"),
-            expected_length=3,
-        )
+        raw_loglines = self._require_list(root.get("loglines"), "loglines")
+        if len(raw_loglines) != 3:
+            raise ValueError("OpenAI response for loglines must contain 3 items.")
+
+        normalized_loglines: list[dict[str, Any]] = []
+        for index, item in enumerate(raw_loglines):
+            label = f"loglines[{index}]"
+            if isinstance(item, str):
+                text = item.strip()
+                if not text:
+                    raise ValueError(f"OpenAI response for {label} must not be empty.")
+                normalized_loglines.append(
+                    {
+                        "id": f"logline-{index + 1}",
+                        "title": text,
+                        "premise": text,
+                        "hook": text,
+                    }
+                )
+                continue
+
+            logline = self._require_dict(item, label)
+            title = logline.get("title")
+            if not isinstance(title, str) or not title.strip():
+                raise ValueError(f"OpenAI response for {label}.title must be a non-empty string.")
+            logline_id = logline.get("id")
+            if not isinstance(logline_id, str) or not logline_id.strip():
+                logline_id = f"logline-{index + 1}"
+
+            premise = logline.get("premise")
+            if not isinstance(premise, str) or not premise.strip():
+                premise = title
+
+            hook = logline.get("hook")
+            if not isinstance(hook, str) or not hook.strip():
+                hook = title
+
+            normalized_loglines.append({"id": logline_id, "title": title, "premise": premise, "hook": hook})
+        return normalized_loglines
 
     def generate_characters(self, story_input: StoryInput, logline: dict[str, Any]) -> list[dict[str, Any]]:
         data = self._generate_json(

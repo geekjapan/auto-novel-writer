@@ -491,12 +491,36 @@ class MockLLMClientTest(unittest.TestCase):
                 chapter_index=1,
             )
 
-    def test_openai_client_validates_logline_schema(self) -> None:
-        client = FakeOpenAIClient({"loglines": [{"id": "1", "title": "t"}]})
+    def test_openai_client_accepts_logline_string_items(self) -> None:
+        client = FakeOpenAIClient({"loglines": ["喪失の雨", "鏡の街", "終わらない手紙"]})
         story_input = StoryInput(theme="喪失", genre="ミステリ", tone="静謐", target_length=6000)
 
-        with self.assertRaises(ValueError):
-            client.generate_loglines(story_input)
+        loglines = client.generate_loglines(story_input)
+
+        self.assertEqual(loglines[0]["id"], "logline-1")
+        self.assertEqual(loglines[0]["title"], "喪失の雨")
+        self.assertEqual(loglines[0]["premise"], "喪失の雨")
+        self.assertEqual(loglines[0]["hook"], "喪失の雨")
+
+    def test_openai_client_fills_missing_optional_logline_fields(self) -> None:
+        client = FakeOpenAIClient(
+            {
+                "loglines": [
+                    {"title": "鏡の街"},
+                    {"id": "x2", "title": "終わらない手紙", "premise": "p2"},
+                    {"id": "x3", "title": "喪失の雨", "hook": "h3"},
+                ]
+            }
+        )
+        story_input = StoryInput(theme="喪失", genre="ミステリ", tone="静謐", target_length=6000)
+
+        loglines = client.generate_loglines(story_input)
+
+        self.assertEqual(loglines[0]["id"], "logline-1")
+        self.assertEqual(loglines[1]["premise"], "p2")
+        self.assertEqual(loglines[1]["hook"], "終わらない手紙")
+        self.assertEqual(loglines[2]["premise"], "喪失の雨")
+        self.assertEqual(loglines[2]["hook"], "h3")
 
     def test_openai_client_accepts_chapter_draft_compatibility_key(self) -> None:
         client = FakeOpenAIClient(
